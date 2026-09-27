@@ -12,13 +12,13 @@ them. Every PR gets a security review before merge.
 
 ## Step 1: Project skeleton and CI gates
 
-- [ ] Backend skeleton in `backend/`: `pyproject.toml` managed with **uv** (lockfile with
+- [x] Backend skeleton in `backend/`: `pyproject.toml` managed with **uv** (lockfile with
       hashes), FastAPI app with `GET /healthz` and a test
-- [ ] Python tooling: **ruff** (lint + format), **mypy** (strict type checks), **pytest**;
+- [x] Python tooling: **ruff** (lint + format), **mypy** (strict type checks), **pytest**;
       Python version: newest release all planned dependencies support
-- [ ] `import-linter` contracts for the backend layering (A§6)
-- [ ] Frontend skeleton in `frontend/`: Vite + React + TypeScript, **ESLint**, **Vitest**,
-      `package-lock.json`
+- [x] `import-linter` contracts for the backend layering (A§6)
+- [x] Frontend skeleton in `frontend/`: Vite + React + TypeScript, **oxlint**, **Vitest**,
+      `package-lock.json`; npm install scripts disabled, 7-day minimum package age
 - [ ] `ci.yml`: lint, type-check and tests for backend and frontend
 - [ ] `security.yml`: CodeQL, Bandit, Semgrep, `pip-audit`, `npm audit`, Gitleaks (with a
       rule for `phv_` tokens), dependency license check against the ADR 0010 policy
