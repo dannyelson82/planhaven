@@ -59,12 +59,12 @@ if grep -qi '^server:' <<<"$headers"; then fail "Server header present"; fi
 echo "ok: /healthz, no Server header"
 
 echo "Processes:"
-docker top "$name" -eo uid,user,args
-uvicorn_uids="$(docker top "$name" -eo uid,args | awk '/uvicorn/ {print $1}' | sort -u)"
+docker top "$name" -eo pid,uid,user,args
+uvicorn_uids="$(docker top "$name" -eo pid,uid,args | awk '/uvicorn/ {print $2}' | sort -u)"
 [[ "$uvicorn_uids" == "99" ]] || fail "app not running as UID 99 (got: $uvicorn_uids)"
-pg_users="$(docker top "$name" -eo user,args | awk '/postgres -D/ {print $1}' | sort -u)"
+pg_users="$(docker top "$name" -eo pid,user,args | awk '/postgres -D/ {print $2}' | sort -u)"
 pg_uid="$(docker exec "$name" id -u postgres)"
-docker top "$name" -eo uid,args | awk -v u="$pg_uid" '/postgres -D/ && $1 != u {bad=1} END {exit bad}' \
+docker top "$name" -eo pid,uid,args | awk -v u="$pg_uid" '/postgres -D/ && $2 != u {bad=1} END {exit bad}' \
   || fail "postgres not running as the postgres user ($pg_users)"
 echo "ok: app runs as 99, PostgreSQL as postgres"
 
