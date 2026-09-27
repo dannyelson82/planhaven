@@ -9,20 +9,12 @@ Revises: 0001
 Create Date: 2026-09-27
 """
 
-import re
-
-from alembic import op
+from app.db.schema_migrations.sqlscript import execute_script
 
 revision = "0002"
 down_revision = "0001"
 branch_labels = None
 depends_on = None
-
-
-def execute_script(sql: str) -> None:
-    for statement in re.split(r";\s*\n", sql):
-        if statement.strip():
-            op.execute(statement)
 
 
 def upgrade() -> None:

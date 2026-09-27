@@ -69,13 +69,15 @@ them. Every PR gets a security review before merge.
 
 ## Step 5: Sign-in, part 1
 
-- [ ] One-time setup token printed at first boot (`setup-token` s6 service); expires on use
+- [x] One-time setup token printed at first boot (`setup-token` s6 service); expires on use
       or after 24 h (S§7.1)
-- [ ] Admin account creation with the setup token
-- [ ] Passwords: 12+ characters, bundled common/breached list, Argon2id (S§7.1)
-- [ ] Server-side sessions, `__Host-` cookie, rotation, idle/absolute timeouts (S§7.2)
-- [ ] CSRF token + `Origin` check on state-changing requests
-- [ ] Identical responses and timing whether or not an account exists
+- [x] Admin account creation with the setup token
+- [x] Passwords: 12+ characters, bundled common/breached list (100k, SecLists),
+      Argon2id (S§7.1)
+- [x] Server-side sessions, `__Host-` cookie, rotation, idle/absolute timeouts (S§7.2)
+- [x] CSRF token (HMAC of the session, never stored) + `Origin` check on state-changing
+      requests
+- [x] Identical responses and timing whether or not an account exists
 
 ## Step 6: Sign-in, part 2
 

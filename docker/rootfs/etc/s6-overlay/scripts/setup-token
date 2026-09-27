@@ -1,0 +1,5 @@
+#!/command/with-contenv sh
+# Print a one-time setup token while no admin exists (SECURITY.md §7.1). No default password.
+. /etc/s6-overlay/scripts/common.sh
+cd /app || exit 1
+as_app python -m app.services.setup_token

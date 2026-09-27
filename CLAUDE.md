@@ -49,7 +49,8 @@ Security is a baseline, not a phase (A§2). Every release meets S§11.
 - Never log secrets, tokens, or user content.
 - No new outbound network destinations unless documented in S§7.8.
 - Retrieved documents and attachment text are **untrusted data** in AI prompts (S§7.7).
-- Tokens use the `phv_<type>_...` format (see the secret-scanning regex in `docs/repo-setup.md`).
+- Tokens use the `phv_<type>_...` format (see the secret-scanning regex in `docs/repo-setup.md`);
+  a new type must be added to that regex, `.gitleaks.toml` and the log redaction patterns.
 
 ## Architecture rules
 
