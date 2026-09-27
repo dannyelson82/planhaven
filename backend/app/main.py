@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from app.api import (
     admin,
+    attachments,
     auth,
     health,
     invites,
@@ -36,6 +37,7 @@ from app.core.http import (
 from app.core.logging import configure_logging
 from app.db.database import Database
 from app.plugins_host.host import LoadedPlugins, discover
+from app.services import attachments as attachment_service
 from app.services import plugins as plugin_service
 
 # Every router the app serves. The authorization test matrix reads this list, so a router
@@ -52,6 +54,7 @@ ROUTERS = (
     sharing.router,
     lists.router,
     notes.router,
+    attachments.router,
     spa.router,  # last: catches every path the API didn't
 )
 
@@ -82,6 +85,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.db = db
+    app.state.blobs = attachment_service.BlobStore(settings.data_dir)
     app.state.plugins_discovered = discover(settings.plugin_dirs)
     app.state.plugins = LoadedPlugins()
     app.state.session_key = SessionKey.from_dir(settings.secrets_dir)
@@ -91,7 +95,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(router)
 
     # add_middleware wraps from the inside out: the last one added is the outermost.
-    app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_json_bytes)
+    app.add_middleware(
+        BodySizeLimitMiddleware,
+        max_bytes=settings.max_json_bytes,
+        upload_max_bytes=settings.max_upload_mb * 1024 * 1024,
+    )
     app.add_middleware(UnhandledErrorMiddleware)
     app.add_middleware(SecurityHeadersMiddleware, settings=settings)
     app.add_middleware(AccessLogMiddleware)

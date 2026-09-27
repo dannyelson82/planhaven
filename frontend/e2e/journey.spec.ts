@@ -92,6 +92,18 @@ test('first boot to first project', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Engine notes' })).toBeVisible()
   await expect(page.getByText(/Oil: 10W-30/)).toBeVisible()
 
+  // A photo and a file: the photo gets a thumbnail, the file a download link.
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8z8DAwMDAxMDAwMDAAAANHQEDasKb6QAAAABJRU5ErkJggg==', 'base64')
+  await page.getByTestId('file-input').setInputFiles([
+    { name: 'hull.png', mimeType: 'image/png', buffer: png },
+    { name: 'parts.csv', mimeType: 'text/csv', buffer: Buffer.from('part,qty\nimpeller,1\n') },
+  ])
+  const thumb = page.getByRole('img', { name: 'hull.png' })
+  await expect(thumb).toBeVisible()
+  await expect.poll(() => thumb.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
+  await expect(page.getByRole('link', { name: 'parts.csv' })).toHaveAttribute('href', /\/download$/)
+
+  // Sharing dialog lists the owner.
   await page.getByRole('button', { name: 'Share' }).click()
   await expect(page.getByRole('heading', { name: 'Share this project' })).toBeVisible()
   await expect(page.getByText('Test Admin (you)')).toBeVisible()

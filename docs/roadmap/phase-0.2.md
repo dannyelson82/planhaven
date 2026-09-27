@@ -43,11 +43,13 @@ events, browser tests at phone and desktop widths, threat-model check.
 
 ## Milestone 4: Attachments and photos (v0.1.4)
 
-- [ ] Upload pipeline (A§10): streamed size limit, type from bytes, allowlist, SHA-256
-      content-addressed blobs in `/data`, reference counting
-- [ ] Images: EXIF GPS stripped by default (Pillow), thumbnails; take a photo from the phone
-- [ ] Downloads always `Content-Disposition: attachment` + `nosniff`; safe inline previews
-      for images and PDFs only; upload rate limits
+- [x] Upload pipeline (A§10): streamed size limit, type from bytes, allowlist, SHA-256
+      content-addressed blobs in `/data`; unreferenced blobs purged by the maintenance job
+- [x] Images: EXIF GPS stripped by default (Pillow, in a separate resource-limited process),
+      thumbnails; take a photo from the phone
+- [x] Downloads always `Content-Disposition: attachment` + `nosniff` + a sandboxing CSP;
+      inline previews only for images we re-encoded (PDF previews wait for the extraction
+      sandbox in 0.5); upload rate limits
 
 ## Milestone 5: Assets, contacts and quotes (v0.1.5)
 

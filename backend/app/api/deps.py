@@ -23,6 +23,10 @@ def database(request: Request) -> Any:
     return request.app.state.db
 
 
+def blobs(request: Request) -> Any:
+    return request.app.state.blobs
+
+
 def client_ip(request: Request) -> str | None:
     # Already resolved from trusted proxies by ProxyHeadersMiddleware; "testclient" etc. are
     # not addresses and are dropped.

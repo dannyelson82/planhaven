@@ -8,6 +8,7 @@ const KINDS: Record<string, (id: string) => unknown[][]> = {
   tasks: (id) => [['tasks', id], ['project', id], ['projects']],
   lists: (id) => [['lists', id], ['list']],
   notes: (id) => [['notes', id]],
+  attachments: (id) => [['attachments', id]],
 }
 
 export function useLiveProject(projectId: string | undefined): void {

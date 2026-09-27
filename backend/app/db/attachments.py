@@ -1,0 +1,106 @@
+"""Queries for attachments (file metadata; the bytes are in the blob store)."""
+
+import uuid
+from dataclasses import dataclass
+from datetime import datetime
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncConnection
+
+
+@dataclass(frozen=True, slots=True)
+class AttachmentRow:
+    id: uuid.UUID
+    project_id: uuid.UUID
+    filename: str
+    kind: str
+    content_type: str
+    size: int
+    blob_sha256: str
+    thumb_sha256: str | None
+    metadata_kept: bool
+    created_by: uuid.UUID
+    created_at: datetime
+
+
+async def attachments_for_project(
+    conn: AsyncConnection, project_id: uuid.UUID
+) -> list[AttachmentRow]:
+    rows = await conn.execute(
+        text("""
+            SELECT id, project_id, filename, kind, content_type, size, blob_sha256,
+                   thumb_sha256, metadata_kept, created_by, created_at
+            FROM attachments WHERE project_id = :p AND deleted_at IS NULL
+            ORDER BY created_at DESC LIMIT 500
+        """),
+        {"p": project_id},
+    )
+    return [AttachmentRow(**r._mapping) for r in rows]
+
+
+async def get_attachment(conn: AsyncConnection, attachment_id: uuid.UUID) -> AttachmentRow | None:
+    row = (
+        await conn.execute(
+            text("""
+                SELECT id, project_id, filename, kind, content_type, size, blob_sha256,
+                       thumb_sha256, metadata_kept, created_by, created_at
+                FROM attachments WHERE id = :id AND deleted_at IS NULL
+            """),
+            {"id": attachment_id},
+        )
+    ).first()
+    return AttachmentRow(**row._mapping) if row else None
+
+
+async def create_attachment(
+    conn: AsyncConnection,
+    *,
+    project_id: uuid.UUID,
+    user_id: uuid.UUID,
+    filename: str,
+    kind: str,
+    content_type: str,
+    size: int,
+    blob_sha256: str,
+    thumb_sha256: str | None,
+    metadata_kept: bool,
+) -> uuid.UUID:
+    attachment_id = uuid.uuid7()
+    await conn.execute(
+        text("""
+            INSERT INTO attachments (id, project_id, filename, kind, content_type, size,
+                                     blob_sha256, thumb_sha256, metadata_kept, created_by)
+            VALUES (:id, :p, :f, :k, :ct, :s, :b, :t, :m, :u)
+        """),
+        {
+            "id": attachment_id,
+            "p": project_id,
+            "f": filename,
+            "k": kind,
+            "ct": content_type,
+            "s": size,
+            "b": blob_sha256,
+            "t": thumb_sha256,
+            "m": metadata_kept,
+            "u": user_id,
+        },
+    )
+    return attachment_id
+
+
+async def delete_attachment(conn: AsyncConnection, attachment_id: uuid.UUID) -> None:
+    await conn.execute(
+        text("UPDATE attachments SET deleted_at = now() WHERE id = :id AND deleted_at IS NULL"),
+        {"id": attachment_id},
+    )
+
+
+async def referenced_blobs(conn: AsyncConnection) -> set[str]:
+    """Every blob any attachment (including deleted ones in the trash) uses. System context."""
+    rows = await conn.execute(
+        text("""
+            SELECT blob_sha256 FROM attachments
+            UNION SELECT thumb_sha256 FROM attachments WHERE thumb_sha256 IS NOT NULL
+        """)
+    )
+    return {r[0] for r in rows}

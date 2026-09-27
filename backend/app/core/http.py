@@ -8,6 +8,7 @@ headers → unhandled errors → body size limit → application. So every respo
 import ipaddress
 import json
 import logging
+import re
 import time
 import uuid
 from collections.abc import Iterable
@@ -47,6 +48,9 @@ SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
     (b"cross-origin-opener-policy", b"same-origin"),
     (b"cross-origin-resource-policy", b"same-origin"),
 )
+CSP_HEADER = b"content-security-policy"
+# For served files: nothing in them may load, run or be framed (SECURITY.md §7.5).
+FILE_CSP = "default-src 'none'; sandbox; frame-ancestors 'none'"
 HSTS = (b"strict-transport-security", b"max-age=31536000; includeSubDomains")
 _STRIPPED = {b"server", b"x-powered-by"}
 
@@ -144,7 +148,10 @@ class RequestIDMiddleware:
 
 
 class SecurityHeadersMiddleware:
-    """Adds the SECURITY.md §7.10 headers to every response and removes server banners."""
+    """Adds the SECURITY.md §7.10 headers to every response and removes server banners.
+
+    A response may carry its own, stricter Content-Security-Policy (file downloads use
+    `default-src 'none'; sandbox`); every other header is always replaced."""
 
     def __init__(self, app: ASGIApp, settings: Settings) -> None:
         self.app = app
@@ -158,12 +165,16 @@ class SecurityHeadersMiddleware:
 
         async def send_with_headers(message: Message) -> None:
             if message["type"] == "http.response.start":
+                headers = message.get("headers", [])
+                own_csp = any(k.lower() == CSP_HEADER for k, _ in headers)
+                replaced = self.names - {CSP_HEADER} if own_csp else self.names
                 kept = [
                     (k, v)
-                    for k, v in message.get("headers", [])
-                    if k.lower() not in _STRIPPED and k.lower() not in self.names
+                    for k, v in headers
+                    if k.lower() not in _STRIPPED and k.lower() not in replaced
                 ]
-                message["headers"] = [*kept, *self.headers]
+                added = [h for h in self.headers if not (own_csp and h[0] == CSP_HEADER)]
+                message["headers"] = [*kept, *added]
             await send(message)
 
         await self.app(scope, receive, send_with_headers)
@@ -184,22 +195,33 @@ async def _send_problem(send: Send, status: int, title: str) -> None:
     await send({"type": "http.response.body", "body": body})
 
 
+_UPLOAD_PATH = re.compile(r"/api/v1/projects/[0-9a-fA-F-]{36}/attachments")
+
+
 class BodySizeLimitMiddleware:
     """Rejects request bodies over the limit with 413, checking both the declared length and
     the bytes actually received (the declared length can be missing or wrong)."""
 
-    def __init__(self, app: ASGIApp, max_bytes: int) -> None:
+    def __init__(self, app: ASGIApp, max_bytes: int, upload_max_bytes: int | None = None) -> None:
         self.app = app
         self.max_bytes = max_bytes
+        self.upload_max_bytes = upload_max_bytes or max_bytes
+
+    def _limit(self, scope: Scope) -> int:
+        # File uploads (raw body) get the MAX_UPLOAD_MB limit; everything else the JSON limit.
+        if scope.get("method") == "POST" and _UPLOAD_PATH.fullmatch(scope.get("path", "")):
+            return self.upload_max_bytes
+        return self.max_bytes
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
+        max_bytes = self._limit(scope)
         declared = _header(scope, b"content-length")
         if declared:
             try:
-                too_big = int(declared[0]) > self.max_bytes
+                too_big = int(declared[0]) > max_bytes
             except ValueError:
                 await _send_problem(send, 400, "Bad Request")
                 return
@@ -221,7 +243,7 @@ class BodySizeLimitMiddleware:
             message = await receive()
             if message["type"] == "http.request":
                 received += len(message.get("body", b""))
-                if received > self.max_bytes:
+                if received > max_bytes:
                     rejected = True
                     if not started:
                         await _send_problem(send, 413, "Content Too Large")
