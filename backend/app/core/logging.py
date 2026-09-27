@@ -24,7 +24,7 @@ _SENSITIVE_KEY = re.compile(
     re.IGNORECASE,
 )
 _SECRET_PATTERNS = (
-    re.compile(r"phv_(sync|ics|pat|oat|ort|inv)_[A-Za-z0-9_-]+"),
+    re.compile(r"phv_(sync|ics|pat|oat|ort|inv|setup)_[A-Za-z0-9_-]+"),
     re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+"),
 )
 # Paths whose last segment is a secret (calendar feed tokens live in the URL, A§13.2).

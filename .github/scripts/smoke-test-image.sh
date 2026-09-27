@@ -99,6 +99,29 @@ docker logs "$name" 2>&1 | grep '"logger": "planhaven.access"' | tail -1 | pytho
   || fail "no structured access log line"
 echo "ok: structured access log"
 
+# First boot: a one-time setup token in the log, no default account. Use it to create the
+# admin through the API, the way the web UI will.
+token="$(docker logs "$name" 2>&1 | grep -oE 'phv_setup_[A-Za-z0-9_-]{40,}' | tail -1)"
+[[ -n "$token" ]] || fail "no setup token printed at first boot"
+curl -fsS "http://127.0.0.1:$port/api/v1/setup" | grep -q '"setup_required":true' \
+  || fail "setup not reported as required"
+bad_status="$(curl -sS -o /dev/null -w '%{http_code}' -H "Origin: https://planhaven.example.com" \
+  -H 'Content-Type: application/json' \
+  -d '{"setup_token":"phv_setup_wrong","email":"a@example.com","display_name":"A","password":"correct horse battery staple 42"}' \
+  "http://127.0.0.1:$port/api/v1/setup")"
+[[ "$bad_status" == "400" ]] || fail "wrong setup token not rejected ($bad_status)"
+status="$(curl -sS -o /dev/null -w '%{http_code}' -H "Origin: https://planhaven.example.com" \
+  -H 'Content-Type: application/json' \
+  -d "{\"setup_token\":\"$token\",\"email\":\"admin@example.com\",\"display_name\":\"Admin\",\"password\":\"correct horse battery staple 42\"}" \
+  "http://127.0.0.1:$port/api/v1/setup")"
+[[ "$status" == "201" ]] || fail "setup with the printed token failed ($status)"
+curl -fsS "http://127.0.0.1:$port/api/v1/setup" | grep -q '"setup_required":false' \
+  || fail "setup still required after completing it"
+if docker logs "$name" 2>&1 | grep '"logger"' | grep -q 'phv_setup_'; then
+  fail "setup token appears in structured logs"
+fi
+echo "ok: first-boot setup token creates the admin once"
+
 echo "Processes:"
 docker top "$name" -eo pid,uid,user,args
 uvicorn_uids="$(docker top "$name" -eo pid,uid,args | awk '/uvicorn/ {print $2}' | sort -u)"
@@ -138,6 +161,9 @@ before="$(sudo sha256sum "$work/config/secrets/master.key")"
 docker restart -t 30 "$name" >/dev/null
 wait_ready
 after="$(sudo sha256sum "$work/config/secrets/master.key")"
+if docker logs --since 60s "$name" 2>&1 | grep -q 'Planhaven setup: no admin account'; then
+  fail "setup token printed again after an admin exists"
+fi
 [[ "$before" == "$after" ]] || fail "master key changed on restart"
 echo "ok: restart keeps secrets and database"
 

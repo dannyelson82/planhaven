@@ -7,6 +7,7 @@ license = "Apache-2.0"
 requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.20",
+    "argon2-cffi>=25.1",
     "asyncpg>=0.31",
     "cryptography>=50",
     "fastapi>=0.120",
@@ -58,7 +59,7 @@ select = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101"]  # assert is how pytest works
+"tests/**" = ["S101", "S105", "S106"]  # asserts; test-only fake passwords
 
 # ---------------------------------------------------------------- mypy
 [tool.mypy]

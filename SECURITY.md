@@ -207,6 +207,7 @@ scanners (GitHub custom secret-scanning patterns are provided in `docs/`).
 | OAuth access token (MCP) | `phv_oat_` | `projects:read` and/or `projects:write`, audience `/mcp` | 1 hour | AI provider |
 | OAuth refresh token | `phv_ort_` | Obtain new access tokens | 30 days, rotated on use, reuse revokes family | AI provider |
 | Invite | `phv_inv_` | Create one account | 72 hours, single use | Invite link |
+| Setup token | `phv_setup_` | Create the first admin account | 24 hours or first use; replaced on every boot while no admin exists | Container log |
 
 The ICS token must appear in a URL (calendar apps can't send headers); it is therefore
 read-only, feed-only, and defaults to "titles only" content. Tokens are never logged.

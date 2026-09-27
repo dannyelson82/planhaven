@@ -1,4 +1,7 @@
 import ipaddress
+import os
+import tempfile
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
@@ -6,6 +9,11 @@ from fastapi.testclient import TestClient
 
 from app.core.config import Settings
 from app.main import create_app
+
+# A throwaway secrets directory with a session key, like init-secrets creates.
+_SECRETS = Path(tempfile.mkdtemp(prefix="planhaven-test-secrets-"))
+(_SECRETS / "session.key").write_bytes(os.urandom(32))
+(_SECRETS / "session.key").chmod(0o600)
 
 
 def make_settings(**overrides: object) -> Settings:
@@ -17,6 +25,7 @@ def make_settings(**overrides: object) -> Settings:
         "max_upload_mb": 100,
         "max_json_bytes": 1024,
         "log_level": "info",
+        "secrets_dir": str(_SECRETS),
     }
     values.update(overrides)
     return Settings(**values)  # type: ignore[arg-type]

@@ -9,18 +9,9 @@ Revises:
 Create Date: 2026-09-27
 """
 
-import re
-
 from alembic import op
 
-
-def execute_script(sql: str) -> None:
-    """Run a block of statements one at a time (asyncpg executes a single statement per
-    call). Statements end with ';' at the end of a line; function bodies stay on one line."""
-    for statement in re.split(r";\s*\n", sql):
-        if statement.strip():
-            op.execute(statement)
-
+from app.db.schema_migrations.sqlscript import execute_script
 
 revision = "0001"
 down_revision = None

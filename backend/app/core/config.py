@@ -40,6 +40,8 @@ class Settings:
     db_host: str = "/run/postgresql"
     db_port: int = 5432
     db_name: str = "planhaven"
+    # Internal: where init-secrets writes keys. Overridable (PLANHAVEN_SECRETS_DIR) for tests.
+    secrets_dir: str = "/config/secrets"
 
     @property
     def base_scheme(self) -> str:
@@ -132,6 +134,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         log_level=log_level,
         db_host=env.get("PLANHAVEN_DB_HOST", "/run/postgresql"),
         db_port=_int(env, "PLANHAVEN_DB_PORT", default=5432, low=1, high=65535),
+        secrets_dir=env.get("PLANHAVEN_SECRETS_DIR", "/config/secrets"),
     )
 
 
