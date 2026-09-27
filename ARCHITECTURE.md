@@ -137,7 +137,7 @@ A single image supervised by **s6-overlay** runs three long-lived services:
 Plus one-shot services at startup: `init-secrets`, `init-db`, `migrate`, `setup-token`.
 
 There is **no Redis**. The job queue is a PostgreSQL table consumed with
-`SELECT … FOR UPDATE SKIP LOCKED` (candidate library: `procrastinate`; ADR pending).
+`SELECT … FOR UPDATE SKIP LOCKED` (candidate library: `procrastinate`; ADR 0003).
 
 Document extraction runs in short-lived **subprocesses** spawned by the worker under a separate
 low-privilege UID with resource limits (see `SECURITY.md` §7.6).
@@ -743,7 +743,7 @@ Every phase ships meeting `SECURITY.md` §11.
 
 ## 19. Decisions and open questions
 
-### 19.1 Decisions made (ADRs to be written)
+### 19.1 Decisions made (see `docs/adr/`)
 
 | # | Decision |
 |---|---|
@@ -756,6 +756,7 @@ Every phase ships meeting `SECURITY.md` §11.
 | 0007 | Built-in OAuth 2.1 authorization server for MCP |
 | 0008 | Plugins: trusted in-process v1 with serializable async boundary; sandboxed iframe UIs |
 | 0009 | Deployment behind user's existing reverse proxy; no forward-auth in front of the app |
+| 0010 | Apache-2.0 license and dependency license policy |
 
 ### 19.2 Open questions
 

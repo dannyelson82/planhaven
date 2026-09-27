@@ -8,7 +8,7 @@ Planhaven is in the **design phase**: no application code yet. The source of tru
 
 - `ARCHITECTURE.md`: how it's built and why (cited as A§n)
 - `SECURITY.md`: threat model, controls, release criteria (cited as S§n)
-- `docs/adr/`: decision records (ADRs 0001–0009 are decided but not yet written up; see A§19.1)
+- `docs/adr/`: decision records (ADRs 0001–0010; index in `docs/adr/README.md`)
 - `docs/repo-setup.md`: GitHub hardening checklist
 
 Read the relevant sections before implementing anything. If code and docs disagree, stop and
