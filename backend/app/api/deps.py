@@ -114,3 +114,17 @@ async def require_admin(
     non-admin gets the same 404 for every admin route."""
     authz.require(session.principal, authz.Action.ADMIN)
     return session
+
+
+async def websocket_session(websocket: Any) -> CurrentSession | None:
+    """Authenticate a WebSocket handshake (SECURITY.md §7.15): the browser-set Origin must be
+    ours (no cross-site WebSocket hijacking), and the session cookie must belong to a session
+    that has completed its second factor."""
+    settings_: Settings = websocket.app.state.settings
+    if websocket.headers.get("origin") != settings_.base_origin:
+        return None
+    token = websocket.cookies.get(session_cookie_name(settings_), "")
+    session = await auth_service.authenticate(websocket.app.state.db, token)
+    if session is None or not authz.allowed(session.principal, authz.Action.USE_APP):
+        return None
+    return session

@@ -12,6 +12,7 @@ from app.db import auth as audit
 from app.db import lists as store
 from app.db import projects as project_store
 from app.db.database import Database
+from app.services import live
 from app.services.auth import CurrentSession
 from app.services.projects import ConflictError
 
@@ -81,6 +82,7 @@ async def create_list(
         row = await store.get_list(conn, list_id)
     if row is None:
         raise RuntimeError("created list not visible")
+    live.publish(project_id, "lists")
     return row
 
 
@@ -125,6 +127,7 @@ async def update_list(
         after = await store.get_list(conn, list_id)
     if after is None:
         raise authz.NotFoundError("Not found.")
+    live.publish(row.project_id, "lists")
     return after
 
 
@@ -144,6 +147,7 @@ async def delete_list(
             resource_type="list",
             resource_id=list_id,
         )
+    live.publish(row.project_id, "lists")
 
 
 async def add_item(
@@ -194,6 +198,7 @@ async def add_item(
         item = await store.get_item(conn, item_id)
     if item is None:
         raise authz.NotFoundError("Not found.")
+    live.publish(row.project_id, "lists")
     return item
 
 
@@ -249,6 +254,7 @@ async def update_item(
         item = await store.get_item(conn, item_id)
     if item is None:
         raise authz.NotFoundError("Not found.")
+    live.publish(before.project_id, "lists")
     return item
 
 
@@ -268,3 +274,4 @@ async def delete_item(
             resource_type="list_item",
             resource_id=item_id,
         )
+    live.publish(before.project_id, "lists")

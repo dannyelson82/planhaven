@@ -2,10 +2,10 @@
 dependency its class requires. Runs without a database."""
 
 from fastapi.dependencies.models import Dependant
-from fastapi.routing import APIRoute
+from fastapi.routing import APIRoute, APIWebSocketRoute
 
 from app.main import ROUTERS
-from tests.authz_matrix import GUARDS, MATRIX, SESSION_GUARDS
+from tests.authz_matrix import GUARDS, MATRIX, SESSION_GUARDS, WEBSOCKETS
 
 
 def _routes() -> dict[tuple[str, str], APIRoute]:
@@ -47,3 +47,10 @@ def test_every_route_has_the_guard_its_class_requires() -> None:
         if cls not in ("public", "public_origin") and not present & SESSION_GUARDS:
             problems.append(f"{key}: {cls} route has no session guard")
     assert problems == []
+
+
+def test_every_websocket_is_in_the_matrix() -> None:
+    sockets = {
+        r.path for router in ROUTERS for r in router.routes if isinstance(r, APIWebSocketRoute)
+    }
+    assert sockets == set(WEBSOCKETS)

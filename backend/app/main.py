@@ -13,6 +13,7 @@ from app.api import (
     invites,
     lists,
     mfa,
+    notes,
     notifications,
     passkeys,
     projects,
@@ -50,6 +51,7 @@ ROUTERS = (
     projects.router,
     sharing.router,
     lists.router,
+    notes.router,
     spa.router,  # last: catches every path the API didn't
 )
 
