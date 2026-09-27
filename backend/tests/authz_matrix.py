@@ -53,6 +53,12 @@ MATRIX: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/projects/{project_id}/tasks"): "verified",
     ("PATCH", "/api/v1/tasks/{task_id}"): "verified",
     ("DELETE", "/api/v1/tasks/{task_id}"): "verified",
+    # Sharing: verified; project role and step-up checked inside (tests/db/test_sharing.py)
+    ("GET", "/api/v1/people"): "verified",
+    ("GET", "/api/v1/projects/{project_id}/members"): "verified",
+    ("POST", "/api/v1/projects/{project_id}/members"): "verified",
+    ("PATCH", "/api/v1/projects/{project_id}/members/{user_id}"): "verified",
+    ("DELETE", "/api/v1/projects/{project_id}/members/{user_id}"): "verified",
     ("POST", "/api/v1/auth/password"): "step_up",
     ("POST", "/api/v1/auth/mfa/recovery/regenerate"): "step_up",
     ("DELETE", "/api/v1/auth/passkeys/{passkey_id}"): "step_up",

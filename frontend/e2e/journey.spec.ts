@@ -44,6 +44,21 @@ test('first boot to first project', async ({ page }) => {
   await page.reload()
   await expect(page.getByText('Done (1)')).toBeVisible()
 
+  // Edit a task: notes and a due date.
+  await page.getByRole('button', { name: 'Edit Change oil' }).click()
+  await expect(page.getByRole('heading', { name: 'Edit task' })).toBeVisible()
+  await page.getByLabel('Notes').fill('5W-30, 6 quarts')
+  await page.getByLabel('Due date').fill('2026-10-15')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('heading', { name: 'Edit task' })).toBeHidden()
+  await expect(page.locator('label', { hasText: 'Change oil' })).toContainText('has notes')
+
+  // Sharing dialog lists the owner.
+  await page.getByRole('button', { name: 'Share' }).click()
+  await expect(page.getByRole('heading', { name: 'Share this project' })).toBeVisible()
+  await expect(page.getByText('Test Admin (you)')).toBeVisible()
+  await page.getByRole('button', { name: 'Done', exact: true }).click()
+
   // Sign out and back in, with the second factor.
   await page.goto('/account')
   await page.getByRole('button', { name: 'Sign out' }).click()

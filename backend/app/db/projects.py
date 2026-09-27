@@ -291,3 +291,9 @@ async def delete_task(conn: AsyncConnection, task_id: uuid.UUID) -> None:
         ),
         {"id": task_id},
     )
+
+
+async def title(conn: AsyncConnection, project_id: uuid.UUID) -> str | None:
+    """System context helper for notifications."""
+    value = await conn.scalar(text("SELECT title FROM projects WHERE id = :p"), {"p": project_id})
+    return str(value) if value is not None else None

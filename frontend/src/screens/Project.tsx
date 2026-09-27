@@ -4,8 +4,10 @@ import { Checkbox, ListBox, ListBoxItem, Popover, Select, SelectValue, Button as
 import { api, type Project, STAGES, type Stage, type Task } from '../api.ts'
 import { navigate } from '../router.ts'
 import { Button, Card, ErrorText, Field, Form } from '../ui.tsx'
+import { ShareButton } from './Sharing.tsx'
+import { TaskEditor } from './TaskEditor.tsx'
 
-export function ProjectScreen({ id }: { id: string }) {
+export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
   const client = useQueryClient()
   const project = useQuery({ queryKey: ['project', id], queryFn: () => api<Project>('GET', `/api/v1/projects/${id}`) })
   const tasks = useQuery({ queryKey: ['tasks', id], queryFn: () => api<Task[]>('GET', `/api/v1/projects/${id}/tasks`) })
@@ -47,6 +49,8 @@ export function ProjectScreen({ id }: { id: string }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{p.title}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+        <ShareButton projectId={id} isOwner={p.role === 'owner'} myId={myId} />
         <Select
           aria-label="Stage"
           selectedKey={p.stage}
@@ -67,6 +71,7 @@ export function ProjectScreen({ id }: { id: string }) {
             </ListBox>
           </Popover>
         </Select>
+        </div>
       </div>
       {p.description && <p className="whitespace-pre-wrap text-stone-700 dark:text-stone-300">{p.description}</p>}
       <ErrorText error={setStage.error ?? toggle.error ?? remove.error ?? tasks.error} />
@@ -122,13 +127,18 @@ function TaskList({ tasks, canEdit, onToggle, onDelete }: {
             <span aria-hidden className="flex size-6 shrink-0 items-center justify-center rounded-md border-2 border-stone-400 group-selected:border-brand-600 group-selected:bg-brand-600 group-selected:text-white">
               {t.done ? '✓' : ''}
             </span>
-            <span className={t.done ? 'text-stone-500 line-through' : ''}>{t.title}</span>
-            {t.due_at && (
-              <span className="ml-auto text-xs text-stone-500">
-                {new Date(t.due_at).toLocaleDateString(undefined, t.due_all_day ? { timeZone: 'UTC' } : {})}
-              </span>
-            )}
+            <span className="min-w-0 flex-1 py-2">
+              <span className={`block ${t.done ? 'text-stone-500 line-through' : ''}`}>{t.title}</span>
+              {(t.due_at || t.notes) && (
+                <span className="block text-xs text-stone-500">
+                  {t.due_at && `Due ${new Date(t.due_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(t.due_all_day ? { timeZone: 'UTC' } : {}) })}`}
+                  {t.due_at && t.notes && ' · '}
+                  {t.notes && 'has notes'}
+                </span>
+              )}
+            </span>
           </Checkbox>
+          {canEdit && <TaskEditor task={t} />}
           {canEdit && (
             <Button variant="ghost" aria-label={`Delete ${t.title}`} onPress={() => onDelete(t)}>✕</Button>
           )}
