@@ -26,6 +26,9 @@ frontend/dist/
 .env.*
 !.env.example
 
+# Maintainer's local notes (infrastructure details) — never commit
+/.local/
+
 # Editors / OS
 .idea/
 .vscode/*

@@ -15,6 +15,24 @@ Read the relevant sections before implementing anything. If code and docs disagr
 ask; don't silently pick one. A change that departs from the design updates ARCHITECTURE.md
 and/or adds an ADR in the same PR.
 
+## How to work
+
+- **Follow the roadmap in phase order** (A§18). Don't start a later phase's features, or
+  build ahead for them, until the current phase meets S§11. If something seems to need
+  work from a later phase, raise it instead of building it.
+- **Discuss design before writing code.** Plan a phase or feature with the maintainer first,
+  and ask before big decisions: new dependencies, schema changes, security trade-offs, or
+  anything that changes ARCHITECTURE.md or SECURITY.md.
+- **Keep changes small**: one logical change per commit and per PR. Write clear
+  Conventional Commit messages that say what changed and why.
+- **Never commit secrets**: no keys, tokens, passwords, `.env` files, or real credentials,
+  not even in tests or examples. Use obviously fake placeholders (`phv_pat_EXAMPLE...`).
+  Check `git diff --staged` before every commit.
+- **Keep the maintainer's infrastructure out of the repo.** The repo may become public: no
+  real server IPs, hostnames, domains, container names or network layout in committed files.
+  Use `example.com` and RFC 5737 addresses (`192.0.2.x`) in docs. Local setup notes go in
+  `.local/` (gitignored).
+
 ## Non-negotiables
 
 Security is a baseline, not a phase (A§2). Every release meets S§11.
