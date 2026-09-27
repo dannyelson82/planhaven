@@ -106,7 +106,7 @@ def _task(r: service.TaskRow) -> TaskOut:
     )
 
 
-def _version(if_match: str | None) -> int:
+def _version(if_match: str | None) -> int:  # shared with other routers
     if not if_match:
         raise HTTPException(428, "Send If-Match with the version you are changing.")
     value = if_match.strip().removeprefix("W/").strip('"')

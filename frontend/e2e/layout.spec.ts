@@ -37,6 +37,11 @@ test('layout fits the screen and navigation is where the thumb or mouse is', asy
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()
   await page.screenshot({ path: `test-results/screens/${info.project.name}-projects.png` })
   await page.getByRole('link', { name: 'Winterize boat' }).click()
+  await page.getByRole('link', { name: 'Hardware store' }).click()
+  await expect(page.getByRole('heading', { name: 'Hardware store' })).toBeVisible()
+  await page.screenshot({ path: `test-results/screens/${info.project.name}-list.png` })
+  await page.getByRole('link', { name: '← Back to project' }).click()
+  await expect(page.getByRole('heading', { name: 'Winterize boat' })).toBeVisible()
   // Each task row (the checkbox's label) is the touch target.
   const rows = page.locator('label:has(input[type="checkbox"]):visible')
   await expect(rows.first()).toBeVisible()

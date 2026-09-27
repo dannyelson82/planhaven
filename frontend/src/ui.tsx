@@ -18,7 +18,7 @@ import { navigate } from './router.ts'
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'danger-ghost'
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-brand-600 text-white hover:bg-brand-700 pressed:bg-brand-700',
+  primary: 'bg-brand-600 text-white hover:bg-brand-700 data-[pressed]:bg-brand-700',
   secondary:
     'bg-white text-stone-900 ring-1 ring-stone-300 hover:bg-stone-100 dark:bg-stone-900 dark:text-stone-100 dark:ring-stone-700 dark:hover:bg-stone-800',
   danger: 'bg-red-600 text-white hover:bg-red-700',

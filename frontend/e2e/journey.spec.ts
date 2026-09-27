@@ -53,6 +53,21 @@ test('first boot to first project', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Edit task' })).toBeHidden()
   await expect(page.locator('label', { hasText: 'Change oil' })).toContainText('has notes')
 
+  // A shopping list, used like in a store.
+  await page.getByLabel('New list').fill('Hardware store')
+  await page.getByRole('button', { name: 'Add list' }).click()
+  await page.getByRole('link', { name: 'Hardware store' }).click()
+  await expect(page.getByRole('heading', { name: 'Hardware store' })).toBeVisible()
+  await page.getByLabel('Add item').fill('Antifreeze')
+  await page.getByLabel('Qty').fill('2')
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await page.getByLabel('Add item').fill('Hose clamps')
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await page.locator('label', { hasText: 'Antifreeze' }).click()
+  await expect(page.getByText('In the cart (1)')).toBeVisible()
+  await page.getByRole('link', { name: '← Back to project' }).click()
+  await expect(page.getByText('Shopping · 1 to get of 2')).toBeVisible()
+
   // Sharing dialog lists the owner.
   await page.getByRole('button', { name: 'Share' }).click()
   await expect(page.getByRole('heading', { name: 'Share this project' })).toBeVisible()
