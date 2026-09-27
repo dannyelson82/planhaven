@@ -101,4 +101,16 @@ uv run lint-imports           # layering contracts (A§6)
 uv add <pkg>                  # add a dependency: review license (ADR 0010) and CVEs first
 ```
 
-Frontend: to be added.
+Frontend (run in `frontend/`; Node 24 LTS; `package-lock.json` pins versions and hashes):
+
+```bash
+npm ci                # install exactly what package-lock.json pins
+npm test              # tests (Vitest)
+npm run lint          # lint (oxlint, warnings fail)
+npm run typecheck     # strict TypeScript
+npm run build         # production build to dist/
+npm install -D <pkg>  # add a dependency: review license (ADR 0010) and CVEs first
+```
+
+`frontend/.npmrc` disables dependency install scripts and ignores packages published less than
+7 days ago. Don't override either.
