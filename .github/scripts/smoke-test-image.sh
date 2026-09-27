@@ -26,6 +26,7 @@ trap cleanup EXIT
 fail() { echo "::error::$*"; exit 1; }
 
 # Recommended runtime flags (SECURITY.md §7.13) and the required public-mode settings.
+# shellcheck disable=SC2054  # commas are inside --tmpfs option values
 hardening=(
   --read-only
   --tmpfs /run:rw,exec,nosuid,size=64m

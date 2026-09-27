@@ -6,9 +6,11 @@ readme = "../README.md"
 license = "Apache-2.0"
 requires-python = ">=3.14"
 dependencies = [
+    "alembic>=1.20",
     "asyncpg>=0.31",
     "cryptography>=50",
     "fastapi>=0.120",
+    "sqlalchemy[asyncio]>=2.1",
     "uvicorn>=0.38",
 ]
 
@@ -62,12 +64,13 @@ select = [
 [tool.mypy]
 strict = true
 python_version = "3.14"
-packages = ["app", "tests"]
+files = ["app", "tests"]
 
 # ---------------------------------------------------------------- pytest
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--strict-markers", "--strict-config", "-ra"]
+markers = ["db: needs a real PostgreSQL (set PLANHAVEN_DB_HOST)"]
 xfail_strict = true
 filterwarnings = ["error"]
 

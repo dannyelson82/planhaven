@@ -23,9 +23,16 @@ fit in one container (ADR 0002).
 
 ## Decision
 
-Use a **PostgreSQL-backed job queue**. `procrastinate` (MIT) is the candidate library; the
-final library choice is confirmed when the worker is built in phase 0.1, and recorded here if
-it changes.
+Use a **PostgreSQL-backed job queue**, implemented in Planhaven itself (a `jobs` table
+claimed with `FOR UPDATE SKIP LOCKED`, retries with backoff, a dead state), rather than
+`procrastinate`.
+
+*Updated 2026-09-27, when the worker was built in phase 0.1:* `procrastinate` was the candidate
+library. It was not adopted because it depends on the LGPL `psycopg` driver (we use `asyncpg`,
+Apache-2.0; ADR 0010) and manages its own connections. Every job must run inside
+`Database.user_transaction()` or `system_transaction()` so Row-Level Security applies (ADR
+0004); that is simpler to guarantee and test in a small amount of code we own. The cost is
+maintaining the queue ourselves.
 
 ## Consequences
 

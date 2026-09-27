@@ -11,8 +11,12 @@ if [ "$PUID" -eq 0 ] || [ "$PGID" -eq 0 ]; then
   echo "planhaven: refusing to run as root (PUID/PGID 0)" >&2; exit 1
 fi
 
+# Used by the scripts that source this file.
+# shellcheck disable=SC2034
 PGDATA=/config/pgdata
+# shellcheck disable=SC2034
 PG_SOCKET_DIR=/run/postgresql
+# shellcheck disable=SC2034
 PG_MAJOR_EXPECTED=18
 
 # Run a command as the app user (PUID:PGID) with no other groups.

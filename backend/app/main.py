@@ -1,5 +1,8 @@
 """Application factory. Run with `uvicorn --factory app.main:create_app`."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from app.api import health
@@ -14,6 +17,7 @@ from app.core.http import (
     UnhandledErrorMiddleware,
 )
 from app.core.logging import configure_logging
+from app.db.database import Database
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -22,8 +26,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # Interactive docs and the OpenAPI schema are not served: they map the attack surface for
     # anyone on the internet. The schema is generated in CI instead (ARCHITECTURE.md §8.2).
-    app = FastAPI(title="Planhaven", docs_url=None, redoc_url=None, openapi_url=None)
+    db = Database(settings)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        yield
+        await db.dispose()
+
+    app = FastAPI(
+        title="Planhaven", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan
+    )
     app.state.settings = settings
+    app.state.db = db
     install_error_handlers(app)
     app.include_router(health.router)
 

@@ -241,7 +241,7 @@ planhaven/
 │   │   ├── authz/           # permission layer (single source of access rules)
 │   │   ├── domain/          # Pydantic models / domain types
 │   │   ├── services/        # business logic
-│   │   ├── db/              # SQLAlchemy models, RLS session setup, repositories
+│   │   ├── db/              # SQLAlchemy, RLS session setup, repositories, Alembic migrations
 │   │   ├── ai/              # provider adapters, embeddings, retrieval, prompting
 │   │   ├── mcp/             # MCP server tools
 │   │   ├── sync/            # Shortcuts sync, ICS feeds, Web Push
@@ -249,7 +249,6 @@ planhaven/
 │   │   ├── plugins_host/    # plugin loader, PluginContext implementation
 │   │   ├── workers/         # job definitions
 │   │   └── core/            # config, logging, security headers, rate limiting
-│   ├── migrations/          # Alembic
 │   └── tests/               # unit, integration, authz matrix, security tests
 ├── frontend/                # React app (PWA)
 ├── plugins/
