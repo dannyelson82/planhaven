@@ -4,7 +4,7 @@
 . /etc/s6-overlay/scripts/common.sh
 
 i=0
-until pg_isready -q -h "$PG_SOCKET_DIR" -U postgres; do
+until as_postgres pg_isready -q -h "$PG_SOCKET_DIR" -U postgres; do
   i=$((i + 1))
   [ "$i" -le 60 ] || { echo "planhaven: PostgreSQL did not become ready" >&2; exit 1; }
   sleep 1
