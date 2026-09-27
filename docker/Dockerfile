@@ -29,6 +29,8 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never \
     UV_PROJECT_ENVIRONMENT=/app/.venv
 WORKDIR /src/backend
+# The plugin SDK is a path dependency of the backend (ARCHITECTURE.md §14.2).
+COPY sdk/python /src/sdk/python
 # Dependencies first (cached layer), exactly as pinned in uv.lock, without dev tools.
 COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./
 RUN uv sync --locked --no-dev --no-install-project
@@ -100,6 +102,8 @@ RUN set -eu; \
 COPY --from=s6 /s6root/ /
 COPY --from=backend /app/.venv /app/.venv
 COPY --from=frontend /src/frontend/dist /app/frontend
+# Bundled plugins; only admin-enabled ones are ever imported (ARCHITECTURE.md §14.7).
+COPY plugins/ /app/plugins/
 COPY docker/rootfs/ /
 
 ENV PATH="/app/.venv/bin:/usr/lib/postgresql/${PG_MAJOR}/bin:${PATH}" \

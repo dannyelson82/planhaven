@@ -5,13 +5,14 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api import deps
 from app.api.deps import SessionDep
 from app.services import admin as admin_service
 from app.services import invites as invite_service
+from app.services import plugins as plugin_service
 from app.services.admin import AdminContext
 from app.services.auth import AuthError
 
@@ -156,3 +157,64 @@ async def revoke_invite(invite_id: uuid.UUID, ctx: Ctx, request: Request) -> Non
         raise _error(exc) from None
     if not revoked:
         raise HTTPException(404)
+
+
+class PluginOut(BaseModel):
+    id: str
+    name: str | None
+    version: str | None
+    description: str | None
+    permissions: dict[str, object] | None
+    compatible: bool
+    error: str | None
+    enabled: bool
+    loaded: bool
+
+
+class PluginChangeOut(BaseModel):
+    restart_required: bool
+
+
+@router.get("/plugins")
+async def list_plugins(ctx: Ctx, request: Request) -> list[PluginOut]:
+    items = await plugin_service.list_plugins(
+        deps.database(request),
+        ctx.session,
+        request.app.state.plugins_discovered,
+        request.app.state.plugins,
+    )
+    return [
+        PluginOut(
+            id=i.id,
+            name=i.name,
+            version=i.version,
+            description=i.description,
+            permissions=i.permissions,
+            compatible=i.compatible,
+            error=i.error,
+            enabled=i.enabled,
+            loaded=i.loaded,
+        )
+        for i in items
+    ]
+
+
+@router.post("/plugins/{plugin_id}/enabled")
+async def set_plugin_enabled(
+    plugin_id: Annotated[str, Path(pattern=r"^[a-z][a-z0-9_]{1,39}$")],
+    body: FlagRequest,
+    ctx: Ctx,
+    request: Request,
+) -> PluginChangeOut:
+    try:
+        await plugin_service.set_enabled(
+            deps.database(request),
+            ctx.session,
+            request.app.state.plugins_discovered,
+            plugin_id,
+            body.value,
+            ctx.ip,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+    return PluginChangeOut(restart_required=True)

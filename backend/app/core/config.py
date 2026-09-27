@@ -46,6 +46,8 @@ class Settings:
     log_dir: str | None = "/config/logs"
     # Built frontend (index.html + assets/); None serves no web UI (tests).
     frontend_dir: str | None = "/app/frontend"
+    # Bundled plugins first, then admin-installed ones (ARCHITECTURE.md §14.7).
+    plugin_dirs: tuple[str, ...] = ("/app/plugins", "/config/plugins")
 
     @property
     def base_scheme(self) -> str:
@@ -141,6 +143,11 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         secrets_dir=env.get("PLANHAVEN_SECRETS_DIR", "/config/secrets"),
         log_dir=env.get("PLANHAVEN_LOG_DIR", "/config/logs"),
         frontend_dir=env.get("PLANHAVEN_FRONTEND_DIR", "/app/frontend"),
+        plugin_dirs=tuple(
+            d
+            for d in env.get("PLANHAVEN_PLUGIN_DIRS", "/app/plugins:/config/plugins").split(":")
+            if d
+        ),
     )
 
 

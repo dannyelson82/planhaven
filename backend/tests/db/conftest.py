@@ -66,3 +66,7 @@ def fresh_rate_limits() -> None:
             await database.dispose()
 
     asyncio.run(clear())
+
+
+# Shared fixture: an owner (admin), an editor, a viewer and a stranger, all fully signed in.
+from tests.db.test_projects import people  # noqa: E402, F401

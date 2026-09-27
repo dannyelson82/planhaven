@@ -1,0 +1,5 @@
+[plugin]
+id = "wrong_api"
+name = "Built for a future API"
+version = "9.0.0"
+api_version = "99"
