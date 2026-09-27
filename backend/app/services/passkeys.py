@@ -30,6 +30,7 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
 )
 
+from app import authz
 from app.core import security_log
 from app.core.config import Settings
 from app.db import admin as admin_store
@@ -43,7 +44,6 @@ from app.services.auth import (
     AuthError,
     CurrentSession,
     NewSession,
-    require_recent,
     start_session,
     user_from_row,
 )
@@ -107,7 +107,7 @@ async def registration_options(
     user = session.user
     async with db.user_transaction(user.id) as conn:
         if await mfa_store.has_second_factor(conn, user.id):
-            require_recent(session)
+            authz.require(session.principal, authz.Action.MANAGE_SECOND_FACTORS)
         existing = await store.for_user(conn, user.id)
     if len(existing) >= MAX_PASSKEYS:
         raise AuthError("You have too many passkeys. Remove one first.")
@@ -173,7 +173,7 @@ async def register(
     async with db.user_transaction(user.id) as conn:
         first_factor = not await mfa_store.has_second_factor(conn, user.id)
         if not first_factor:
-            require_recent(session)
+            authz.require(session.principal, authz.Action.MANAGE_SECOND_FACTORS)
         await store.add(
             conn,
             user_id=user.id,
@@ -380,7 +380,7 @@ async def remove(
 ) -> bool:
     """Needs a recent second factor, and never removes the account's last second factor
     (otherwise the password alone could enroll a new one)."""
-    require_recent(session)
+    authz.require(session.principal, authz.Action.MANAGE_SECOND_FACTORS)
     user = session.user
     async with db.user_transaction(user.id) as conn:
         remaining_passkeys = await store.count_for_user(conn, user.id)

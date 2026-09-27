@@ -18,6 +18,7 @@ from dataclasses import dataclass
 import pyotp
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from app import authz
 from app.core import security_log
 from app.core.crypto import Keyring
 from app.db import admin as admin_store
@@ -25,7 +26,7 @@ from app.db import auth as auth_store
 from app.db import mfa as store
 from app.db.database import Database
 from app.services import limits
-from app.services.auth import AuthError, CurrentSession, recently_verified, require_recent
+from app.services.auth import AuthError, CurrentSession, recently_verified
 
 ISSUER = "Planhaven"
 STEP_SECONDS = 30
@@ -103,7 +104,7 @@ async def start_totp_enrollment(
     user = session.user
     async with db.user_transaction(user.id) as conn:
         if await store.has_second_factor(conn, user.id):
-            require_recent(session)
+            authz.require(session.principal, authz.Action.MANAGE_SECOND_FACTORS)
         secret = pyotp.random_base32(length=32)  # 160 bits
         encrypted = keyring.encrypt(_PURPOSE, secret.encode(), _context(user.id))
         await store.save_pending_totp(conn, user.id, encrypted)
@@ -186,7 +187,7 @@ async def issue_recovery_codes(conn: AsyncConnection, user_id: uuid.UUID) -> lis
 async def regenerate_recovery_codes(
     db: Database, session: CurrentSession, ip: str | None
 ) -> list[str]:
-    require_recent(session)
+    authz.require(session.principal, authz.Action.MANAGE_SECOND_FACTORS)
     async with db.user_transaction(session.user.id) as conn:
         codes = await issue_recovery_codes(conn, session.user.id)
         await auth_store.record_audit(

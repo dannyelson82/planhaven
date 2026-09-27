@@ -11,7 +11,7 @@ from app.api import deps
 from app.api.auth import SessionOut, session_out, set_session_cookie
 from app.api.deps import PartialSessionDep, SameOrigin, SessionDep
 from app.services import passkeys as passkey_service
-from app.services.auth import AuthError, StepUpRequiredError
+from app.services.auth import AuthError
 
 router = APIRouter(prefix="/api/v1/auth/passkeys")
 
@@ -43,7 +43,7 @@ class PasskeyOut(BaseModel):
 
 
 def _error(exc: AuthError) -> HTTPException:
-    return HTTPException(403 if isinstance(exc, StepUpRequiredError) else 400, str(exc))
+    return HTTPException(400, str(exc))
 
 
 def _options(o: passkey_service.Options) -> OptionsOut:

@@ -8,10 +8,11 @@ import json
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from app import authz
 from app.auth import passwords, tokens
 from app.auth.passwords import PasswordPolicyError
 from app.core import security_log
@@ -54,26 +55,23 @@ class CurrentSession:
     mfa_verified: bool
     reauth_at: datetime | None = None
 
-
-class StepUpRequiredError(AuthError):
-    """The action needs a fresh second factor (SECURITY.md §7.1)."""
-
-
-STEP_UP_WINDOW = timedelta(minutes=5)
-
-
-def recently_verified(session: CurrentSession, now: datetime | None = None) -> bool:
-    now = now or datetime.now(UTC)
-    return (
-        session.mfa_verified
-        and session.reauth_at is not None
-        and now - session.reauth_at <= STEP_UP_WINDOW
-    )
+    @property
+    def principal(self) -> authz.Principal:
+        return authz.Principal(
+            user_id=self.user.id,
+            is_admin=self.user.is_admin,
+            mfa_verified=self.mfa_verified,
+            reauth_at=self.reauth_at,
+        )
 
 
-def require_recent(session: CurrentSession) -> None:
-    if not recently_verified(session):
-        raise StepUpRequiredError("Confirm it's you with your second factor to continue.")
+# Kept as names for callers; the rules live in app.authz.
+StepUpRequiredError = authz.StepUpRequiredError
+STEP_UP_WINDOW = authz.STEP_UP_WINDOW
+
+
+def recently_verified(session: CurrentSession) -> bool:
+    return session.principal.recently_verified()
 
 
 def normalize_email(email: str) -> str:
@@ -249,7 +247,7 @@ async def change_password(
 ) -> None:
     """Requires the current password and a recent second factor; signs out every other
     session (SECURITY.md §7.1, §7.2)."""
-    require_recent(session)
+    authz.require(session.principal, authz.Action.CHANGE_PASSWORD)
     user = session.user
     passwords.check_policy(new_password, email=user.email, display_name=user.display_name)
     async with db.user_transaction(user.id) as conn:
