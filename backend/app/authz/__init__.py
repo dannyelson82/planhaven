@@ -68,6 +68,7 @@ class Action(StrEnum):
     PROJECT_VIEW = "project.view"
     PROJECT_EDIT = "project.edit"
     PROJECT_MANAGE = "project.manage"
+    PROJECT_SHARE = "project.share"  # add/remove members, change roles
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +89,8 @@ RULES: dict[Action, Rule] = {
     Action.PROJECT_VIEW: Rule(),
     Action.PROJECT_EDIT: Rule(),
     Action.PROJECT_MANAGE: Rule(),
+    # Changing who can see a project needs a fresh second factor (SECURITY.md §7.1).
+    Action.PROJECT_SHARE: Rule(recent=True),
 }
 
 # Which project roles allow each project action (ARCHITECTURE.md §7.5). Mirrored by the
@@ -96,6 +99,7 @@ PROJECT_ROLES: dict[Action, frozenset[str]] = {
     Action.PROJECT_VIEW: frozenset({"owner", "editor", "viewer"}),
     Action.PROJECT_EDIT: frozenset({"owner", "editor"}),
     Action.PROJECT_MANAGE: frozenset({"owner"}),
+    Action.PROJECT_SHARE: frozenset({"owner"}),
 }
 
 

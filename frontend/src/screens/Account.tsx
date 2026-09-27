@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api, type Session } from '../api.ts'
+import { deviceName } from '../devices.ts'
 import { Card } from '../ui.tsx'
 import { SignOutButton } from './Auth.tsx'
 
@@ -19,7 +20,9 @@ export function AccountScreen({ session }: { session: Session }) {
         <ul className="space-y-2 text-sm">
           {(sessions.data ?? []).map((s) => (
             <li key={s.id}>
-              {s.user_agent ?? 'Unknown device'} {s.ip && `· ${s.ip}`} {s.current && <strong>· this device</strong>}
+              <span className="font-medium">{deviceName(s.user_agent)}</span>
+              {s.current && <strong className="text-brand-700 dark:text-brand-100"> · this device</strong>}
+              <span className="block text-xs text-stone-500">{s.ip} · last active {new Date(s.last_seen_at).toLocaleString()}</span>
             </li>
           ))}
         </ul>

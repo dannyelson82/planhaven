@@ -16,12 +16,12 @@ events, browser tests at phone and desktop widths, threat-model check.
 
 ## Milestone 1: Sharing (v0.1.1)
 
-- [ ] Household directory: signed-in users can look up other household members by name
+- [x] Household directory: signed-in users can look up other household members by name
       (display name + email only) to share with; admins unchanged
-- [ ] Project members API: list, add, change role, remove (owner only; step-up for sharing
+- [x] Project members API: list, add, change role, remove (owner only; step-up for sharing
       changes, S§7.1); last owner can't leave or be removed; notifications to people added
-- [ ] Sharing screen on the project page; role shown on project cards
-- [ ] Task details: edit title, notes and due date; friendlier "signed-in devices" names
+- [x] Sharing screen on the project page; role shown on project cards
+- [x] Task details: edit title, notes and due date; friendlier "signed-in devices" names
 
 ## Milestone 2: Lists (v0.1.2)
 

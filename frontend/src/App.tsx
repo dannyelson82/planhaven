@@ -7,6 +7,7 @@ import { InviteScreen, LoginScreen, SecondFactorScreen, SetupScreen } from './sc
 import { ProjectScreen } from './screens/Project.tsx'
 import { ProjectsScreen } from './screens/Projects.tsx'
 import { useSession } from './session.ts'
+import { StepUpProvider } from './stepup.tsx'
 import { Link } from './ui.tsx'
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 10_000 } } })
@@ -35,7 +36,11 @@ function Root() {
     return <LoginScreen />
   }
   if (!session.data.mfa_verified) return <SecondFactorScreen />
-  return <Shell session={session.data}>{screen(route, session.data)}</Shell>
+  return (
+    <StepUpProvider>
+      <Shell session={session.data}>{screen(route, session.data)}</Shell>
+    </StepUpProvider>
+  )
 }
 
 function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
@@ -43,7 +48,7 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
     case 'projects':
       return <ProjectsScreen />
     case 'project':
-      return <ProjectScreen id={route.id} />
+      return <ProjectScreen id={route.id} myId={session.user.id} />
     case 'account':
       return <AccountScreen session={session} />
     default:

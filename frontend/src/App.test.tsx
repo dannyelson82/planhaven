@@ -22,3 +22,13 @@ describe('ui', () => {
     expect(html).toContain('min-h-11')
   })
 })
+
+import { deviceName } from './devices.ts'
+
+describe('deviceName', () => {
+  it('turns user agents into friendly names', () => {
+    expect(deviceName('Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1')).toBe('iPhone · Safari')
+    expect(deviceName('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0 Safari/537.36')).toBe('Windows PC · Chrome')
+    expect(deviceName(null)).toBe('Unknown device')
+  })
+})

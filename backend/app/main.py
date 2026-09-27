@@ -15,6 +15,7 @@ from app.api import (
     notifications,
     passkeys,
     projects,
+    sharing,
     spa,
 )
 from app.api.errors import install_error_handlers
@@ -46,6 +47,7 @@ ROUTERS = (
     admin.router,
     notifications.router,
     projects.router,
+    sharing.router,
     spa.router,  # last: catches every path the API didn't
 )
 
