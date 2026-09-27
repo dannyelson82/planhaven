@@ -66,7 +66,7 @@ def _user_out(user: User) -> UserOut:
     )
 
 
-def _set_session_cookie(request: Request, response: Response, token: str) -> None:
+def set_session_cookie(request: Request, response: Response, token: str) -> None:
     s = deps.settings(request)
     response.set_cookie(
         deps.session_cookie_name(s),
@@ -79,8 +79,10 @@ def _set_session_cookie(request: Request, response: Response, token: str) -> Non
     )
 
 
-def _session_out(request: Request, new: NewSession | CurrentSession) -> SessionOut:
-    mfa = new.mfa_verified if isinstance(new, CurrentSession) else False
+def session_out(
+    request: Request, new: NewSession | CurrentSession, *, mfa_verified: bool = False
+) -> SessionOut:
+    mfa = new.mfa_verified if isinstance(new, CurrentSession) else mfa_verified
     return SessionOut(
         user=_user_out(new.user),
         csrf_token=request.app.state.session_key.csrf_token(new.token),
@@ -107,8 +109,8 @@ async def complete_setup(body: SetupRequest, request: Request, response: Respons
         )
     except (AuthError, PasswordPolicyError) as exc:
         raise HTTPException(400, str(exc)) from None
-    _set_session_cookie(request, response, new.token)
-    return _session_out(request, new)
+    set_session_cookie(request, response, new.token)
+    return session_out(request, new)
 
 
 @router.post("/auth/login", dependencies=[SameOrigin])
@@ -127,8 +129,8 @@ async def login(body: LoginRequest, request: Request, response: Response) -> Ses
         )
     except AuthError as exc:
         raise HTTPException(401, str(exc)) from None
-    _set_session_cookie(request, response, new.token)
-    return _session_out(request, new)
+    set_session_cookie(request, response, new.token)
+    return session_out(request, new)
 
 
 @router.post("/auth/logout", status_code=204)
@@ -145,7 +147,7 @@ async def logout(session: PartialSessionDep, request: Request, response: Respons
 
 @router.get("/auth/session")
 async def current_session(session: PartialSessionDep, request: Request) -> SessionOut:
-    return _session_out(request, session)
+    return session_out(request, session)
 
 
 @router.post("/auth/password", status_code=204)

@@ -16,6 +16,7 @@ import uuid
 from dataclasses import dataclass
 
 import pyotp
+from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.core.crypto import Keyring
 from app.db import auth as auth_store
@@ -124,8 +125,7 @@ async def confirm_totp_enrollment(
         if step is None:
             raise AuthError("That code didn't match. Check your authenticator app's clock.")
         await store.confirm_totp(conn, user.id, step)
-        codes = [_new_recovery_code() for _ in range(RECOVERY_CODE_COUNT)]
-        await store.replace_recovery_codes(conn, user.id, [_recovery_hash(c) for c in codes])
+        codes = await issue_recovery_codes(conn, user.id)
         await store.mark_session_verified(conn, session.id)
         await auth_store.record_audit(
             conn, action="mfa.totp.enrolled", actor_user_id=user.id, ip=ip
@@ -148,7 +148,7 @@ async def verify_totp(
             await store.mark_session_verified(conn, session.id)
             await auth_store.record_audit(conn, action="mfa.verified", actor_user_id=user.id, ip=ip)
             return
-    await _failed(db, session, ip)
+    await record_failure(db, session, ip)
 
 
 async def verify_recovery_code(
@@ -164,26 +164,30 @@ async def verify_recovery_code(
                     conn, action="mfa.recovery_code_used", actor_user_id=user.id, ip=ip
                 )
                 return await store.remaining_recovery_codes(conn, user.id)
-    await _failed(db, session, ip)
+    await record_failure(db, session, ip)
     raise AssertionError("unreachable")
+
+
+async def issue_recovery_codes(conn: AsyncConnection, user_id: uuid.UUID) -> list[str]:
+    """Replace the user's recovery codes; returns the new ones (shown once)."""
+    codes = [_new_recovery_code() for _ in range(RECOVERY_CODE_COUNT)]
+    await store.replace_recovery_codes(conn, user_id, [_recovery_hash(c) for c in codes])
+    return codes
 
 
 async def regenerate_recovery_codes(
     db: Database, session: CurrentSession, ip: str | None
 ) -> list[str]:
     require_recent(session)
-    codes = [_new_recovery_code() for _ in range(RECOVERY_CODE_COUNT)]
     async with db.user_transaction(session.user.id) as conn:
-        await store.replace_recovery_codes(
-            conn, session.user.id, [_recovery_hash(c) for c in codes]
-        )
+        codes = await issue_recovery_codes(conn, session.user.id)
         await auth_store.record_audit(
             conn, action="mfa.recovery_codes_regenerated", actor_user_id=session.user.id, ip=ip
         )
     return codes
 
 
-async def _failed(db: Database, session: CurrentSession, ip: str | None) -> None:
+async def record_failure(db: Database, session: CurrentSession, ip: str | None) -> None:
     # Commit first, then raise: raising inside the transaction would roll back the counter
     # and the revocation.
     async with db.user_transaction(session.user.id) as conn:
