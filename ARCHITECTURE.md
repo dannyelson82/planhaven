@@ -215,7 +215,7 @@ Exact versions are pinned in lockfiles; this table records the choices, not the 
 | Passkeys / 2FA | WebAuthn (`py_webauthn`), TOTP (`pyotp`) | |
 | Crypto | `cryptography` (AES-256-GCM) | Secrets at rest |
 | MCP | Official MCP Python SDK, Streamable HTTP | |
-| Document extraction | `pypdf`/`pdfplumber`, `python-docx`, `openpyxl`, Tesseract OCR | Permissive licenses; avoid AGPL deps (ADR pending) |
+| Document extraction | `pypdfium2`, `pypdf`/`pdfplumber`, `python-docx`, `openpyxl`, Tesseract OCR | Permissive licenses only; PyMuPDF (AGPL) excluded (ADR 0010) |
 | Frontend | React + TypeScript + Vite | Built to static assets, served by FastAPI |
 | Data fetching | TanStack Query | |
 | PWA | Service worker + IndexedDB (via `vite-plugin-pwa`) | Offline lists |
@@ -231,6 +231,7 @@ planhaven/
 ├── ARCHITECTURE.md          # this document
 ├── SECURITY.md              # security policy, threat model, controls
 ├── README.md
+├── LICENSE, NOTICE          # Apache-2.0 (ADR 0010)
 ├── .github/                 # workflows (CI, security scans, release), templates
 ├── backend/
 │   ├── app/
@@ -759,9 +760,9 @@ Every phase ships meeting `SECURITY.md` §11.
 ### 19.2 Open questions
 
 - ~~Final project name~~ — decided: Planhaven (pending trademark and domain checks).
-- License (e.g. AGPL-3.0 to keep hosted forks open, or MIT/Apache-2.0 for maximum reuse).
-  Also constrains which dependencies are acceptable.
+- ~~License~~ — decided: Apache-2.0, with a dependency license policy (ADR 0010).
 - UI component library (e.g. Radix/shadcn-style primitives vs. Mantine).
-- PDF extraction library choice given licensing (avoid AGPL unless the project is AGPL).
+- PDF extraction library: PyMuPDF is excluded by ADR 0010; pypdfium2 is the leading
+  candidate, final choice in phase 0.5.
 - Rich-text editor for notes (Markdown-first vs. block editor).
 - Whether commercial chat providers are offered for in-app Q&A or only via MCP.

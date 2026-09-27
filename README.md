@@ -33,4 +33,5 @@ Please use GitHub private vulnerability reporting. See [SECURITY.md](SECURITY.md
 
 ## License
 
-To be decided (see ARCHITECTURE.md §19.2).
+Apache License 2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE). The Planhaven name and logo
+are not covered by the license. Rationale: [ADR 0010](docs/adr/0010-license-apache-2.md).
