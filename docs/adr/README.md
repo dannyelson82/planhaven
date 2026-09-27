@@ -16,3 +16,4 @@ A decision is changed by adding a new ADR that supersedes the old one, not by re
 | [0009](0009-behind-existing-reverse-proxy.md) | Behind the user's existing reverse proxy; no forward-auth | Accepted |
 | [0010](0010-license-apache-2.md) | Apache-2.0 license and dependency license policy | Accepted |
 | [0011](0011-realtime-collaboration.md) | Real-time collaborative editing with Yjs over authenticated WebSockets | Accepted |
+| [0012](0012-ai-assistant-and-experimental-features.md) | AI project assistant (local and commercial) behind experimental feature flags | Accepted |
