@@ -1,7 +1,10 @@
-#!/command/with-contenv sh
+#!/bin/sh
 # Restore a backup into this instance, replacing its database (docs/backup-restore.md).
 # Usage (as root in the container): /etc/s6-overlay/scripts/restore-db /config/backups/<file>
-. /etc/s6-overlay/scripts/common.sh
+export PATH="/command:/usr/lib/postgresql/18/bin:$PATH"
+set -eu
+PG_SOCKET_DIR=/run/postgresql
+[ "$(id -u)" = 0 ] || { echo "restore-db: run as root (docker exec)" >&2; exit 1; }
 
 dump="${1:-}"
 case "$dump" in

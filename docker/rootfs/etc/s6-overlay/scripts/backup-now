@@ -1,22 +1,28 @@
-#!/command/with-contenv sh
+#!/bin/sh
 # One database backup (ARCHITECTURE.md §16): pg_dump custom format into /config/backups,
 # written as the postgres user (RLS means only a superuser sees every row), then rotation:
 # keep the 7 newest backups plus the newest from each of the last 4 weeks.
-. /etc/s6-overlay/scripts/common.sh
+# Runs as postgres; started as root (e.g. `docker exec`), it re-runs itself as postgres.
+export PATH="/command:/usr/lib/postgresql/18/bin:$PATH"
+if [ "$(id -u)" = 0 ]; then
+  exec s6-setuidgid postgres "$0" "$@"
+fi
+set -eu
+PG_SOCKET_DIR=/run/postgresql
 
 dir=/config/backups
 stamp="$(date -u +%Y%m%d-%H%M%S)"
 tmp="$dir/.planhaven-$stamp.dump.tmp"
 final="$dir/planhaven-$stamp.dump"
 
-if ! s6-setuidgid postgres pg_dump --format=custom --compress=6 \
+if ! pg_dump --format=custom --compress=6 \
     -h "$PG_SOCKET_DIR" -U postgres -d planhaven -f "$tmp"; then
   rm -f "$tmp"
   echo "planhaven: backup FAILED" >&2
   exit 1
 fi
-s6-setuidgid postgres chmod 600 "$tmp"
-s6-setuidgid postgres mv "$tmp" "$final"
+chmod 600 "$tmp"
+mv "$tmp" "$final"
 echo "planhaven: backup written: $(basename "$final")"
 
 # Rotation. Names sort by time (glob order); weekly = newest backup of each ISO week.
@@ -36,6 +42,6 @@ $weekly
     *"
 $f
 "*) ;;
-    *) s6-setuidgid postgres rm -f "$f" ;;
+    *) rm -f "$f" ;;
   esac
 done

@@ -1,11 +1,3 @@
 #!/command/with-contenv sh
-# Nightly backup at 03:00 in the container's TZ (ARCHITECTURE.md §16).
-. /etc/s6-overlay/scripts/common.sh
-while :; do
-  now="$(date +%s)"
-  next="$(date -d 'tomorrow 03:00' +%s)"
-  today="$(date -d 'today 03:00' +%s)"
-  [ "$today" -gt "$now" ] && next="$today"
-  sleep "$((next - now))"
-  /etc/s6-overlay/scripts/backup-now || true
-done
+# Nightly backups, as the postgres user (never root).
+exec s6-setuidgid postgres /etc/s6-overlay/scripts/backup-scheduler

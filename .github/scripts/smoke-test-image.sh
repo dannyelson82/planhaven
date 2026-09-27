@@ -140,7 +140,9 @@ docker top "$name" -eo pid,uid,args | awk -v u="$pg_uid" '/postgres -D/ && $2 !=
   || fail "postgres not running as the postgres user ($pg_users)"
 worker_uids="$(docker top "$name" -eo pid,uid,args | awk '/app.workers/ {print $2}' | sort -u)"
 [[ "$worker_uids" == "99" ]] || fail "worker not running as UID 99 (got: $worker_uids)"
-echo "ok: app and worker run as 99, PostgreSQL as postgres"
+docker top "$name" -eo pid,uid,args | awk -v u="$pg_uid" '/backup-scheduler/ && $2 != u {bad=1} END {exit bad}' \
+  || fail "backup scheduler not running as the postgres user"
+echo "ok: app and worker run as 99, PostgreSQL and backups as postgres"
 
 if docker exec "$name" python -c "import socket; socket.create_connection(('127.0.0.1', 5432), 2)" 2>/dev/null; then
   fail "PostgreSQL accepts TCP connections"
