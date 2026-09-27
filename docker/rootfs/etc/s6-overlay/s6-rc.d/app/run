@@ -1,0 +1,6 @@
+#!/command/with-contenv sh
+# The web app, as PUID:PGID. No Server header; access logs come with redacted structured
+# logging (roadmap step 3), since request paths can carry tokens.
+. /etc/s6-overlay/scripts/common.sh
+cd /app
+as_app uvicorn app.main:app --host 0.0.0.0 --port 8080 --no-server-header --no-access-log

@@ -348,8 +348,18 @@ Cross-Origin-Resource-Policy: same-origin
 - Runs as non-root: `app` (PUID) and `postgres` users; s6-overlay drops privileges per service.
 - Recommended runtime flags (in Unraid template "Extra Parameters" and compose file):
   `--cap-drop=ALL --cap-add=CHOWN --cap-add=SETUID --cap-add=SETGID --cap-add=DAC_OVERRIDE
-  --security-opt=no-new-privileges:true` (final minimal capability set to be confirmed during
-  build; target is the smallest set s6 needs).
+  --cap-add=FOWNER --cap-add=KILL --security-opt=no-new-privileges:true --read-only
+  --tmpfs /run:rw,exec,nosuid,size=64m --tmpfs /tmp:rw,noexec,nosuid,size=64m`.
+  This minimal set was confirmed in CI: CHOWN/FOWNER/DAC_OVERRIDE let root prepare volume
+  ownership and permissions, SETUID/SETGID drop privileges per service, and KILL lets s6 stop
+  the non-root services cleanly (without it, shutdown ends in a forced kill). The image smoke
+  test runs with exactly these flags.
+- `/config` is root-owned (0711); the app writes only in its own subdirectories and
+  PostgreSQL only in `/config/pgdata` (0700). The root startup step never recurses into
+  volumes and refuses symlinks, so a compromised app can't redirect it.
+- PostgreSQL accepts local connections only. The `postgres` superuser authenticates by peer;
+  the app roles are reachable only by processes that can enter the socket directory
+  (`/run/postgresql`, mode 0750, group PGID), i.e. the `postgres` and app users.
 - Read-only root filesystem where compatible; writable paths limited to `/config`, `/data`,
   and a tmpfs for `/tmp` and `/run`.
 - PostgreSQL listens on a Unix socket only; `listen_addresses = ''`.

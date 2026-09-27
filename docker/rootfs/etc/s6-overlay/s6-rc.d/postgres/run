@@ -1,0 +1,13 @@
+#!/command/with-contenv sh
+# PostgreSQL on a Unix socket only (ARCHITECTURE.md §4.4, SECURITY.md §7.13).
+# The socket file is 0777; access is controlled by its directory (0750, group PGID).
+. /etc/s6-overlay/scripts/common.sh
+exec s6-setuidgid postgres postgres -D "$PGDATA" \
+  -c listen_addresses='' \
+  -c unix_socket_directories="$PG_SOCKET_DIR" \
+  -c unix_socket_permissions=0777 \
+  -c hba_file=/etc/planhaven/pg_hba.conf \
+  -c ident_file=/etc/planhaven/pg_ident.conf \
+  -c password_encryption=scram-sha-256 \
+  -c log_destination=stderr \
+  -c logging_collector=off

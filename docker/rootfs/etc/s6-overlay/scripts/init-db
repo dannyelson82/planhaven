@@ -1,0 +1,17 @@
+#!/command/with-contenv sh
+# Create the PostgreSQL cluster on first boot; refuse to start on a different major version.
+. /etc/s6-overlay/scripts/common.sh
+
+if [ ! -s "$PGDATA/PG_VERSION" ]; then
+  echo "planhaven: initializing PostgreSQL ${PG_MAJOR_EXPECTED} cluster"
+  as_postgres initdb --pgdata="$PGDATA" --username=postgres --encoding=UTF8 \
+    --locale=C.UTF-8 --auth-local=peer --auth-host=reject --data-checksums
+fi
+
+found="$(cat "$PGDATA/PG_VERSION")"
+if [ "$found" != "$PG_MAJOR_EXPECTED" ]; then
+  # Automatic upgrade with a pre-upgrade dump is planned (ARCHITECTURE.md §16). Until then,
+  # never start a cluster with the wrong binaries.
+  echo "planhaven: database is PostgreSQL $found but this image has $PG_MAJOR_EXPECTED; refusing to start" >&2
+  exit 1
+fi

@@ -1,0 +1,20 @@
+#!/command/with-contenv sh
+# Prepare volumes and runtime directories (runs as root, before privileges are dropped).
+. /etc/s6-overlay/scripts/common.sh
+
+pg_uid="$(id -u postgres)"
+pg_gid="$(id -g postgres)"
+
+# /config is root-owned so the app can't rename or replace its entries (e.g. swap pgdata for
+# a directory it controls). Others may only traverse: postgres and the app reach their own
+# subdirectories.
+own_dir /config         0 0 0711
+own_dir /config/secrets "$PUID" "$PGID" 0700
+own_dir /config/logs    "$PUID" "$PGID" 0750
+own_dir /config/backups "$PUID" "$PGID" 0750
+own_dir /config/plugins "$PUID" "$PGID" 0750
+own_dir "$PGDATA"       "$pg_uid" "$pg_gid" 0700
+own_dir /data           "$PUID" "$PGID" 0750
+
+# Socket directory: only postgres and the app group may connect (see pg_hba.conf).
+own_dir "$PG_SOCKET_DIR" "$pg_uid" "$PGID" 0750

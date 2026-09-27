@@ -6,12 +6,15 @@ readme = "../README.md"
 license = "Apache-2.0"
 requires-python = ">=3.14"
 dependencies = [
+    "asyncpg>=0.31",
+    "cryptography>=50",
     "fastapi>=0.120",
     "uvicorn>=0.38",
 ]
 
 [dependency-groups]
 dev = [
+    "asyncpg-stubs>=0.31",
     "httpx2>=2.13",
     "import-linter>=2.5",
     "mypy>=1.18",
@@ -87,3 +90,5 @@ name = "Routers never touch the database directly"
 type = "forbidden"
 source_modules = ["app.api"]
 forbidden_modules = ["app.db"]
+# api -> services -> db is the intended path; only direct imports are forbidden.
+allow_indirect_imports = true

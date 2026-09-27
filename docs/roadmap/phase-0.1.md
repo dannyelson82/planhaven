@@ -30,14 +30,18 @@ them. Every PR gets a security review before merge.
 
 ## Step 2: Container
 
-- [ ] Multi-stage `Dockerfile`, s6-overlay services (`postgres`, `app`, `worker`) and one-shot
-      init services (`init-secrets`, `init-db`, `migrate`, `setup-token`) (A§4)
-- [ ] PostgreSQL + pgvector on a Unix socket only; runs as its own user
-- [ ] Non-root app; documented minimal capability set; read-only root FS where possible
-      (S§7.13)
-- [ ] `init-secrets` creates master key, session key and VAPID keys with `0600` permissions
-- [ ] `/healthz` and `/readyz`; Docker `HEALTHCHECK`
-- [ ] `image.yml`: multi-arch build (amd64, arm64) and Trivy scan (fail on critical)
+- [x] Multi-stage `Dockerfile`; s6-overlay services `init-dirs`, `init-secrets`, `init-db`,
+      `postgres`, `db-bootstrap`, `app` (A§4). `worker`, `migrate` and `setup-token` are added
+      in steps 4 and 5, with the code they run
+- [x] PostgreSQL 18 + pgvector on a Unix socket only; runs as its own user; refuses to start
+      on a different major version (automatic upgrade with pre-upgrade dump: later, A§16)
+- [x] Non-root app (PUID:PGID); minimal capability set confirmed in CI and documented;
+      read-only root FS (S§7.13)
+- [x] `init-secrets` creates master key, session key and VAPID keys with `0600` permissions
+- [x] `/healthz` and `/readyz` (database check); Docker `HEALTHCHECK`
+- [x] `image.yml`: native amd64 and arm64 builds, smoke test with hardening flags, Trivy
+      scan (fail on fixable critical) and Dockerfile scan
+- [ ] Add `Image (amd64)` and `Image (arm64)` as required status checks
 
 ## Step 3: Core safety layer
 
@@ -56,11 +60,13 @@ them. Every PR gets a security review before merge.
       `deleted_at`)
 - [ ] Test: every user-content table has RLS enabled **and** forced (`pg_class`)
 - [ ] `audit_events` (append-only for the app role) and `events` outbox tables
+- [ ] Job queue (ADR 0003) and the `worker` s6 service; `migrate` s6 service running Alembic
 - [ ] Master-key encryption helper (AES-256-GCM, HKDF per purpose, key IDs) (S§7.9)
 
 ## Step 5: Sign-in, part 1
 
-- [ ] One-time setup token printed at first boot; expires on use or after 24 h (S§7.1)
+- [ ] One-time setup token printed at first boot (`setup-token` s6 service); expires on use
+      or after 24 h (S§7.1)
 - [ ] Admin account creation with the setup token
 - [ ] Passwords: 12+ characters, bundled common/breached list, Argon2id (S§7.1)
 - [ ] Server-side sessions, `__Host-` cookie, rotation, idle/absolute timeouts (S§7.2)

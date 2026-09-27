@@ -48,7 +48,7 @@ No CLA: contributions are accepted under Apache-2.0 §5.
 
 Dependency license policy:
 
-- **Allowed:** MIT, BSD (any clause count), ISC, Apache-2.0, PSF, Zlib, MIT-CMU, and
+- **Allowed:** MIT, MIT-0, BSD (any clause count), ISC, Apache-2.0, PSF, Zlib, MIT-CMU, and
   similar permissive licenses; MPL-2.0 for unmodified use.
 - **Allowed with care:** LGPL, used unmodified as a separately installed library (e.g.
   psycopg; asyncpg is the Apache alternative). Record it in the PR.

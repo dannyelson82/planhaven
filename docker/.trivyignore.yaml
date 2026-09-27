@@ -1,0 +1,8 @@
+# Accepted Trivy findings. Every entry needs a reason; review when the design changes.
+misconfigurations:
+  - id: AVD-DS-0002
+    statement: >-
+      Image has no USER instruction. s6-overlay's /init must start as root to prepare volume
+      ownership, then drops privileges per service: PostgreSQL runs as `postgres` and the app
+      as PUID:PGID (default 99:100). The smoke test in CI verifies the running UIDs.
+      SECURITY.md §7.13.
