@@ -35,7 +35,13 @@ export async function api<T>(
     ;(init.headers as Record<string, string>)['Content-Type'] = 'application/json'
     init.body = JSON.stringify(body)
   }
-  const response = await fetch(path, init)
+  let response: Response
+  try {
+    response = await fetch(path, init)
+  } catch {
+    // No connection (status 0; see offline.ts).
+    throw new ApiError(0, "You're offline, so this wasn't saved. Try again when you're back online.")
+  }
   if (response.status === 204) return undefined as T
   const data: unknown = await response.json().catch(() => null)
   if (!response.ok) {
@@ -51,7 +57,7 @@ export async function api<T>(
 }
 
 export type User = { id: string; email: string; display_name: string; is_admin: boolean }
-export type Session = { user: User; csrf_token: string; mfa_verified: boolean }
+export type Session = { user: User; csrf_token: string; mfa_verified: boolean; offline?: boolean }
 export type Project = {
   id: string
   title: string

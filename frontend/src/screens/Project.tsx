@@ -11,12 +11,13 @@ import { ProjectLists } from './Lists.tsx'
 import { ProjectNotes } from './Notes.tsx'
 import { ShareButton } from './Sharing.tsx'
 import { TaskEditor } from './TaskEditor.tsx'
+import { cachedGet } from '../offline.ts'
 
 export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
   const client = useQueryClient()
-  const project = useQuery({ queryKey: ['project', id], queryFn: () => api<Project>('GET', `/api/v1/projects/${id}`) })
+  const project = useQuery({ queryKey: ['project', id], queryFn: () => cachedGet<Project>(`/api/v1/projects/${id}`) })
   useLiveProject(id)
-  const tasks = useQuery({ queryKey: ['tasks', id], queryFn: () => api<Task[]>('GET', `/api/v1/projects/${id}/tasks`) })
+  const tasks = useQuery({ queryKey: ['tasks', id], queryFn: () => cachedGet<Task[]>(`/api/v1/projects/${id}/tasks`) })
   const refresh = () => Promise.all([
     client.invalidateQueries({ queryKey: ['project', id] }),
     client.invalidateQueries({ queryKey: ['tasks', id] }),

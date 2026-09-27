@@ -72,9 +72,61 @@ test('installs as an app and opens offline', async ({ page, context }) => {
   // Offline, the app itself still opens (data needs the server, so it says so).
   await context.setOffline(true)
   await page.reload()
-  await expect(page.getByRole('heading', { name: "Can't reach Planhaven" })).toBeVisible()
+  // Signed in on this device before: it opens with what it saved, and says it's offline.
+  await expect(page.getByText(/^Offline: showing what this device saved/)).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()
   // Back online, it retries by itself.
   await context.setOffline(false)
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()
   expect(problems.filter((p) => !p.includes('Failed to load resource'))).toEqual([])
+})
+
+// In a shop with no signal: the list opens, items can be added and checked off, and the
+// changes reach the server once back online.
+test('lists work offline and catch up when back online', async ({ page, context }, info) => {
+  const problems = watchForProblems(page)
+  const extra = `Zip ties (${info.project.name})`
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Winterize boat' }).click()
+  await page.getByRole('link', { name: 'Hardware store' }).click()
+  await expect(page.getByRole('heading', { name: 'Hardware store' })).toBeVisible()
+  const listUrl = page.url()
+  const listId = listUrl.split('/').pop()
+  await expect
+    .poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration())?.active)))
+    .toBe(true)
+  // An item someone else will delete while we're offline.
+  const rope = `Old rope (${info.project.name})`
+  const csrf = (await (await page.request.get('/api/v1/auth/session')).json()).csrf_token
+  const origin = new URL(page.url()).origin
+  const ropeItem = await (await page.request.post(`/api/v1/lists/${listId}/items`, {
+    data: { text: rope }, headers: { 'X-CSRF-Token': csrf, Origin: origin },
+  })).json()
+  await page.reload()
+  await expect(page.getByText(rope)).toBeVisible()
+  const before = await (await page.request.get(`/api/v1/lists/${listId}`)).json()
+  const clamps = before.items.find((i: { text: string }) => i.text === 'Hose clamps')
+
+  await context.setOffline(true)
+  await page.reload()
+  await expect(page.getByText(/^Offline: showing what this device saved/)).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Hardware store' })).toBeVisible()
+  await page.getByLabel('Add item').fill(extra)
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(page.getByText(extra)).toBeVisible()
+  await expect(page.getByText('not sent yet')).toBeVisible()
+  await page.locator('label', { hasText: 'Hose clamps' }).click()
+  await page.locator('label', { hasText: rope }).click()
+  const gone = await page.request.delete(`/api/v1/list-items/${ropeItem.id}`, { headers: { 'X-CSRF-Token': csrf, Origin: origin } })
+  expect(gone.status()).toBe(204)
+
+  await context.setOffline(false)
+  await expect(page.getByText('not sent yet')).toBeHidden({ timeout: 15_000 })
+  await expect(page.getByText(extra)).toBeVisible() // now from the server
+  await expect(page.getByRole('alert')).toContainText(`Check off “${rope}”`)
+  await page.getByRole('button', { name: 'OK' }).click()
+  const after = await (await page.request.get(`/api/v1/lists/${listId}`)).json()
+  expect(after.items.map((i: { text: string }) => i.text)).toContain(extra)
+  expect(after.items.find((i: { text: string }) => i.text === 'Hose clamps').checked).toBe(!clamps.checked)
+  expect(problems.filter((p) => !p.includes('Failed to load resource') && !p.includes('ERR_INTERNET_DISCONNECTED'))).toEqual([])
 })

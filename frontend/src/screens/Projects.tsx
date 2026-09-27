@@ -3,12 +3,13 @@ import { useState } from 'react'
 import { api, type Project, stageLabel } from '../api.ts'
 import { navigate } from '../router.ts'
 import { Button, Card, ErrorText, Field, Form, Link } from '../ui.tsx'
+import { cachedGet } from '../offline.ts'
 
 export function ProjectsScreen() {
   const client = useQueryClient()
   const projects = useQuery({
     queryKey: ['projects'],
-    queryFn: () => api<{ items: Project[] }>('GET', '/api/v1/projects?limit=200'),
+    queryFn: () => cachedGet<{ items: Project[] }>('/api/v1/projects?limit=200'),
   })
   const [title, setTitle] = useState('')
   const create = useMutation({

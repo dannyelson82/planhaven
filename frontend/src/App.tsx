@@ -1,7 +1,8 @@
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
-import { type ReactNode, useEffect } from 'react'
+import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
+import { type ReactNode, useEffect, useState, useSyncExternalStore } from 'react'
 import { RouterProvider } from 'react-aria-components'
 import { api, type Session } from './api.ts'
+import { flushOutbox } from './offline.ts'
 import { match, navigate, usePath } from './router.ts'
 import { AccountScreen } from './screens/Account.tsx'
 import { AssetScreen, AssetsScreen } from './screens/Assets.tsx'
@@ -15,7 +16,48 @@ import { useSession } from './session.ts'
 import { StepUpProvider } from './stepup.tsx'
 import { AuthPage, Button, Link } from './ui.tsx'
 
-const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 10_000 } } })
+// networkMode 'always': without a connection, requests still run and fail fast (or answer
+// from the offline copy, see offline.ts) instead of waiting silently.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    // Reconnecting is handled by useReconnect: queued changes go first, then a refresh.
+    queries: { staleTime: 10_000, networkMode: 'always', refetchOnReconnect: false },
+    mutations: { networkMode: 'always' },
+  },
+})
+
+function subscribeOnline(listener: () => void): () => void {
+  window.addEventListener('online', listener)
+  window.addEventListener('offline', listener)
+  return () => {
+    window.removeEventListener('online', listener)
+    window.removeEventListener('offline', listener)
+  }
+}
+
+function useOnline(): boolean {
+  return useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true)
+}
+
+/** Back online: sign in again quietly (fresh session and CSRF token), send the changes kept
+ * on this device, then refresh everything. */
+function useReconnect(session: Session) {
+  const client = useQueryClient()
+  const online = useOnline()
+  const [refused, setRefused] = useState<string[]>([])
+  useEffect(() => {
+    if (!online) return
+    if (session.offline) {
+      void client.refetchQueries({ queryKey: ['session'] })
+      return
+    }
+    void flushOutbox().then(async (result) => {
+      if (result.refused.length) setRefused((r) => [...r, ...result.refused])
+      await client.invalidateQueries()
+    })
+  }, [online, session.offline, client])
+  return { online, refused, dismiss: () => setRefused([]) }
+}
 
 export default function App() {
   return (
@@ -100,6 +142,7 @@ const NAV = [
 /** Phone: content with a bottom tab bar in thumb reach. Desktop: sidebar + content. */
 function Shell({ session, children }: { session: Session; children: ReactNode }) {
   const path = usePath()
+  const { online, refused, dismiss } = useReconnect(session)
   const active = (to: string) => path === to || path.startsWith(`${to}/`) || (to === '/projects' && path === '/')
   return (
     <div className="min-h-dvh md:flex">
@@ -112,7 +155,21 @@ function Shell({ session, children }: { session: Session; children: ReactNode })
         ))}
         <p className="mt-auto text-xs text-stone-500">{session.user.display_name}</p>
       </nav>
-      <main className="mx-auto w-full max-w-5xl px-4 pb-24 pt-[max(1rem,env(safe-area-inset-top))] md:px-8 md:pb-8">{children}</main>
+      <main className="mx-auto w-full max-w-5xl px-4 pb-24 pt-[max(1rem,env(safe-area-inset-top))] md:px-8 md:pb-8">
+        {(!online || session.offline) && (
+          <p role="status" className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            Offline: showing what this device saved. List changes are kept and sent when you're back online.
+          </p>
+        )}
+        {refused.length > 0 && (
+          <div role="alert" className="mb-4 space-y-2 rounded-xl bg-red-50 p-3 text-sm text-red-900 dark:bg-red-950 dark:text-red-200">
+            <p className="font-medium">Some changes made offline couldn't be saved (the item may have been changed or deleted meanwhile):</p>
+            <ul className="list-disc pl-5">{refused.map((r, i) => <li key={i}>{r}</li>)}</ul>
+            <Button variant="ghost" onPress={dismiss}>OK</Button>
+          </div>
+        )}
+        {children}
+      </main>
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 flex border-t border-stone-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden dark:border-stone-800 dark:bg-stone-950/95">
         {NAV.map((n) => (
           <Link key={n.to} to={n.to} className={`flex min-h-14 flex-1 items-center justify-center text-sm ${active(n.to) ? 'font-semibold text-brand-700 dark:text-brand-100' : 'text-stone-600 dark:text-stone-400'}`}>

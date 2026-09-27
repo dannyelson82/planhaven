@@ -599,8 +599,10 @@ Apple provides no server API for Reminders, so a Shortcut shipped in `shortcuts/
 ### 13.4 Progressive Web App
 
 - Installable, standalone display, app icons, splash.
-- Offline: lists and open tasks cached in IndexedDB; check-offs made offline are queued and
-  replayed with idempotency keys when online; conflicts surfaced to the user.
+- Offline: lists and open tasks cached in IndexedDB (with the project names needed to reach
+  them); list additions and check-offs made offline are queued and replayed with idempotency
+  keys when online; changes the server refuses are listed for the user. Tasks are read-only
+  offline for now.
 - The service worker never caches authenticated API responses beyond the offline list/task set,
   and clears caches on logout.
 
