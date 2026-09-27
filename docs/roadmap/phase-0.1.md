@@ -151,5 +151,6 @@ them. Every PR gets a security review before merge.
 - [x] OWASP ZAP baseline scan against the test container (fails on high risk)
 - [x] `unraid/planhaven.xml` template (hardening flags in Extra Parameters) and
       `deploy/proxy/nginx-proxy-manager/`
-- [ ] Walk through the SECURITY.md §11 checklist; tag `v0.1.0`
+- [x] Walk through the SECURITY.md §11 checklist (`docs/releases/v0.1.0-security-review.md`)
+- [ ] Tag `v0.1.0` (publishes the signed image)
 - [ ] Install on Unraid and test end to end
