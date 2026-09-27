@@ -11,6 +11,7 @@ dependencies = [
     "asyncpg>=0.31",
     "cryptography>=50",
     "fastapi>=0.120",
+    "pillow>=12.3.0",
     "planhaven-sdk",
     "pycrdt>=0.14",
     "pyotp>=2.10",

@@ -31,6 +31,7 @@ def make_settings(**overrides: object) -> Settings:
         "log_dir": None,
         "frontend_dir": None,
         "plugin_dirs": (str(Path(__file__).parent / "fixtures" / "plugins"),),
+        "data_dir": tempfile.mkdtemp(prefix="planhaven-data-"),
     }
     values.update(overrides)
     return Settings(**values)  # type: ignore[arg-type]

@@ -5,6 +5,7 @@ import { api, type Project, STAGES, type Stage, type Task } from '../api.ts'
 import { navigate } from '../router.ts'
 import { Button, Card, ErrorText, Field, Form } from '../ui.tsx'
 import { useLiveProject } from '../live.ts'
+import { ProjectAttachments } from './Attachments.tsx'
 import { ProjectLists } from './Lists.tsx'
 import { ProjectNotes } from './Notes.tsx'
 import { ShareButton } from './Sharing.tsx'
@@ -105,6 +106,7 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
       )}
       <ProjectLists projectId={id} canEdit={canEdit} />
       <ProjectNotes projectId={id} canEdit={canEdit} />
+      <ProjectAttachments projectId={id} canEdit={canEdit} />
       {p.role === 'owner' && (
         <Button variant="danger-ghost" onPress={() => { if (window.confirm('Delete this project?')) deleteProject.mutate() }}>
           Delete project

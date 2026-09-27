@@ -87,3 +87,19 @@ export const STAGES: { id: Stage; label: string }[] = [
 export function stageLabel(stage: string): string {
   return STAGES.find((s) => s.id === stage)?.label ?? stage
 }
+
+/** Upload a file as the raw request body (the server detects its type from the bytes). */
+export async function uploadFile<T>(path: string, file: Blob): Promise<T> {
+  const response = await fetch(path, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/octet-stream', ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) },
+    body: file,
+  })
+  const data: unknown = await response.json().catch(() => null)
+  if (!response.ok) {
+    const detail = data && typeof data === 'object' && 'detail' in data && typeof data.detail === 'string' ? data.detail : 'Upload failed.'
+    throw new ApiError(response.status, response.status === 413 ? 'This file is larger than the upload limit.' : detail)
+  }
+  return data as T
+}

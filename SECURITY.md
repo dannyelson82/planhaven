@@ -243,7 +243,14 @@ read-only, feed-only, and defaults to "titles only" content. Tokens are never lo
     only and sanitized for `Content-Disposition`.
   - Always downloaded as attachments with `nosniff`; no inline rendering of HTML, SVG, or
     unknown types.
-  - EXIF GPS stripped from images by default.
+  - EXIF GPS stripped from images by default: images are decoded and re-encoded without
+    metadata (colour profile kept) in a separate process that sets its own CPU, memory,
+    file-size and open-file limits before reading input, with an empty environment, a
+    30-second timeout, a 50-megapixel cap and only the JPEG, PNG, GIF and WebP decoders.
+    It still runs as the app's user until the 0.5 extraction sandbox (§7.6). HEIC is
+    refused unless the uploader chooses to keep metadata. Only these re-encoded images and
+    their thumbnails are ever shown inline; everything else is a download.
+  - Served files carry `Content-Security-Policy: default-src 'none'; sandbox`.
   - Archives never auto-extracted.
 
 ### 7.6 Extraction sandbox

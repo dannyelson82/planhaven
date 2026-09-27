@@ -17,7 +17,9 @@ from sqlalchemy import text
 from app.db import jobs as job_store
 from app.db import rate_limits
 from app.db.database import Database
+from app.services import attachments as attachment_service
 from app.services import notes as note_service
+from app.services.attachments import BlobStore
 from app.workers.registry import JobContext, get_handler
 
 log = logging.getLogger("planhaven.worker")
@@ -36,8 +38,11 @@ def backoff(attempt: int) -> timedelta:
 
 
 class Worker:
-    def __init__(self, db: Database, worker_id: str | None = None) -> None:
+    def __init__(
+        self, db: Database, worker_id: str | None = None, blobs: BlobStore | None = None
+    ) -> None:
         self.db = db
+        self.blobs = blobs
         self.worker_id = worker_id or new_worker_id()
         self._stopping = asyncio.Event()
 
@@ -61,6 +66,8 @@ class Worker:
                 text("DELETE FROM idempotency_keys WHERE created_at < now() - interval '7 days'")
             )
         await note_service.compact_notes(self.db)
+        if self.blobs is not None:
+            await attachment_service.purge_blobs(self.db, self.blobs)
 
     async def run_once(self) -> bool:
         """Claim and run one job. Returns False when nothing was due."""
