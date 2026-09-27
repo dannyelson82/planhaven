@@ -3,32 +3,29 @@ import asyncio
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import create_app
 from app.services import health as health_service
 
-client = TestClient(create_app())
 
-
-def test_healthz_reports_ok() -> None:
+def test_healthz_reports_ok(client: TestClient) -> None:
     response = client.get("/healthz")
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
 
-def test_healthz_reveals_no_version() -> None:
+def test_healthz_reveals_no_version(client: TestClient) -> None:
     response = client.get("/healthz")
 
     assert "server" not in response.headers
     assert "version" not in response.text.lower()
 
 
-def test_api_docs_are_not_served() -> None:
+def test_api_docs_are_not_served(client: TestClient) -> None:
     for path in ("/docs", "/redoc", "/openapi.json"):
         assert client.get(path).status_code == 404, path
 
 
-def test_readyz_ready(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_readyz_ready(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     async def ready() -> bool:
         return True
 
@@ -40,7 +37,9 @@ def test_readyz_ready(monkeypatch: pytest.MonkeyPatch) -> None:
     assert response.json() == {"status": "ready"}
 
 
-def test_readyz_not_ready_reveals_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_readyz_not_ready_reveals_nothing(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     async def not_ready() -> bool:
         return False
 

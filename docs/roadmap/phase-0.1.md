@@ -41,15 +41,15 @@ them. Every PR gets a security review before merge.
 - [x] `/healthz` and `/readyz` (database check); Docker `HEALTHCHECK`
 - [x] `image.yml`: native amd64 and arm64 builds, smoke test with hardening flags, Trivy
       scan (fail on fixable critical) and Dockerfile scan
-- [ ] Add `Image (amd64)` and `Image (arm64)` as required status checks
+- [x] Add `Image (amd64)` and `Image (arm64)` as required status checks
 
 ## Step 3: Core safety layer
 
-- [ ] Settings from environment (A§4.3); `PUBLIC_MODE` refuses insecure configuration (test)
-- [ ] Trusted-proxy client-IP resolution from `TRUSTED_PROXIES` only (S§7.11)
-- [ ] Security headers and CSP on every response (S§7.10) (test)
-- [ ] Request IDs, JSON body-size limit, RFC 9457 error responses with no internals
-- [ ] Structured JSON logging with a redaction filter (test: no secrets or content in logs)
+- [x] Settings from environment (A§4.3); `PUBLIC_MODE` refuses insecure configuration (test)
+- [x] Trusted-proxy client-IP resolution from `TRUSTED_PROXIES` only (S§7.11)
+- [x] Security headers and CSP on every response (S§7.10) (test); also on 413 and 500 responses
+- [x] Request IDs, JSON body-size limit, RFC 9457 error responses with no internals
+- [x] Structured JSON logging with a redaction filter (test: no secrets or content in logs)
 
 ## Step 4: Database foundation
 
@@ -97,11 +97,13 @@ them. Every PR gets a security review before merge.
 
 ## Step 9: Projects and tasks
 
-- [ ] Choose the UI component library (A§19.2) and record it in an ADR
+- [ ] Choose the UI component library (A§19.2) and record it in an ADR; criteria include
+      responsive and touch-friendly components, accessibility and CSP compatibility (A§13.5)
 - [ ] Projects: CRUD, stages, membership roles (owner/editor/viewer), RLS policies
 - [ ] Tasks: CRUD, due dates, assignee, done state
 - [ ] API conventions: cursor pagination, `If-Match` concurrency, soft delete (A§8.2)
-- [ ] Minimal UI: sign-in, 2FA enrollment, project list, project view with tasks
+- [ ] Minimal UI: sign-in, 2FA enrollment, project list, project view with tasks;
+      responsive for phone and desktop (A§13.5), checked at 390 px and 1280 px widths
 - [ ] Matrix entries and audit events for every new route
 
 ## Step 10: Plugin foundation

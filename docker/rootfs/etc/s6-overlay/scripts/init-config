@@ -1,0 +1,6 @@
+#!/command/with-contenv sh
+# Validate configuration before anything else starts. In public mode an insecure setting
+# (no https BASE_URL, no TRUSTED_PROXIES) stops the container here (SECURITY.md §7.11).
+. /etc/s6-overlay/scripts/common.sh
+cd /app
+as_app python -m app.core.config
