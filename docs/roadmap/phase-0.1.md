@@ -144,7 +144,8 @@ them. Every PR gets a security review before merge.
 
 ## Step 11: Release
 
-- [ ] Nightly `pg_dump` backup with rotation; restore smoke test in CI (A§16)
+- [x] Nightly `pg_dump` backup with rotation; restore smoke test in CI (A§16);
+      `docs/backup-restore.md`
 - [ ] Image signed with cosign (keyless), SBOM attached, provenance attestation
 - [ ] OWASP ZAP baseline scan against a test container
 - [ ] `unraid/planhaven.xml` template and a reverse-proxy snippet for Nginx Proxy Manager

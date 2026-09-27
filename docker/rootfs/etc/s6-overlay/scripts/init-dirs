@@ -11,7 +11,8 @@ pg_gid="$(id -g postgres)"
 own_dir /config         0 0 0711
 own_dir /config/secrets "$PUID" "$PGID" 0700
 own_dir /config/logs    "$PUID" "$PGID" 0750
-own_dir /config/backups "$PUID" "$PGID" 0750
+# Backups are written by the postgres user (they contain every row) and readable only by it.
+own_dir /config/backups "$pg_uid" "$pg_gid" 0700
 own_dir /config/plugins "$PUID" "$PGID" 0750
 own_dir "$PGDATA"       "$pg_uid" "$pg_gid" 0700
 own_dir /data           "$PUID" "$PGID" 0750

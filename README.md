@@ -27,6 +27,7 @@ their documents, and commercial AI assistants can brainstorm with you through an
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — how it's built and why
 - [SECURITY.md](SECURITY.md) — threat model, security controls, and how to report vulnerabilities
+- [docs/backup-restore.md](docs/backup-restore.md) — backups and restoring them
 - [docs/repo-setup.md](docs/repo-setup.md) — GitHub repository hardening checklist
 - [docs/adr/](docs/adr/) — architecture decision records
 - [docs/roadmap/phase-0.1.md](docs/roadmap/phase-0.1.md) — current phase checklist

@@ -165,6 +165,13 @@ done
 check_mode "$work/config/pgdata" 700 "$pg_uid"
 echo "ok: secrets and database files are private"
 
+docker exec "$name" /etc/s6-overlay/scripts/backup-now | grep -q 'backup written' || fail "backup failed"
+backup="$(sudo sh -c "ls $work/config/backups/planhaven-*.dump" | head -1)"
+[[ -n "$backup" ]] || fail "no backup file"
+check_mode "$work/config/backups" 700 "$pg_uid"
+check_mode "$backup" 600 "$pg_uid"
+echo "ok: backup written and private to the database user"
+
 before="$(sudo sha256sum "$work/config/secrets/master.key")"
 banners_before="$(docker logs "$name" 2>&1 | grep -c 'Planhaven setup: no admin account' || true)"
 docker restart -t 30 "$name" >/dev/null

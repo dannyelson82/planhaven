@@ -1,0 +1,30 @@
+#!/command/with-contenv sh
+# Restore a backup into this instance, replacing its database (docs/backup-restore.md).
+# Usage (as root in the container): /etc/s6-overlay/scripts/restore-db /config/backups/<file>
+. /etc/s6-overlay/scripts/common.sh
+
+dump="${1:-}"
+case "$dump" in
+  /config/backups/planhaven-*.dump) ;;
+  *) echo "usage: restore-db /config/backups/planhaven-<stamp>.dump" >&2; exit 2 ;;
+esac
+[ -f "$dump" ] || { echo "restore-db: $dump not found" >&2; exit 1; }
+
+echo "planhaven: stopping app and worker"
+s6-svc -d /run/service/app
+s6-svc -d /run/service/worker
+s6-svwait -D /run/service/app /run/service/worker
+s6-setuidgid postgres psql -h "$PG_SOCKET_DIR" -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
+  -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'planhaven' AND pid <> pg_backend_pid()"
+echo "planhaven: restoring $(basename "$dump")"
+if s6-setuidgid postgres pg_restore --clean --if-exists --exit-on-error \
+    -h "$PG_SOCKET_DIR" -U postgres -d planhaven "$dump"; then
+  status=0
+  echo "planhaven: restore complete"
+else
+  status=1
+  echo "planhaven: restore FAILED; the database may be incomplete. Restore another backup." >&2
+fi
+s6-svc -u /run/service/worker
+s6-svc -u /run/service/app
+exit "$status"
