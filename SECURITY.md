@@ -311,7 +311,8 @@ Prompt injection can't be fully prevented, so the design limits what a hijacked 
 Set by the app itself (not dependent on proxy configuration):
 
 ```
-Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self';
+Content-Security-Policy: default-src 'self'; script-src 'self';
+  style-src 'self' 'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o=';
   img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self';
   manifest-src 'self'; frame-src 'self'; frame-ancestors 'none'; base-uri 'none';
   form-action 'self'; object-src 'none'; upgrade-insecure-requests
@@ -324,7 +325,9 @@ Cross-Origin-Resource-Policy: same-origin
 ```
 
 - No inline scripts or styles; the frontend build must comply (CI checks for CSP violations
-  during end-to-end tests).
+  during end-to-end tests). One exception, by exact hash: React Aria's fixed `touch-action`
+  stylesheet (`'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='` in `style-src`). A hash
+  allows only that exact text; the end-to-end test fails if it changes.
 - `camera=(self)` allows photo capture into attachments from the PWA.
 - Plugin UI routes use a stricter per-plugin CSP and are framed only by the app.
 - `Server` and framework version headers are removed.

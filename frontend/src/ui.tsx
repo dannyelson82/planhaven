@@ -15,7 +15,7 @@ import {
 } from 'react-aria-components'
 import { navigate } from './router.ts'
 
-type Variant = 'primary' | 'secondary' | 'danger' | 'ghost'
+type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'danger-ghost'
 
 const variants: Record<Variant, string> = {
   primary: 'bg-brand-600 text-white hover:bg-brand-700 pressed:bg-brand-700',
@@ -23,6 +23,7 @@ const variants: Record<Variant, string> = {
     'bg-white text-stone-900 ring-1 ring-stone-300 hover:bg-stone-100 dark:bg-stone-900 dark:text-stone-100 dark:ring-stone-700 dark:hover:bg-stone-800',
   danger: 'bg-red-600 text-white hover:bg-red-700',
   ghost: 'text-stone-700 hover:bg-stone-200 dark:text-stone-300 dark:hover:bg-stone-800',
+  'danger-ghost': 'text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950',
 }
 
 export function Button({
@@ -60,7 +61,7 @@ export function Field({
   minLength?: number
 }) {
   const input =
-    'mt-1 block w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 dark:border-stone-700 dark:bg-stone-900 invalid:border-red-500'
+    'mt-1 block w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 dark:border-stone-700 dark:bg-stone-900 data-[invalid]:border-red-500'
   return (
     <TextField {...props} type={type} className="block">
       <Label className="text-sm font-medium">{label}</Label>

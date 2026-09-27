@@ -124,8 +124,9 @@ them. Every PR gets a security review before merge.
       (membership enforced in RLS via `app.project_role`)
 - [x] Tasks: CRUD, due dates, done state; assignee column + RLS visibility (chores, ADR 0013)
 - [x] API conventions: cursor pagination, `If-Match` concurrency, soft delete (A§8.2)
-- [ ] Minimal UI: sign-in, 2FA enrollment, project list, project view with tasks;
+- [x] Minimal UI: sign-in, 2FA enrollment, project list, project view with tasks;
       responsive for phone and desktop (A§13.5), checked at 390 px and 1280 px widths
+      by Playwright browser tests against the container in CI (no CSP violations allowed)
 - [x] Matrix entries and audit events for every new route; outbox events for stage changes
       and completed tasks
 

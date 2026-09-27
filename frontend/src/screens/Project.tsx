@@ -95,7 +95,7 @@ export function ProjectScreen({ id }: { id: string }) {
         </details>
       )}
       {p.role === 'owner' && (
-        <Button variant="ghost" className="text-red-700" onPress={() => { if (window.confirm('Delete this project?')) deleteProject.mutate() }}>
+        <Button variant="danger-ghost" onPress={() => { if (window.confirm('Delete this project?')) deleteProject.mutate() }}>
           Delete project
         </Button>
       )}

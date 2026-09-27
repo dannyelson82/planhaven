@@ -36,6 +36,7 @@ class RemainingOut(BaseModel):
 
 class StatusOut(BaseModel):
     has_totp: bool
+    has_passkeys: bool
     recovery_codes_remaining: int
     mfa_verified: bool
     recently_verified: bool
@@ -50,6 +51,7 @@ async def status(session: PartialSessionDep, request: Request) -> StatusOut:
     s = await mfa_service.status(deps.database(request), session)
     return StatusOut(
         has_totp=s.has_totp,
+        has_passkeys=s.has_passkeys,
         recovery_codes_remaining=s.recovery_codes_remaining,
         mfa_verified=s.mfa_verified,
         recently_verified=s.recently_verified,
