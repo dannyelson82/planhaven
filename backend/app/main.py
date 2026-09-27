@@ -6,7 +6,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
-from app.api import auth, health, mfa
+from app.api import auth, health, mfa, passkeys
 from app.api.errors import install_error_handlers
 from app.auth.session_keys import SessionKey
 from app.core.config import Settings, load_settings
@@ -47,6 +47,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(mfa.router)
+    app.include_router(passkeys.router)
 
     # add_middleware wraps from the inside out: the last one added is the outermost.
     app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_json_bytes)

@@ -104,14 +104,15 @@ async def create_session(
     absolute: timedelta,
     ip: str | None,
     user_agent: str | None,
+    mfa_verified: bool = False,
 ) -> uuid.UUID:
     session_id = uuid.uuid7()
     await conn.execute(
         text("""
             INSERT INTO sessions (id, token_hash, user_id, idle_expires_at,
-                                  absolute_expires_at, ip, user_agent)
+                                  absolute_expires_at, ip, user_agent, mfa_verified, reauth_at)
             VALUES (:id, :th, :uid, now() + :idle, now() + :abs,
-                    CAST(:ip AS inet), :ua)
+                    CAST(:ip AS inet), :ua, :mfa, CASE WHEN :mfa THEN now() END)
         """),
         {
             "id": session_id,
@@ -121,6 +122,7 @@ async def create_session(
             "abs": absolute,
             "ip": ip,
             "ua": (user_agent or "")[:200] or None,
+            "mfa": mfa_verified,
         },
     )
     return session_id

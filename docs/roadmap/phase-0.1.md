@@ -84,7 +84,9 @@ them. Every PR gets a security review before merge.
 - [x] TOTP enrollment + 10 hashed recovery codes; second factor mandatory for every account
       (password-only sessions reach nothing but the second factor); TOTP replay blocked;
       five wrong codes end the session
-- [ ] Passkeys (WebAuthn), including passkey-only sign-in
+- [x] Passkeys (WebAuthn), including passkey-only sign-in; discoverable + user-verified;
+      single-use challenges bound to the session; cloned-key (counter) detection; the last
+      second factor can't be removed
 - [x] Step-up re-authentication (5 minutes) for sensitive actions
 - [ ] Rate limits on sign-in and 2FA (per IP and per account); progressive lockout (S§7.11)
 - [ ] Security log (`/config/logs/security.log`) with a documented format; fail2ban filter

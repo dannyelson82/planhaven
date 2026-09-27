@@ -80,12 +80,17 @@ def normalize_email(email: str) -> str:
     return email
 
 
-def _user(row: store.UserRow) -> User:
+def user_from_row(row: store.UserRow) -> User:
     return User(row.id, row.email, row.display_name, row.is_admin)
 
 
-async def _start_session(
-    conn: AsyncConnection, user_id: uuid.UUID, ip: str | None, user_agent: str | None
+async def start_session(
+    conn: AsyncConnection,
+    user_id: uuid.UUID,
+    ip: str | None,
+    user_agent: str | None,
+    *,
+    mfa_verified: bool = False,
 ) -> str:
     token = tokens.new_token()
     await store.create_session(
@@ -96,6 +101,7 @@ async def _start_session(
         absolute=ABSOLUTE_TIMEOUT,
         ip=ip,
         user_agent=user_agent,
+        mfa_verified=mfa_verified,
     )
     return token
 
@@ -146,7 +152,7 @@ async def complete_setup(
         )
         await store.record_audit(conn, action="setup.completed", actor_user_id=user_id, ip=ip)
         await store.record_audit(conn, action="login.succeeded", actor_user_id=user_id, ip=ip)
-        token = await _start_session(conn, user_id, ip, user_agent)
+        token = await start_session(conn, user_id, ip, user_agent)
     return NewSession(token, User(user_id, email, display_name, True))
 
 
@@ -178,10 +184,10 @@ async def login(
             if passwords.needs_rehash(row.password_hash):
                 await store.set_password_hash(conn, row.id, passwords.hash_password(password))
             await store.record_audit(conn, action="login.succeeded", actor_user_id=row.id, ip=ip)
-            token = await _start_session(conn, row.id, ip, user_agent)
+            token = await start_session(conn, row.id, ip, user_agent)
     if failed or row is None:
         raise AuthError("Incorrect email or password.")
-    return NewSession(token, _user(row))
+    return NewSession(token, user_from_row(row))
 
 
 async def authenticate(db: Database, token: str) -> CurrentSession | None:
@@ -196,7 +202,9 @@ async def authenticate(db: Database, token: str) -> CurrentSession | None:
             return None
         if (session.idle_expires_at - session.last_seen_at) < IDLE_TIMEOUT - TOUCH_INTERVAL:
             await store.touch_session(conn, session.id, IDLE_TIMEOUT)
-    return CurrentSession(session.id, token, _user(user), session.mfa_verified, session.reauth_at)
+    return CurrentSession(
+        session.id, token, user_from_row(user), session.mfa_verified, session.reauth_at
+    )
 
 
 async def logout(db: Database, session: CurrentSession, ip: str | None) -> None:
