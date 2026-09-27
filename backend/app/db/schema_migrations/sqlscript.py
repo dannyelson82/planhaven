@@ -8,8 +8,8 @@ _DOLLAR = re.compile(r"\$[A-Za-z_]*\$")
 
 
 def split_statements(sql: str) -> list[str]:
-    """Split on semicolons, except inside dollar-quoted bodies ($$ ... $$) and '...' strings
-    (a doubled '' inside a string toggles twice, so it stays inside)."""
+    """Split on semicolons, except inside dollar-quoted bodies ($$ ... $$), '...' strings
+    (a doubled '' inside a string toggles twice, so it stays inside) and -- comments."""
     statements: list[str] = []
     current: list[str] = []
     quote: str | None = None
@@ -22,6 +22,12 @@ def split_statements(sql: str) -> list[str]:
         if in_string:
             current.append(char)
             i += 1
+            continue
+        if quote is None and sql.startswith("--", i):
+            end = sql.find("\n", i)
+            end = len(sql) if end == -1 else end
+            current.append(sql[i:end])
+            i = end
             continue
         match = _DOLLAR.match(sql, i)
         if match:

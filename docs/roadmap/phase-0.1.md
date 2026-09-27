@@ -118,14 +118,16 @@ them. Every PR gets a security review before merge.
 
 ## Step 9: Projects and tasks
 
-- [ ] Choose the UI component library (A§19.2) and record it in an ADR; criteria include
+- [x] Choose the UI component library (A§19.2): React Aria + Tailwind (ADR 0014); criteria include
       responsive and touch-friendly components, accessibility and CSP compatibility (A§13.5)
-- [ ] Projects: CRUD, stages, membership roles (owner/editor/viewer), RLS policies
-- [ ] Tasks: CRUD, due dates, assignee, done state
-- [ ] API conventions: cursor pagination, `If-Match` concurrency, soft delete (A§8.2)
+- [x] Projects: CRUD, stages, membership roles (owner/editor/viewer), RLS policies
+      (membership enforced in RLS via `app.project_role`)
+- [x] Tasks: CRUD, due dates, done state; assignee column + RLS visibility (chores, ADR 0013)
+- [x] API conventions: cursor pagination, `If-Match` concurrency, soft delete (A§8.2)
 - [ ] Minimal UI: sign-in, 2FA enrollment, project list, project view with tasks;
       responsive for phone and desktop (A§13.5), checked at 390 px and 1280 px widths
-- [ ] Matrix entries and audit events for every new route
+- [x] Matrix entries and audit events for every new route; outbox events for stage changes
+      and completed tasks
 
 ## Step 10: Plugin foundation
 

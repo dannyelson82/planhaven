@@ -225,7 +225,7 @@ Exact versions are pinned in lockfiles; this table records the choices, not the 
 | Crypto | `cryptography` (AES-256-GCM) | Secrets at rest |
 | MCP | Official MCP Python SDK, Streamable HTTP | |
 | Document extraction | `pypdfium2`, `pypdf`/`pdfplumber`, `python-docx`, `openpyxl`, Tesseract OCR | Permissive licenses only; PyMuPDF (AGPL) excluded (ADR 0010) |
-| Frontend | React + TypeScript + Vite | Built to static assets, served by FastAPI |
+| Frontend | React + TypeScript + Vite; React Aria Components + Tailwind CSS (ADR 0014) | Built to static assets, served by FastAPI |
 | Data fetching | TanStack Query | |
 | PWA | Service worker + IndexedDB (via `vite-plugin-pwa`) | Offline lists |
 | Supervisor | s6-overlay | |
@@ -816,12 +816,13 @@ Every phase ships meeting `SECURITY.md` §11.
 | 0011 | Real-time collaborative editing with Yjs over authenticated WebSockets |
 | 0012 | AI project assistant (local and commercial) behind experimental feature flags |
 | 0013 | Household chores with proof of completion; personal time planner; cut-list plugin moved to 0.7 |
+| 0014 | UI toolkit: React Aria Components with Tailwind CSS |
 
 ### 19.2 Open questions
 
 - ~~Final project name~~ — decided: Planhaven (pending trademark and domain checks).
 - ~~License~~ — decided: Apache-2.0, with a dependency license policy (ADR 0010).
-- UI component library (e.g. Radix/shadcn-style primitives vs. Mantine).
+- ~~UI component library~~ — decided: React Aria Components + Tailwind CSS (ADR 0014).
 - PDF extraction library: PyMuPDF is excluded by ADR 0010; pypdfium2 is the leading
   candidate, final choice in phase 0.5.
 - Rich-text editor for notes (Markdown-first vs. block editor); must bind to Yjs and work
