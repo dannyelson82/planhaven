@@ -8,7 +8,7 @@ parameters are stored in each hash, so they can be raised and old hashes upgrade
 import gzip
 import unicodedata
 from functools import cache
-from importlib import resources
+from pathlib import Path
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
@@ -35,7 +35,7 @@ def normalize(password: str) -> str:
 
 @cache
 def _common_passwords() -> frozenset[str]:
-    data = resources.files("app.auth").joinpath("data/common-passwords.txt.gz").read_bytes()
+    data = (Path(__file__).parent / "data" / "common-passwords.txt.gz").read_bytes()
     return frozenset(gzip.decompress(data).decode("utf-8", "replace").splitlines())
 
 
