@@ -1,0 +1,84 @@
+[project]
+name = "planhaven"
+version = "0.0.0"
+description = "Self-hosted project manager: from idea to done."
+readme = "../README.md"
+license = "Apache-2.0"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.120",
+    "uvicorn>=0.38",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.13",
+    "import-linter>=2.5",
+    "mypy>=1.18",
+    "pytest>=8.4",
+    "ruff>=0.14",
+]
+
+[build-system]
+requires = ["uv_build>=0.9,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "app"
+module-root = ""
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",  # pycodestyle, pyflakes
+    "I",            # import order
+    "B",            # bugbear: likely bugs
+    "UP",           # modern syntax
+    "S",            # security (Bandit rules)
+    "N",            # naming
+    "SIM",          # simplifications
+    "ASYNC",        # async pitfalls
+    "DTZ",          # timezone-naive datetimes
+    "PT",           # pytest style
+    "RUF",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]  # assert is how pytest works
+
+# ---------------------------------------------------------------- mypy
+[tool.mypy]
+strict = true
+python_version = "3.14"
+packages = ["app", "tests"]
+
+# ---------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--strict-markers", "--strict-config", "-ra"]
+xfail_strict = true
+filterwarnings = ["error"]
+
+# ---------------------------------------------------------------- import-linter
+# Backend layering (ARCHITECTURE.md §6): api -> services -> (authz, db, ai, files, sync).
+[tool.importlinter]
+root_package = "app"
+
+[[tool.importlinter.contracts]]
+name = "Backend layering: api -> services -> lower layers"
+type = "layers"
+layers = [
+    "app.api",
+    "app.services",
+    "app.authz : app.db : app.ai : app.files : app.sync",
+]
+
+[[tool.importlinter.contracts]]
+name = "Routers never touch the database directly"
+type = "forbidden"
+source_modules = ["app.api"]
+forbidden_modules = ["app.db"]
