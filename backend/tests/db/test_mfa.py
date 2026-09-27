@@ -192,7 +192,8 @@ async def test_totp_secret_is_encrypted_at_rest(client: httpx2.AsyncClient, db: 
     async with db.system_transaction() as conn:
         stored = bytes(await conn.scalar(text("SELECT secret_encrypted FROM totp_credentials")))
         result = await conn.execute(text("SELECT code_hash FROM recovery_codes"))
-        stored_codes: list[bytes] = [bytes(h) for h in result.scalars()]
+        raw_hashes: list[bytes] = list(result.scalars())
+        stored_codes = [bytes(h) for h in raw_hashes]
     assert secret.encode() not in stored
     assert all(c.replace("-", "").encode() not in h for c in codes for h in stored_codes)
 
