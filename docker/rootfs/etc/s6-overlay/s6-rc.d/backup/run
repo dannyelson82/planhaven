@@ -1,0 +1,3 @@
+#!/command/with-contenv sh
+# Nightly backups, as the postgres user (never root).
+exec s6-setuidgid postgres /etc/s6-overlay/scripts/backup-scheduler

@@ -1,0 +1,9 @@
+#!/bin/sh
+# Nightly backup at 03:00 in the container's TZ (ARCHITECTURE.md §16). Runs as postgres.
+while :; do
+  now="$(date +%s)"
+  next="$(date -d 'today 03:00' +%s)"
+  [ "$next" -gt "$now" ] || next="$(date -d 'tomorrow 03:00' +%s)"
+  sleep "$((next - now))"
+  /etc/s6-overlay/scripts/backup-now || true
+done

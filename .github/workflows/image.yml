@@ -92,6 +92,10 @@ jobs:
           npx playwright install --with-deps chromium
           npx playwright test
 
+      - name: Backup and restore round trip
+        if: matrix.arch == 'amd64'
+        run: .github/scripts/restore-test.sh "$IMAGE" planhaven-e2e "Winterize boat"
+
       - name: Container log after browser tests
         if: failure() && matrix.arch == 'amd64'
         run: docker logs planhaven-e2e 2>&1 | tail -100

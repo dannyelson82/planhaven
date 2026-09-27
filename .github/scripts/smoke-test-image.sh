@@ -140,7 +140,9 @@ docker top "$name" -eo pid,uid,args | awk -v u="$pg_uid" '/postgres -D/ && $2 !=
   || fail "postgres not running as the postgres user ($pg_users)"
 worker_uids="$(docker top "$name" -eo pid,uid,args | awk '/app.workers/ {print $2}' | sort -u)"
 [[ "$worker_uids" == "99" ]] || fail "worker not running as UID 99 (got: $worker_uids)"
-echo "ok: app and worker run as 99, PostgreSQL as postgres"
+docker top "$name" -eo pid,uid,args | awk -v u="$pg_uid" '/backup-scheduler/ && $2 != u {bad=1} END {exit bad}' \
+  || fail "backup scheduler not running as the postgres user"
+echo "ok: app and worker run as 99, PostgreSQL and backups as postgres"
 
 if docker exec "$name" python -c "import socket; socket.create_connection(('127.0.0.1', 5432), 2)" 2>/dev/null; then
   fail "PostgreSQL accepts TCP connections"
@@ -164,6 +166,13 @@ for f in master.key session.key vapid_private.pem vapid_public.txt; do
 done
 check_mode "$work/config/pgdata" 700 "$pg_uid"
 echo "ok: secrets and database files are private"
+
+docker exec "$name" /etc/s6-overlay/scripts/backup-now | grep -q 'backup written' || fail "backup failed"
+backup="$(sudo sh -c "ls $work/config/backups/planhaven-*.dump" | head -1)"
+[[ -n "$backup" ]] || fail "no backup file"
+check_mode "$work/config/backups" 700 "$pg_uid"
+check_mode "$backup" 600 "$pg_uid"
+echo "ok: backup written and private to the database user"
 
 before="$(sudo sha256sum "$work/config/secrets/master.key")"
 banners_before="$(docker logs "$name" 2>&1 | grep -c 'Planhaven setup: no admin account' || true)"

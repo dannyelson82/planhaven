@@ -438,7 +438,7 @@ Decided in ADR 0011; built with notes in phase 0.2.
 | `generate_recurrence` | project completed | Creates next instance from template |
 | `send_notifications` | schedule / events | Web Push; per-user preferences and quiet hours |
 | `purge_trash` | daily | Hard-deletes soft-deleted content after 30 days; drops unreferenced blobs |
-| `backup_db` | nightly | `pg_dump` to `/config/backups`, rotation (§16) |
+| `backup_db` | nightly | s6 `backup` service (not the worker): `pg_dump` as `postgres`, rotation (§16) |
 | `plugin_*` | plugin-declared | Scheduled or event-driven plugin jobs |
 
 Jobs have retries with exponential backoff, a maximum attempt count, and a dead-letter state
@@ -748,6 +748,9 @@ plugins). Notification text never includes note bodies or attachment content.
 ## 16. Backup and restore
 
 - Nightly `pg_dump` (custom format) to `/config/backups`, keeping 7 daily and 4 weekly copies.
+  It runs as the `postgres` user in its own s6 service (RLS hides rows from every other role),
+  and the files are private to that user. Restore: `restore-db` script. See
+  `docs/backup-restore.md`.
 - Attachments in `/data` are backed up by the user's existing Unraid backup tooling (documented).
 - Before any PostgreSQL major-version upgrade, a mandatory dump is taken; upgrade aborts if the
   dump fails.
