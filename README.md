@@ -31,7 +31,7 @@ their documents, and commercial AI assistants can brainstorm with you through an
 - [docs/backup-restore.md](docs/backup-restore.md) — backups and restoring them
 - [docs/repo-setup.md](docs/repo-setup.md) — GitHub repository hardening checklist
 - [docs/adr/](docs/adr/) — architecture decision records
-- [docs/roadmap/phase-0.1.md](docs/roadmap/phase-0.1.md) — current phase checklist
+- [docs/roadmap/](docs/roadmap/) — phase checklists (current: phase-0.2.md)
 - [docs/roadmap/](docs/roadmap/) — current phase checklist
 
 ## Reporting security issues
