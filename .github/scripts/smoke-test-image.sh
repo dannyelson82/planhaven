@@ -83,6 +83,7 @@ check_mode() { # path expected-mode expected-owner
   actual="$(sudo stat -c '%a %u' "$1")"
   [[ "$actual" == "$2 $3" ]] || fail "$1 is '$actual', expected '$2 $3'"
 }
+check_mode "$work/config" 711 0
 check_mode "$work/config/secrets" 700 99
 for f in master.key session.key vapid_private.pem vapid_public.txt; do
   check_mode "$work/config/secrets/$f" 600 99
@@ -102,5 +103,22 @@ docker stop -t 30 "$name" >/dev/null
 elapsed=$((SECONDS - start))
 [[ $elapsed -lt 25 ]] || fail "shutdown took ${elapsed}s (services not stopping cleanly)"
 echo "ok: clean shutdown in ${elapsed}s"
+
+# A symlinked volume directory must stop startup, not be followed by root.
+docker rm -f "$name" >/dev/null
+sudo rm -rf "$work/config/logs"
+sudo ln -s /etc "$work/config/logs"
+docker run -d --name "$name" --cap-drop=ALL \
+  --cap-add=CHOWN --cap-add=SETUID --cap-add=SETGID --cap-add=DAC_OVERRIDE \
+  --cap-add=FOWNER --cap-add=KILL --security-opt=no-new-privileges:true \
+  --read-only --tmpfs /run:rw,exec,nosuid,size=64m --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+  -v "$work/config:/config" -v "$work/data:/data" "$image" >/dev/null
+for _ in $(seq 1 30); do
+  [[ "$(docker inspect -f '{{.State.Running}}' "$name")" == "true" ]] || break
+  sleep 1
+done
+[[ "$(docker inspect -f '{{.State.Running}}' "$name")" == "false" ]] || fail "started despite a symlinked /config/logs"
+docker logs "$name" 2>&1 | grep -q "is a symlink; refusing to start" || fail "no symlink refusal message"
+echo "ok: refuses symlinked volume directories"
 
 echo "All smoke tests passed."

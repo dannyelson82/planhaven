@@ -20,9 +20,14 @@ as_app() { exec s6-applyuidgid -u "$PUID" -g "$PGID" -G "$PGID" "$@"; }
 # Run a command as the postgres user.
 as_postgres() { s6-setuidgid postgres "$@"; }
 
-# Set owner/mode of a directory without recursing (volumes may be large).
+# Set owner/mode of a directory without recursing (volumes may be large). Runs as root, so it
+# refuses symlinks: otherwise a compromised app could redirect root's chown/chmod elsewhere.
 own_dir() { # path uid gid mode
+  if [ -L "$1" ]; then
+    echo "planhaven: $1 is a symlink; refusing to start" >&2; exit 1
+  fi
   mkdir -p "$1"
-  [ "$(stat -c %u:%g "$1")" = "$2:$3" ] || chown "$2:$3" "$1"
-  chmod "$4" "$1"
+  [ -d "$1" ] || { echo "planhaven: $1 is not a directory; refusing to start" >&2; exit 1; }
+  [ "$(stat -c %u:%g "$1")" = "$2:$3" ] || chown -h "$2:$3" "$1"
+  [ "$(stat -c %a "$1")" = "${4#0}" ] || chmod "$4" "$1"
 }
