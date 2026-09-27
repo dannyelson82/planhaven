@@ -4,7 +4,7 @@ Guidance for Claude Code (and other AI agents) working in this repository.
 
 ## Project status
 
-Planhaven is in the **design phase**: no application code yet. The source of truth is:
+Planhaven is building **phase 0.1** (checklist: `docs/roadmap/phase-0.1.md`). The source of truth is:
 
 - `ARCHITECTURE.md`: how it's built and why (cited as A§n)
 - `SECURITY.md`: threat model, controls, release criteria (cited as S§n)

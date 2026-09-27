@@ -6,7 +6,7 @@ Self-hosted project manager for home, vehicle, and maker projects, from the firs
 Shopping lists and tasks sync to your iPhone, local AI answers questions about your projects and
 their documents, and commercial AI assistants can brainstorm with you through an MCP connector.
 
-> **Status:** design phase. No code yet.
+> **Status:** building phase 0.1 (secure foundation). Not ready for use yet.
 
 ## Planned features
 
@@ -26,6 +26,8 @@ their documents, and commercial AI assistants can brainstorm with you through an
 - [SECURITY.md](SECURITY.md) — threat model, security controls, and how to report vulnerabilities
 - [docs/repo-setup.md](docs/repo-setup.md) — GitHub repository hardening checklist
 - [docs/adr/](docs/adr/) — architecture decision records
+- [docs/roadmap/phase-0.1.md](docs/roadmap/phase-0.1.md) — current phase checklist
+- [docs/roadmap/](docs/roadmap/) — current phase checklist
 
 ## Reporting security issues
 
