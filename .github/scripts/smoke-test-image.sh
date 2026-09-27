@@ -107,7 +107,9 @@ pg_users="$(docker top "$name" -eo pid,user,args | awk '/postgres -D/ {print $2}
 pg_uid="$(docker exec "$name" id -u postgres)"
 docker top "$name" -eo pid,uid,args | awk -v u="$pg_uid" '/postgres -D/ && $2 != u {bad=1} END {exit bad}' \
   || fail "postgres not running as the postgres user ($pg_users)"
-echo "ok: app runs as 99, PostgreSQL as postgres"
+worker_uids="$(docker top "$name" -eo pid,uid,args | awk '/app.workers/ {print $2}' | sort -u)"
+[[ "$worker_uids" == "99" ]] || fail "worker not running as UID 99 (got: $worker_uids)"
+echo "ok: app and worker run as 99, PostgreSQL as postgres"
 
 if docker exec "$name" python -c "import socket; socket.create_connection(('127.0.0.1', 5432), 2)" 2>/dev/null; then
   fail "PostgreSQL accepts TCP connections"

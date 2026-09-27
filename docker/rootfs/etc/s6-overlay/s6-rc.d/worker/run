@@ -1,0 +1,5 @@
+#!/command/with-contenv sh
+# Background job worker (ADR 0003), as PUID:PGID. Stops after the current job on SIGTERM.
+. /etc/s6-overlay/scripts/common.sh
+cd /app || exit 1
+as_app python -m app.workers
