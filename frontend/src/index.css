@@ -33,3 +33,138 @@
     }
   }
 }
+
+/* Notes editor. TipTap's own stylesheet is not injected (the CSP forbids inline styles), so
+   the essential ProseMirror rules live here. */
+@layer components {
+  .ProseMirror {
+    position: relative;
+    white-space: pre-wrap;
+    white-space: break-spaces;
+    word-wrap: break-word;
+    font-variant-ligatures: none;
+    font-feature-settings: 'liga' 0;
+    outline: none;
+    min-height: 14rem;
+  }
+  .ProseMirror [contenteditable='false'] {
+    white-space: normal;
+  }
+  .ProseMirror pre {
+    white-space: pre-wrap;
+  }
+  .ProseMirror-hideselection *::selection {
+    background: transparent;
+  }
+  .ProseMirror-hideselection {
+    caret-color: transparent;
+  }
+  .ProseMirror-separator,
+  .ProseMirror img.ProseMirror-separator {
+    display: inline !important;
+    border: none !important;
+    margin: 0 !important;
+  }
+  .ProseMirror-gapcursor {
+    display: none;
+    pointer-events: none;
+    position: absolute;
+  }
+  .ProseMirror-gapcursor::after {
+    content: '';
+    display: block;
+    position: absolute;
+    top: -2px;
+    width: 20px;
+    border-top: 1px solid currentColor;
+  }
+  .ProseMirror-focused .ProseMirror-gapcursor {
+    display: block;
+  }
+
+  .note-content > * + * {
+    margin-top: 0.6em;
+  }
+  .note-content h1 {
+    @apply text-2xl font-bold;
+  }
+  .note-content h2 {
+    @apply text-xl font-bold;
+  }
+  .note-content h3 {
+    @apply text-lg font-semibold;
+  }
+  .note-content ul {
+    @apply list-disc pl-6;
+  }
+  .note-content ol {
+    @apply list-decimal pl-6;
+  }
+  .note-content a {
+    @apply text-brand-700 underline dark:text-brand-100;
+  }
+  .note-content blockquote {
+    @apply border-l-4 border-stone-300 pl-3 text-stone-600 dark:border-stone-700 dark:text-stone-400;
+  }
+  .note-content code {
+    @apply rounded bg-stone-100 px-1 font-mono text-sm dark:bg-stone-800;
+  }
+  .note-content pre {
+    @apply rounded-xl bg-stone-100 p-3 font-mono text-sm dark:bg-stone-800;
+  }
+  .note-content hr {
+    @apply border-stone-300 dark:border-stone-700;
+  }
+  .note-content ul[data-type='taskList'] {
+    @apply list-none pl-0;
+  }
+  .note-content ul[data-type='taskList'] li {
+    @apply flex items-start gap-2;
+  }
+  .note-content ul[data-type='taskList'] li > label {
+    @apply mt-0.5 flex-none;
+  }
+  .note-content ul[data-type='taskList'] li > label input {
+    @apply size-5 accent-brand-600;
+  }
+  .note-content ul[data-type='taskList'] li > div {
+    @apply min-w-0 flex-1;
+  }
+  .note-content ul[data-type='taskList'] li[data-checked='true'] > div {
+    @apply text-stone-500 line-through;
+  }
+
+  /* Other people's cursors. Colours are fixed classes; see CARET_COLOURS in Notes.tsx. */
+  .collab-caret {
+    position: relative;
+    margin-inline: -1px;
+    border-inline: 1px solid var(--caret);
+    word-break: normal;
+    pointer-events: none;
+  }
+  .collab-caret-label {
+    position: absolute;
+    top: -1.4em;
+    left: -1px;
+    padding: 0 0.3em;
+    border-radius: 0.3em 0.3em 0.3em 0;
+    background: var(--caret);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .collab-selection {
+    background: color-mix(in oklch, var(--caret) 25%, transparent);
+  }
+  .collab-c0 { --caret: var(--color-red-600); }
+  .collab-c1 { --caret: var(--color-orange-600); }
+  .collab-c2 { --caret: var(--color-amber-600); }
+  .collab-c3 { --caret: var(--color-emerald-600); }
+  .collab-c4 { --caret: var(--color-cyan-600); }
+  .collab-c5 { --caret: var(--color-blue-600); }
+  .collab-c6 { --caret: var(--color-violet-600); }
+  .collab-c7 { --caret: var(--color-pink-600); }
+}

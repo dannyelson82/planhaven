@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Checkbox } from 'react-aria-components'
 import { api } from '../api.ts'
+import { useLiveProject } from '../live.ts'
 import { Button, Card, ErrorText, Field, Form, Link } from '../ui.tsx'
 
 export type ListSummary = { id: string; project_id: string; title: string; kind: Kind; open_items: number; total_items: number; version: number }
@@ -58,6 +59,7 @@ function quantityText(i: Item): string {
 export function ListScreen({ id }: { id: string }) {
   const client = useQueryClient()
   const list = useQuery({ queryKey: ['list', id], queryFn: () => api<ListDetail>('GET', `/api/v1/lists/${id}`) })
+  useLiveProject(list.data?.project_id)
   // Also refresh the project's list summaries (counts), shown when going back.
   const refresh = () => Promise.all([
     client.invalidateQueries({ queryKey: ['list', id] }),

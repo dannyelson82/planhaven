@@ -4,13 +4,16 @@ import { Checkbox, ListBox, ListBoxItem, Popover, Select, SelectValue, Button as
 import { api, type Project, STAGES, type Stage, type Task } from '../api.ts'
 import { navigate } from '../router.ts'
 import { Button, Card, ErrorText, Field, Form } from '../ui.tsx'
+import { useLiveProject } from '../live.ts'
 import { ProjectLists } from './Lists.tsx'
+import { ProjectNotes } from './Notes.tsx'
 import { ShareButton } from './Sharing.tsx'
 import { TaskEditor } from './TaskEditor.tsx'
 
 export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
   const client = useQueryClient()
   const project = useQuery({ queryKey: ['project', id], queryFn: () => api<Project>('GET', `/api/v1/projects/${id}`) })
+  useLiveProject(id)
   const tasks = useQuery({ queryKey: ['tasks', id], queryFn: () => api<Task[]>('GET', `/api/v1/projects/${id}/tasks`) })
   const refresh = () => Promise.all([
     client.invalidateQueries({ queryKey: ['project', id] }),
@@ -101,6 +104,7 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
         </details>
       )}
       <ProjectLists projectId={id} canEdit={canEdit} />
+      <ProjectNotes projectId={id} canEdit={canEdit} />
       {p.role === 'owner' && (
         <Button variant="danger-ghost" onPress={() => { if (window.confirm('Delete this project?')) deleteProject.mutate() }}>
           Delete project

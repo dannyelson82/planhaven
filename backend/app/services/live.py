@@ -28,3 +28,22 @@ def unsubscribe(project_id: uuid.UUID, queue: asyncio.Queue[str]) -> None:
     _subscribers[project_id].discard(queue)
     if not _subscribers[project_id]:
         _subscribers.pop(project_id, None)
+
+
+# Open WebSockets (collaboration + live updates) per user, so one account can't exhaust the
+# server's connections (SECURITY.md §7.15).
+MAX_SOCKETS_PER_USER = 20
+_open_sockets: dict[uuid.UUID, int] = defaultdict(int)
+
+
+def claim_socket(user_id: uuid.UUID) -> bool:
+    if _open_sockets[user_id] >= MAX_SOCKETS_PER_USER:
+        return False
+    _open_sockets[user_id] += 1
+    return True
+
+
+def release_socket(user_id: uuid.UUID) -> None:
+    _open_sockets[user_id] -= 1
+    if _open_sockets[user_id] <= 0:
+        _open_sockets.pop(user_id, None)

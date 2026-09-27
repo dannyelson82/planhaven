@@ -32,13 +32,14 @@ events, browser tests at phone and desktop widths, threat-model check.
 
 ## Milestone 3: Notes and real-time collaboration (v0.1.3)
 
-- [ ] ADR 0011 implemented: authenticated WebSocket (`/api/v1/collab/{doc_id}`) with Origin
-      check, authz at connect and on membership change, viewer updates rejected, size and
-      rate limits, no content in logs (S§7.15)
-- [ ] Notes as Yjs documents (pycrdt server side): updates stored under RLS with
+- [x] ADR 0011 implemented: authenticated WebSocket (`/api/v1/collab/notes/{note_id}`) with
+      Origin check, authz at connect and re-checked every 15 s, viewer updates rejected,
+      size, rate and per-user connection limits, no content in logs (S§7.15)
+- [x] Notes as Yjs documents (pycrdt server side): updates stored under RLS with
       attribution, compacted by a worker job; derived Markdown for search and export
-- [ ] TipTap editor with collaboration cursors; works under the CSP
-- [ ] Live updates for lists and tasks over the same connection
+- [x] TipTap editor with collaboration cursors; works under the CSP (no injected styles)
+- [x] Live updates for projects, tasks, lists and notes on a separate per-project socket
+      (`/api/v1/live/projects/{project_id}`); it carries only the kind of change
 
 ## Milestone 4: Attachments and photos (v0.1.4)
 

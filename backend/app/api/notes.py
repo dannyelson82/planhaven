@@ -19,6 +19,7 @@ from app.api.deps import SessionDep
 from app.api.projects import _etag, _version
 from app.services import live
 from app.services import notes as service
+from app.services.auth import CurrentSession
 from app.services.notes import CollabCloseError, Peer, rooms
 from app.services.projects import ConflictError
 
@@ -140,6 +141,19 @@ async def collaborate(websocket: WebSocket, note_id: uuid.UUID) -> None:
     except authz.AuthzError:
         await websocket.close(code=4404)
         return
+    if not live.claim_socket(session.user.id):
+        await websocket.close(code=4429)
+        return
+    try:
+        await _collaborate(websocket, session, note, can_write)
+    finally:
+        live.release_socket(session.user.id)
+
+
+async def _collaborate(
+    websocket: WebSocket, session: CurrentSession, note: service.NoteRow, can_write: bool
+) -> None:
+    db = websocket.app.state.db
     await websocket.accept()
     peer = Peer(
         send=websocket.send_bytes,
@@ -191,6 +205,19 @@ async def live_updates(websocket: WebSocket, project_id: uuid.UUID) -> None:
     except authz.AuthzError:
         await websocket.close(code=4404)
         return
+    if not live.claim_socket(session.user.id):
+        await websocket.close(code=4429)
+        return
+    try:
+        await _live_updates(websocket, session, project_id)
+    finally:
+        live.release_socket(session.user.id)
+
+
+async def _live_updates(
+    websocket: WebSocket, session: CurrentSession, project_id: uuid.UUID
+) -> None:
+    db = websocket.app.state.db
     await websocket.accept()
     queue = live.subscribe(project_id)
     receiver = asyncio.ensure_future(websocket.receive())

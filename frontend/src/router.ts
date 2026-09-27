@@ -29,6 +29,7 @@ export type Route =
   | { name: 'projects' }
   | { name: 'project'; id: string }
   | { name: 'list'; id: string }
+  | { name: 'note'; id: string }
   | { name: 'account' }
   | { name: 'invite' }
   | { name: 'not-found' }
@@ -42,6 +43,7 @@ export function match(path: string): Route {
   if (parts.length === 2 && parts[0] === 'projects' && UUID.test(parts[1]))
     return { name: 'project', id: parts[1] }
   if (parts.length === 2 && parts[0] === 'lists' && UUID.test(parts[1])) return { name: 'list', id: parts[1] }
+  if (parts.length === 2 && parts[0] === 'notes' && UUID.test(parts[1])) return { name: 'note', id: parts[1] }
   if (parts.length === 1 && parts[0] === 'account') return { name: 'account' }
   if (parts.length === 1 && parts[0] === 'invite') return { name: 'invite' }
   return { name: 'not-found' }
