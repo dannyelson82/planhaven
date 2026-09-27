@@ -36,6 +36,7 @@ Representative projects it must handle well:
 - Track projects through a lifecycle: **Idea → Planning → Ready → In progress → Done → Archived**.
 - Store tasks, lists (shopping, parts, checklists), notes, and attachments per project.
 - Multi-user: every user starts with a clean slate; projects are shared explicitly.
+- Work equally well on a phone and a desktop browser: one responsive web app (§13.5).
 - Sync shopping lists and tasks to iPhone (Reminders via Shortcuts, Calendar via ICS feed,
   Web Push notifications, installable PWA).
 - Answer questions about a project and its attachments using **local** AI models.
@@ -565,6 +566,23 @@ Apple provides no server API for Reminders, so a Shortcut shipped in `shortcuts/
   replayed with idempotency keys when online; conflicts surfaced to the user.
 - The service worker never caches authenticated API responses beyond the offline list/task set,
   and clears caches on logout.
+
+### 13.5 Responsive layout (phone and desktop)
+
+One web app serves both; there is no separate mobile site. Layout adapts with CSS
+(mobile-first styles, media/container queries, fluid grids), not by detecting devices.
+
+- **Phone** (narrow screens, the default styles): single column, bottom navigation within thumb
+  reach, touch targets at least 44×44 px, no hover-only controls, safe-area insets for the
+  iPhone notch and home indicator, inputs at 16 px or larger so iOS doesn't zoom.
+- **Desktop** (wide screens): multi-pane layouts, e.g. project list beside the open project;
+  keyboard shortcuts and hover affordances as extras, never as the only way to do something.
+- Respects system preferences: light/dark (`prefers-color-scheme`), reduced motion, and text
+  size (layouts use `rem`, so enlarged text doesn't break them).
+- Accessible: semantic HTML, visible focus, WCAG 2.2 AA contrast.
+- All styles ship as static CSS files, compatible with the CSP (`style-src 'self'`,
+  SECURITY.md §7.10); no inline styles.
+- Tested in CI at phone (390 px) and desktop (1280 px) widths once end-to-end tests exist.
 
 ---
 

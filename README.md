@@ -13,6 +13,7 @@ their documents, and commercial AI assistants can brainstorm with you through an
 - Projects with stages (Idea → Planning → Ready → In progress → Done), tasks, lists, notes,
   attachments, assets (vehicles, boat, house), contacts and quotes
 - Multi-user with per-project sharing (owner / editor / viewer)
+- Works on phone and desktop: one responsive web app, installable as a PWA
 - iPhone: Reminders sync via Apple Shortcuts, calendar feed, push notifications, installable PWA
 - Local AI (Ollama / OpenAI-compatible) Q&A over projects and attachments
 - MCP connector for Claude, ChatGPT, and other assistants (OAuth protected)

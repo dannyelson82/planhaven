@@ -68,7 +68,8 @@ to admins and admin tokens.
       checks, all from GitHub Actions: `Backend`, `Frontend`, `CodeQL (python)`,
       `CodeQL (javascript-typescript)`, `CodeQL (actions)`, `Python dependencies and Bandit`,
       `npm dependencies`, `Semgrep`, `Gitleaks`, `Dependency review`,
-      `Workflow audit (zizmor)`. Renaming a job in a workflow means updating this list.
+      `Workflow audit (zizmor)`, `Image (amd64)`, `Image (arm64)`. Renaming a job in a
+      workflow means updating this list.
 - [x] Require code scanning results: CodeQL, blocking security alerts of high severity or
       higher and alerts of level "error"
 
