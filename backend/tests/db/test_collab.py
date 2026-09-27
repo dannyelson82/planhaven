@@ -17,6 +17,7 @@ from starlette.websockets import WebSocketDisconnect
 from app.db.database import OWNER_ROLE, Database
 from app.main import create_app
 from app.services import auth as auth_service
+from app.services import live
 from tests.db.conftest import _settings
 
 pytestmark = pytest.mark.db
@@ -223,6 +224,23 @@ def test_live_updates_tell_open_pages_what_changed(team: tuple[U, U, U, str, str
             f"/api/v1/projects/{pid}/tasks", headers=owner.h, json={"title": "Buy LED strips"}
         )
         assert ws.receive_json() == {"kind": "tasks"}
+
+
+def test_open_sockets_per_user_are_capped(
+    team: tuple[U, U, U, str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    owner, _, _, pid, _ = team
+    monkeypatch.setattr(live, "MAX_SOCKETS_PER_USER", 1)
+    with owner.ws(f"/api/v1/live/projects/{pid}"):
+        with (
+            pytest.raises(WebSocketDisconnect) as refused,
+            owner.ws(f"/api/v1/live/projects/{pid}"),
+        ):
+            pass
+        assert refused.value.code == 4429
+    # Closing frees the slot.
+    with owner.ws(f"/api/v1/live/projects/{pid}"):
+        pass
 
 
 def test_note_rest_roles(team: tuple[U, U, U, str, str]) -> None:

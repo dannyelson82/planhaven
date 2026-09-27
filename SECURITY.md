@@ -402,7 +402,9 @@ Cross-Origin-Resource-Policy: same-origin
   roles change; affected connections are closed. RLS applies to every stored update.
 - Viewers receive updates; any update they send is rejected and the attempt logged.
 - Limits per connection and user: message size, updates per second, open connections, and
-  total document size. Malformed or oversized messages close the connection.
+  total document size. Malformed or oversized messages close the connection. Currently:
+  256 KB per message (1 MB per WebSocket frame at the server), 200 messages per 10 s,
+  20 open WebSockets per user, 5 MB per document; compression is off.
 - Awareness data (display name, cursor) is relayed only within the document and not stored.
 - Update contents are never logged; logs hold document ID, user, byte counts and outcomes.
 - Every accepted update is attributed (user or MCP client) so history and undo work.
