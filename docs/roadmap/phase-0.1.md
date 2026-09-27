@@ -146,8 +146,10 @@ them. Every PR gets a security review before merge.
 
 - [x] Nightly `pg_dump` backup with rotation; restore smoke test in CI (A§16);
       `docs/backup-restore.md`
-- [ ] Image signed with cosign (keyless), SBOM attached, provenance attestation
-- [ ] OWASP ZAP baseline scan against a test container
-- [ ] `unraid/planhaven.xml` template and a reverse-proxy snippet for Nginx Proxy Manager
+- [x] Release workflow (on a `v*` tag): native multi-arch build, cosign keyless signature,
+      SPDX SBOM attestation, build provenance, GitHub release with verify instructions
+- [x] OWASP ZAP baseline scan against the test container (fails on high risk)
+- [x] `unraid/planhaven.xml` template (hardening flags in Extra Parameters) and
+      `deploy/proxy/nginx-proxy-manager/`
 - [ ] Walk through the SECURITY.md §11 checklist; tag `v0.1.0`
 - [ ] Install on Unraid and test end to end

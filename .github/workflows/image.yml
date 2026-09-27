@@ -96,6 +96,18 @@ jobs:
         if: matrix.arch == 'amd64'
         run: .github/scripts/restore-test.sh "$IMAGE" planhaven-e2e "Winterize boat"
 
+      - name: OWASP ZAP baseline scan (fail on high risk)
+        if: matrix.arch == 'amd64'
+        env:
+          ZAP_IMAGE: ghcr.io/zaproxy/zaproxy:stable@sha256:781a2bdaea47324e7bab583e2263f21d257b0aee61ed51521a5be45f5f5081ef
+        run: |
+          mkdir -p "$RUNNER_TEMP/zap" && chmod 777 "$RUNNER_TEMP/zap"
+          docker run --rm --network host -v "$RUNNER_TEMP/zap:/zap/wrk:rw" "$ZAP_IMAGE" \
+            zap-baseline.py -t http://localhost:18081 -J zap.json -I
+          jq -r '.site[].alerts[] | "\(.riskdesc)\t\(.alert)"' "$RUNNER_TEMP/zap/zap.json" | sort -u
+          high="$(jq '[.site[].alerts[] | select((.riskcode | tonumber) >= 3)] | length' "$RUNNER_TEMP/zap/zap.json")"
+          if [ "$high" -gt 0 ]; then echo "::error::ZAP found $high high-risk issue(s)"; exit 1; fi
+
       - name: Container log after browser tests
         if: failure() && matrix.arch == 'amd64'
         run: docker logs planhaven-e2e 2>&1 | tail -100
