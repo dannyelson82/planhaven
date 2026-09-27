@@ -88,3 +88,20 @@ def keyring(request: Request) -> Any:
 PartialSessionDep = Annotated[CurrentSession, Depends(require_session)]
 SessionDep = Annotated[CurrentSession, Depends(require_verified_session)]
 SameOrigin = Depends(require_same_origin)
+
+
+def require_admin_network(request: Request) -> None:
+    """With ADMIN_ALLOWED_CIDRS set, admin routes answer 404 from anywhere else, so the admin
+    area isn't even discoverable from the internet (SECURITY.md §7.11)."""
+    import ipaddress
+
+    allowed = settings(request).admin_allowed_cidrs
+    if not allowed:
+        return
+    ip = client_ip(request)
+    try:
+        address = ipaddress.ip_address(ip) if ip else None
+    except ValueError:
+        address = None
+    if address is None or not any(address in net for net in allowed):
+        raise HTTPException(404)

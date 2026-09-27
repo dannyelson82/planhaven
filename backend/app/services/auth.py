@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from app.auth import passwords, tokens
 from app.auth.passwords import PasswordPolicyError
 from app.core import security_log
+from app.db import admin as admin_store
 from app.db import auth as store
 from app.db.database import Database
 from app.services import limits
@@ -199,6 +200,13 @@ async def login(
             if passwords.needs_rehash(row.password_hash):
                 await store.set_password_hash(conn, row.id, passwords.hash_password(password))
             await store.record_audit(conn, action="login.succeeded", actor_user_id=row.id, ip=ip)
+            if not await admin_store.seen_ip_recently(conn, row.id, ip, None):
+                await admin_store.notify(
+                    conn,
+                    row.id,
+                    "new_sign_in",
+                    {"ip": ip, "user_agent": (user_agent or "")[:120], "method": "password"},
+                )
             token = await start_session(conn, row.id, ip, user_agent)
     if failed or row is None:
         security_log.event("login_failed", ip=ip, user_id=None, method="password")
@@ -250,6 +258,9 @@ async def change_password(
             raise AuthError("Your current password is incorrect.")
         await store.set_password_hash(conn, user.id, passwords.hash_password(new_password))
         await store.revoke_other_sessions(conn, user.id, keep=session.id)
+        await admin_store.notify(
+            conn, user.id, "security_change", {"change": "password_changed", "ip": ip}
+        )
         await store.record_audit(conn, action="password.changed", actor_user_id=user.id, ip=ip)
     security_log.event("password_changed", ip=ip, user_id=user.id)
 
