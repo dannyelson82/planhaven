@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { api, type Session } from '../api.ts'
+import { navigate } from '../router.ts'
 import { useRefreshSession } from '../session.ts'
 import { AuthPage, Button, ErrorText, Field, Form } from '../ui.tsx'
 import { createPasskey, getPasskey, passkeysSupported } from '../webauthn.ts'
@@ -86,7 +87,7 @@ export function LoginScreen() {
   )
 }
 
-type MfaStatus = { has_totp: boolean }
+type MfaStatus = { has_totp: boolean; has_passkeys: boolean }
 
 export function SecondFactorScreen() {
   const refresh = useRefreshSession()
@@ -94,19 +95,8 @@ export function SecondFactorScreen() {
   const [code, setCode] = useState('')
   const [recovery, setRecovery] = useState(false)
   const status = useQuery({ queryKey: ['mfa-status'], queryFn: () => api<MfaStatus>('GET', '/api/v1/auth/mfa/status') })
-  const hasPasskeys = useQuery({
-    queryKey: ['has-passkeys'],
-    queryFn: async () => {
-      try {
-        await api<Options>('POST', '/api/v1/auth/passkeys/verify/options')
-        return true
-      } catch {
-        return false
-      }
-    },
-    enabled: passkeysSupported(),
-  })
-  if (status.data && !status.data.has_totp && hasPasskeys.data === false) return <EnrollScreen />
+  if (status.data && !status.data.has_totp && !status.data.has_passkeys) return <EnrollScreen />
+  const hasPasskeys = !!status.data?.has_passkeys && passkeysSupported()
   const verifyWithPasskey = () =>
     run(async () => {
       const opts = await api<Options>('POST', '/api/v1/auth/passkeys/verify/options')
@@ -135,7 +125,7 @@ export function SecondFactorScreen() {
         <Button type="submit" isDisabled={busy} className="w-full">Continue</Button>
       </Form>
       <div className="mt-4 flex flex-col gap-2">
-        {hasPasskeys.data && (
+        {hasPasskeys && (
           <Button variant="secondary" isDisabled={busy} onPress={() => void verifyWithPasskey()}>Use a passkey instead</Button>
         )}
         <Button variant="ghost" onPress={() => { setRecovery(!recovery); setCode('') }}>
@@ -248,7 +238,16 @@ export function InviteScreen() {
 export function SignOutButton() {
   const refresh = useRefreshSession()
   return (
-    <Button variant="ghost" className="w-full" onPress={() => void api('POST', '/api/v1/auth/logout').finally(() => void refresh())}>
+    <Button
+      variant="ghost"
+      className="w-full"
+      onPress={() =>
+        void api('POST', '/api/v1/auth/logout').finally(() => {
+          navigate('/')
+          void refresh()
+        })
+      }
+    >
       Sign out
     </Button>
   )

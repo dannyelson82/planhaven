@@ -113,6 +113,8 @@ npm test              # tests (Vitest)
 npm run lint          # lint (oxlint, warnings fail)
 npm run typecheck     # strict TypeScript
 npm run build         # production build to dist/
+npm run e2e           # Playwright browser tests; needs a running instance
+                      # (PLAYWRIGHT_BASE_URL, SETUP_TOKEN for a fresh one)
 npm install -D <pkg>  # add a dependency: review license (ADR 0010) and CVEs first
 ```
 

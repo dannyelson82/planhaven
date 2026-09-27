@@ -23,8 +23,14 @@ error_log = logging.getLogger("planhaven.errors")
 
 type IPAddress = ipaddress.IPv4Address | ipaddress.IPv6Address
 
+# React Aria injects one fixed stylesheet (touch-action for pressable elements, so taps and
+# scrolling behave on phones). It is allowed by its exact SHA-256 hash and nothing else; the
+# browser end-to-end test fails if the injected text ever changes (SECURITY.md §7.10).
+REACT_ARIA_STYLE_HASH = "'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='"
+
 CSP = (
-    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; "
+    "default-src 'self'; script-src 'self'; "
+    f"style-src 'self' {REACT_ARIA_STYLE_HASH}; img-src 'self' data: blob:; "
     "font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; "
     "frame-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; "
     "object-src 'none'; upgrade-insecure-requests"

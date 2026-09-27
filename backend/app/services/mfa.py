@@ -24,6 +24,7 @@ from app.core.crypto import Keyring
 from app.db import admin as admin_store
 from app.db import auth as auth_store
 from app.db import mfa as store
+from app.db import passkeys as passkey_store
 from app.db.database import Database
 from app.services import limits
 from app.services.auth import AuthError, CurrentSession, recently_verified
@@ -44,6 +45,7 @@ class TotpEnrollment:
 @dataclass(frozen=True, slots=True)
 class MfaStatus:
     has_totp: bool
+    has_passkeys: bool
     recovery_codes_remaining: int
     mfa_verified: bool
     recently_verified: bool
@@ -88,8 +90,10 @@ async def status(db: Database, session: CurrentSession) -> MfaStatus:
     async with db.user_transaction(session.user.id) as conn:
         totp = await store.totp_for(conn, session.user.id, confirmed=True)
         remaining = await store.remaining_recovery_codes(conn, session.user.id)
+        passkeys = await passkey_store.count_for_user(conn, session.user.id)
     return MfaStatus(
         has_totp=totp is not None,
+        has_passkeys=passkeys > 0,
         recovery_codes_remaining=remaining,
         mfa_verified=session.mfa_verified,
         recently_verified=recently_verified(session),
