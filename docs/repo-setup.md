@@ -1,64 +1,101 @@
 # GitHub repository setup and hardening
 
-Do these once when creating the repository, before the first code is pushed.
-Replace `dannyelson82` with your GitHub username everywhere.
+The settings applied to `github.com/dannyelson82/planhaven`, and how to reproduce them on a
+fork. Keep this file in sync with the real settings; review it when anything changes.
+
+**Plan note:** GitHub enforces rulesets and branch protection on private repositories only on
+paid plans. On a free account a private repo's rulesets do nothing, and secret scanning, push
+protection and private vulnerability reporting are unavailable. This repository is therefore
+public.
 
 ## 1. Account
 
-- [ ] Enable two-factor authentication on your GitHub account (a passkey or hardware key is best).
-- [ ] Use a signing key for commits (SSH or GPG) and add it to GitHub.
+- [x] Two-factor authentication on the GitHub account (passkey or hardware key preferred).
+- [x] SSH signing key added under **Settings → SSH and GPG keys** with key type
+      **Signing Key** (not Authentication Key).
+- [ ] Vigilant mode: "Flag unsigned commits as unverified" (recommended).
 
-## 2. Create and push
+Local git configuration for signing:
 
 ```bash
-unzip planhaven.zip && cd planhaven
-git init -b main
-git add .
-git commit -S -m "docs: initial architecture and security design"
-git remote add origin git@github.com:dannyelson82/planhaven.git
-git push -u origin main
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_signing -C "planhaven commit signing (<email>)"
+git config gpg.format ssh
+git config user.signingkey ~/.ssh/id_ed25519_signing.pub
+git config commit.gpgsign true
+git config tag.gpgsign true
+# Optional: verify signatures locally
+echo "<email> namespaces=\"git\" $(cat ~/.ssh/id_ed25519_signing.pub)" > ~/.ssh/allowed_signers
+git config gpg.ssh.allowedSignersFile ~/.ssh/allowed_signers
 ```
 
-Create the repository on GitHub first (empty, no README/license), public or private.
-Tip: keep it **private** until v0.1 passes the SECURITY.md §11 checklist.
+`<email>` must be the commit email GitHub knows (e.g. the `noreply` address). Check with
+`git log --show-signature -1`.
+
+## 2. Access tokens
+
+- Use a **fine-grained** personal access token limited to this one repository, with an
+  expiry date (90 days or less).
+- Grant only what the holder needs. An automation or AI agent that opens PRs and manages
+  settings needs: Administration, Contents, Pull requests, Workflows, Actions, Issues, Code
+  scanning alerts, Dependabot alerts (read and write); Commit statuses, Secret scanning
+  alerts, Repository security advisories (read-only). Leave Secrets, Dependabot secrets and
+  Webhooks at no access.
+- A token with Administration can change the rules below. Treat it as a maintainer
+  credential and revoke it if the machine holding it is compromised.
 
 ## 3. Settings → General
 
-- [ ] Default branch: `main`
-- [ ] Pull requests: allow squash merging only; auto-delete head branches
-- [ ] Disable wiki (docs live in the repo) unless you want it
+- [x] Default branch: `main`
+- [x] Pull requests: squash merging only; automatically delete head branches
+- [x] Wiki disabled (docs live in the repo)
 
-## 4. Settings → Rules (branch ruleset for `main`)
+## 4. Settings → Rules: ruleset "Protect main"
 
-- [ ] Require a pull request before merging
-- [ ] Require status checks to pass (add CI and security workflows once they exist)
-- [ ] Require signed commits
-- [ ] Require linear history
-- [ ] Block force pushes and deletions
-- [ ] Include administrators (you), so you can't bypass by accident
+Target: default branch. Enforcement: active. **Bypass list: empty**, so the rules also apply
+to admins and admin tokens.
 
-## 5. Settings → Code security
+- [x] Restrict deletions
+- [x] Block force pushes
+- [x] Require signed commits
+- [x] Require linear history
+- [x] Require a pull request before merging
+  - Required approvals: **0**. GitHub doesn't let authors approve their own PRs, so a
+    solo maintainer can't satisfy 1. Every change still goes through a visible PR.
+    Raise to 1 when there is a second maintainer.
+  - Dismiss stale approvals on new commits; require conversation resolution
+  - Allowed merge method: squash
+- [ ] Require status checks to pass: add the CI and security workflows once they exist
+      (phase 0.1)
 
-- [ ] Private vulnerability reporting: **on**
-- [ ] Dependency graph: on
-- [ ] Dependabot alerts and security updates: on
-- [ ] Secret scanning and **push protection**: on
-- [ ] Custom secret-scanning pattern for Planhaven tokens (where available):
-      regex `phv_(sync|ics|pat|oat|ort|inv)_[A-Za-z0-9_-]{32,}`
-- [ ] Code scanning (CodeQL): enable once code exists
+Squash merges done in the GitHub UI are signed by GitHub and show as Verified.
+
+## 5. Settings → Advanced Security
+
+- [x] Private vulnerability reporting
+- [x] Dependency graph, Dependabot alerts, Dependabot security updates
+- [x] Secret scanning and push protection
+- [ ] Code scanning (CodeQL): enable once code exists (phase 0.1)
+
+Not available on personal-account repos without paid Advanced Security, and covered instead
+by Gitleaks in CI (`SECURITY.md` §8):
+
+- Non-provider patterns (generic passwords and keys)
+- Custom pattern for Planhaven tokens: `phv_(sync|ics|pat|oat|ort|inv)_[A-Za-z0-9_-]{32,}`
 
 ## 6. Settings → Actions
 
-- [ ] Workflow permissions: **read repository contents** by default
-- [ ] Do not allow Actions to create or approve pull requests
-- [ ] Allow only GitHub-owned and verified-creator actions (or an explicit allowlist)
-- [ ] Require approval for workflows from outside contributors
+- [x] Allow only GitHub-owned and verified-creator actions
+- [x] Require actions to be pinned to a full-length commit SHA
+- [x] Workflow permissions: read repository contents by default
+- [x] Actions may not create or approve pull requests
+- [ ] Require approval for workflows from outside contributors (check when the first
+      external PR arrives)
 
 ## 7. Packages (GHCR)
 
 - [ ] Image will publish to `ghcr.io/dannyelson82/planhaven`
 - [ ] After the first publish, set the package visibility and link it to the repository
 
-## 8. Placeholders to replace
+## 8. Forking
 
-- [ ] `dannyelson82` in `.github/ISSUE_TEMPLATE/config.yml` and this file
+Replace `dannyelson82` in `.github/ISSUE_TEMPLATE/config.yml` and in this file.

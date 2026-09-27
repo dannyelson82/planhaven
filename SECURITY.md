@@ -369,9 +369,10 @@ Cross-Origin-Resource-Policy: same-origin
 
 ## 8. Supply chain and security testing
 
-**Repository** (see `docs/repo-setup.md`): protected `main` with required reviews and status
-checks, signed commits, secret scanning with push protection, Dependabot alerts, private
-vulnerability reporting, 2FA required for all maintainers.
+**Repository** (see `docs/repo-setup.md`): protected `main` requiring pull requests (reviews
+once there are two maintainers), status checks, signed commits, secret scanning with push
+protection, Dependabot alerts, private vulnerability reporting, 2FA required for all
+maintainers.
 
 **Dependencies:** lockfiles with hashes (`uv`/`pip-tools` for Python, `package-lock.json` for
 JS); automated update PRs; new dependencies reviewed for maintenance status and license.
