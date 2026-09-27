@@ -6,7 +6,8 @@ Self-hosted project manager for home, vehicle, and maker projects, from the firs
 Shopping lists and tasks sync to your iPhone, local AI answers questions about your projects and
 their documents, and commercial AI assistants can brainstorm with you through an MCP connector.
 
-> **Status:** building phase 0.1 (secure foundation). Not ready for use yet.
+> **Status:** v0.1.0: secure foundation (sign-in, projects and tasks). Early; more features
+> arrive phase by phase (see ARCHITECTURE.md §18).
 
 ## Planned features
 

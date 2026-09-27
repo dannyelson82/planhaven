@@ -1,6 +1,6 @@
 # Phase 0.1: Secure foundation
 
-> **Status:** In progress · **Started:** 2026-09-27
+> **Status:** Done (v0.1.0) · **Started / finished:** 2026-09-27
 > Scope: ARCHITECTURE.md §18. Exit criteria: every item in SECURITY.md §11.
 
 **Goal:** a Planhaven that can be installed on Unraid and safely exposed to the internet, doing
@@ -152,5 +152,6 @@ them. Every PR gets a security review before merge.
 - [x] `unraid/planhaven.xml` template (hardening flags in Extra Parameters) and
       `deploy/proxy/nginx-proxy-manager/`
 - [x] Walk through the SECURITY.md §11 checklist (`docs/releases/v0.1.0-security-review.md`)
-- [ ] Tag `v0.1.0` (publishes the signed image)
-- [ ] Install on Unraid and test end to end
+- [x] Tag `v0.1.0` (publishes the signed image; signature verified)
+- [x] Install on Unraid and test end to end (2026-09-27: real client IP seen through the
+      tunnel, passkey sign-in from an iPhone)
