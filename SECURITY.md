@@ -148,6 +148,9 @@ Organized by STRIDE category. Details for each control are in §7.
 | Supply-chain compromise | Elevation | Hash-pinned deps, SHA-pinned Actions, scanning, signed images, SBOM, protected branches (§8) |
 | Repudiation of changes (esp. by AI) | Repudiation | Append-only audit log with actor, client, IP (§7.12) |
 | Resource exhaustion | DoS | Rate limits, body and upload limits, job concurrency limits, query limits (§7.11) |
+| Cross-site WebSocket hijacking of the collaboration channel | Spoofing | Session or token required at handshake, `Origin` must equal `BASE_URL` (§7.15) |
+| Stale access on a live connection after removal from a project | Elevation / Info disclosure | Membership re-checked on change; revoked members' connections closed (§7.15) |
+| Viewer or malicious client pushing edits or oversized/malformed updates | Tampering / DoS | Server rejects viewer updates; size, rate and document limits; malformed updates close the connection (§7.15) |
 | Malicious plugin | Elevation | Admin-only install, no install-from-URL, permissions manifest, sandboxed UI iframes; backend isolation planned (§10) |
 
 ---
@@ -374,6 +377,19 @@ Cross-Origin-Resource-Policy: same-origin
 - Soft-deleted content purged after 30 days; blobs removed when unreferenced.
 - Account deletion removes the user's owned projects (after transfer prompt) and all tokens,
   sessions, and factors.
+
+### 7.15 Real-time collaboration (ADR 0011)
+
+- The WebSocket handshake requires a valid session cookie or a scoped token, and an `Origin`
+  header equal to `BASE_URL`; anything else is refused before upgrading.
+- Authorization (`authz.require`) is checked at connect and re-checked when membership or
+  roles change; affected connections are closed. RLS applies to every stored update.
+- Viewers receive updates; any update they send is rejected and the attempt logged.
+- Limits per connection and user: message size, updates per second, open connections, and
+  total document size. Malformed or oversized messages close the connection.
+- Awareness data (display name, cursor) is relayed only within the document and not stored.
+- Update contents are never logged; logs hold document ID, user, byte counts and outcomes.
+- Every accepted update is attributed (user or MCP client) so history and undo work.
 
 ---
 
