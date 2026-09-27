@@ -24,9 +24,9 @@ them. Every PR gets a security review before merge.
       rule for `phv_` tokens), dependency license check against the ADR 0010 policy
 - [x] Actions pinned to commit SHAs; least-privilege `permissions:`; workflows audited by zizmor
 - [x] Dependabot config for uv, npm and GitHub Actions (Docker added in step 2)
-- [ ] Add the CI and security checks as **required status checks** in the "Protect main"
+- [x] Add the CI and security checks as **required status checks** in the "Protect main"
       ruleset
-- [ ] Commands documented in `CLAUDE.md`
+- [x] Commands documented in `CLAUDE.md`
 
 ## Step 2: Container
 
