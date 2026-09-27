@@ -56,3 +56,25 @@ test('layout fits the screen and navigation is where the thumb or mouse is', asy
   }
   expect(problems).toEqual([])
 })
+
+// Installable app (A§13.5): manifest, icons and a service worker that opens the app offline.
+test('installs as an app and opens offline', async ({ page, context }) => {
+  const problems = watchForProblems(page)
+  await page.goto('/projects')
+  const manifest = await (await page.request.get('/manifest.webmanifest')).json()
+  expect(manifest.display).toBe('standalone')
+  for (const icon of manifest.icons as { src: string }[]) {
+    expect((await page.request.get(icon.src)).ok(), icon.src).toBe(true)
+  }
+  await expect
+    .poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration())?.active)))
+    .toBe(true)
+  // Offline, the app itself still opens (data needs the server, so it says so).
+  await context.setOffline(true)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: "Can't reach Planhaven" })).toBeVisible()
+  // Back online, it retries by itself.
+  await context.setOffline(false)
+  await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()
+  expect(problems.filter((p) => !p.includes('Failed to load resource'))).toEqual([])
+})

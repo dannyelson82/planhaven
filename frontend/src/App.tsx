@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
-import type { ReactNode } from 'react'
+import { type ReactNode, useEffect } from 'react'
 import { RouterProvider } from 'react-aria-components'
 import { api, type Session } from './api.ts'
 import { match, navigate, usePath } from './router.ts'
@@ -12,7 +12,7 @@ import { ProjectScreen } from './screens/Project.tsx'
 import { ProjectsScreen } from './screens/Projects.tsx'
 import { useSession } from './session.ts'
 import { StepUpProvider } from './stepup.tsx'
-import { Link } from './ui.tsx'
+import { AuthPage, Button, Link } from './ui.tsx'
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 10_000 } } })
 
@@ -38,6 +38,7 @@ function Root() {
   })
   if (route.name === 'invite' && !session.data) return <InviteScreen />
   if (session.isPending) return <p className="p-6 text-stone-500">Loading…</p>
+  if (session.isError) return <Unreachable retry={() => void session.refetch()} />
   if (!session.data) {
     if (setup.data?.setup_required) return <SetupScreen />
     return <LoginScreen />
@@ -69,6 +70,22 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
     default:
       return <p>Page not found. <Link to="/projects" className="text-brand-700">Go to projects</Link></p>
   }
+}
+
+/** The app opened (from the phone's home screen, say) but the server can't be reached. */
+function Unreachable({ retry }: { retry: () => void }) {
+  useEffect(() => {
+    window.addEventListener('online', retry)
+    return () => window.removeEventListener('online', retry)
+  }, [retry])
+  return (
+    <AuthPage title="Can't reach Planhaven">
+      <div className="space-y-4">
+        <p>You seem to be offline, or the server isn't answering. This page tries again when you're back online.</p>
+        <Button className="w-full" onPress={retry}>Try again</Button>
+      </div>
+    </AuthPage>
+  )
 }
 
 const NAV = [

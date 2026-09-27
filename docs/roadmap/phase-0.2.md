@@ -60,7 +60,8 @@ events, browser tests at phone and desktop widths, threat-model check.
 
 ## Milestone 6: Phone and offline (v0.2.0)
 
-- [ ] Installable PWA (`vite-plugin-pwa`): icons, standalone display
+- [x] Installable PWA (`vite-plugin-pwa`): icons, standalone display; the app opens offline
+      and says when the server can't be reached
 - [ ] Offline lists and open tasks in IndexedDB; check-offs queued and replayed with
       idempotency keys; conflicts shown; caches cleared on sign-out (A§13.4)
 - [ ] Trash: soft-deleted items restorable for 30 days, then purged by a worker job
