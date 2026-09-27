@@ -6,7 +6,7 @@ Tested configurations for running Planhaven behind a reverse proxy (SECURITY.md 
 |---|---|
 | `crowdsec/` | Parser, scenario and acquisition for Planhaven's security log |
 | `fail2ban/` | Filter and jail for the same log |
-| `proxy/` | Reverse-proxy snippets (added with the release, roadmap step 11) |
+| `proxy/nginx-proxy-manager/` | Proxy host settings for Nginx Proxy Manager |
 
 The security log is `/config/logs/security.log` inside the container: one JSON object per
 line with `ts`, `event`, `ip` and `user_id`, plus event-specific fields. It never contains

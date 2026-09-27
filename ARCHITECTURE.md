@@ -266,7 +266,7 @@ planhaven/
 │   └── js/                  # iframe SDK for plugin UIs (postMessage bridge)
 ├── docker/                  # Dockerfile, s6-overlay service definitions
 ├── deploy/
-│   ├── proxy/               # tested configs: nginx-proxy-manager, swag, traefik
+│   ├── proxy/               # tested proxy settings: nginx-proxy-manager (others later)
 │   ├── crowdsec/            # parser + scenario for Planhaven security log
 │   └── fail2ban/            # filter + jail for Planhaven security log
 ├── unraid/                  # Community Applications template XML + icon
