@@ -41,6 +41,16 @@ MATRIX: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/auth/passkeys"): "verified",
     ("GET", "/api/v1/notifications"): "verified",
     ("POST", "/api/v1/notifications/{notification_id}/read"): "verified",
+    # Projects and tasks: verified, then the caller's project role (tests/db/test_projects.py)
+    ("GET", "/api/v1/projects"): "verified",
+    ("POST", "/api/v1/projects"): "verified",
+    ("GET", "/api/v1/projects/{project_id}"): "verified",
+    ("PATCH", "/api/v1/projects/{project_id}"): "verified",
+    ("DELETE", "/api/v1/projects/{project_id}"): "verified",
+    ("GET", "/api/v1/projects/{project_id}/tasks"): "verified",
+    ("POST", "/api/v1/projects/{project_id}/tasks"): "verified",
+    ("PATCH", "/api/v1/tasks/{task_id}"): "verified",
+    ("DELETE", "/api/v1/tasks/{task_id}"): "verified",
     ("POST", "/api/v1/auth/password"): "step_up",
     ("POST", "/api/v1/auth/mfa/recovery/regenerate"): "step_up",
     ("DELETE", "/api/v1/auth/passkeys/{passkey_id}"): "step_up",
@@ -62,6 +72,8 @@ BODIES: dict[tuple[str, str], object] = {
     ("POST", "/api/v1/admin/users/{user_id}/disabled"): {"value": False},
     ("POST", "/api/v1/admin/users/{user_id}/admin"): {"value": False},
     ("POST", "/api/v1/admin/invites"): {},
+    ("POST", "/api/v1/projects"): {"title": "Matrix test project"},
+    ("POST", "/api/v1/projects/{project_id}/tasks"): {"title": "Matrix test task"},
 }
 
 # Expected outcome per principal: "ok" means authorization passed (any status except

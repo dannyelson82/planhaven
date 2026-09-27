@@ -13,3 +13,11 @@ def test_keeps_dollar_quoted_bodies_whole() -> None:
 def test_keeps_semicolons_in_strings() -> None:
     sql = "SELECT ';'; SELECT 'it''s; fine'; SELECT $tag$ ; $tag$;"
     assert split_statements(sql) == ["SELECT ';'", "SELECT 'it''s; fine'", "SELECT $tag$ ; $tag$"]
+
+
+def test_ignores_semicolons_in_comments() -> None:
+    sql = "-- first; not a split\nSELECT 1; -- trailing; comment\nSELECT 2;"
+    assert split_statements(sql) == [
+        "-- first; not a split\nSELECT 1",
+        "-- trailing; comment\nSELECT 2",
+    ]

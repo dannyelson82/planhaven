@@ -243,11 +243,16 @@ async def record_audit(
     ip: str | None,
     actor_client: str = "web",
     details: str = "{}",
+    project_id: uuid.UUID | None = None,
+    resource_type: str | None = None,
+    resource_id: uuid.UUID | None = None,
 ) -> None:
     await conn.execute(
         text(
-            "INSERT INTO audit_events (actor_user_id, actor_client, action, ip, details) "
-            "VALUES (:actor, :client, :action, CAST(:ip AS inet), CAST(:details AS jsonb))"
+            "INSERT INTO audit_events (actor_user_id, actor_client, action, ip, details, "
+            "project_id, resource_type, resource_id) "
+            "VALUES (:actor, :client, :action, CAST(:ip AS inet), CAST(:details AS jsonb), "
+            ":project, :rtype, :rid)"
         ),
         {
             "actor": actor_user_id,
@@ -255,5 +260,8 @@ async def record_audit(
             "action": action,
             "ip": ip,
             "details": details,
+            "project": project_id,
+            "rtype": resource_type,
+            "rid": resource_id,
         },
     )

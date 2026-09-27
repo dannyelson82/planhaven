@@ -64,6 +64,10 @@ class Action(StrEnum):
     READ_NOTIFICATIONS = "account.read_notifications"
     # Administration (users, invites, settings; never project data)
     ADMIN = "admin.manage"
+    # Projects (need a project role, see PROJECT_ROLES)
+    PROJECT_VIEW = "project.view"
+    PROJECT_EDIT = "project.edit"
+    PROJECT_MANAGE = "project.manage"
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,10 +85,28 @@ RULES: dict[Action, Rule] = {
     Action.MANAGE_OWN_SESSIONS: Rule(),
     Action.READ_NOTIFICATIONS: Rule(),
     Action.ADMIN: Rule(recent=True, admin=True),
+    Action.PROJECT_VIEW: Rule(),
+    Action.PROJECT_EDIT: Rule(),
+    Action.PROJECT_MANAGE: Rule(),
+}
+
+# Which project roles allow each project action (ARCHITECTURE.md §7.5). Mirrored by the
+# RLS policies in migration 0008.
+PROJECT_ROLES: dict[Action, frozenset[str]] = {
+    Action.PROJECT_VIEW: frozenset({"owner", "editor", "viewer"}),
+    Action.PROJECT_EDIT: frozenset({"owner", "editor"}),
+    Action.PROJECT_MANAGE: frozenset({"owner"}),
 }
 
 
-def require(principal: Principal, action: Action) -> None:
+@dataclass(frozen=True, slots=True)
+class ProjectAccess:
+    """The principal's role on one project, as read from the database (None = not a member)."""
+
+    role: str | None
+
+
+def require(principal: Principal, action: Action, resource: ProjectAccess | None = None) -> None:
     rule = RULES[action]
     if rule.admin and not principal.is_admin:
         raise NotFoundError("Not found.")
@@ -92,11 +114,17 @@ def require(principal: Principal, action: Action) -> None:
         raise ForbiddenError("Second factor required.")
     if rule.recent and not principal.recently_verified():
         raise StepUpRequiredError("Confirm it's you with your second factor to continue.")
+    if action in PROJECT_ROLES:
+        if resource is None or resource.role is None:
+            # Not a member: the project doesn't exist as far as this principal knows.
+            raise NotFoundError("Not found.")
+        if resource.role not in PROJECT_ROLES[action]:
+            raise ForbiddenError("Your role on this project doesn't allow that.")
 
 
-def allowed(principal: Principal, action: Action) -> bool:
+def allowed(principal: Principal, action: Action, resource: ProjectAccess | None = None) -> bool:
     try:
-        require(principal, action)
+        require(principal, action, resource)
     except AuthzError:
         return False
     return True
