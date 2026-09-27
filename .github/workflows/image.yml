@@ -53,6 +53,24 @@ jobs:
       - name: Smoke test
         run: .github/scripts/smoke-test-image.sh "$IMAGE"
 
+      - name: EXPERIMENT caps with neither
+        if: always()
+        env:
+          EXTRA_CAPS: "--cap-add=CHOWN"
+        run: .github/scripts/smoke-test-image.sh "$IMAGE" || echo "EXPERIMENT FAILED (neither)"
+
+      - name: EXPERIMENT caps with FOWNER only
+        if: always()
+        env:
+          EXTRA_CAPS: "--cap-add=FOWNER"
+        run: .github/scripts/smoke-test-image.sh "$IMAGE" || echo "EXPERIMENT FAILED (FOWNER only)"
+
+      - name: EXPERIMENT caps with KILL only
+        if: always()
+        env:
+          EXTRA_CAPS: "--cap-add=KILL"
+        run: .github/scripts/smoke-test-image.sh "$IMAGE" || echo "EXPERIMENT FAILED (KILL only)"
+
       - name: Install Trivy (checksum verified)
         env:
           TRIVY_ASSET: ${{ matrix.trivy_asset }}
