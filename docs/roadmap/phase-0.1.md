@@ -81,13 +81,15 @@ them. Every PR gets a security review before merge.
 
 ## Step 6: Sign-in, part 2
 
-- [ ] TOTP enrollment + 10 hashed recovery codes; second factor mandatory for every account
+- [x] TOTP enrollment + 10 hashed recovery codes; second factor mandatory for every account
+      (password-only sessions reach nothing but the second factor); TOTP replay blocked;
+      five wrong codes end the session
 - [ ] Passkeys (WebAuthn), including passkey-only sign-in
-- [ ] Step-up re-authentication (5 minutes) for sensitive actions
+- [x] Step-up re-authentication (5 minutes) for sensitive actions
 - [ ] Rate limits on sign-in and 2FA (per IP and per account); progressive lockout (S§7.11)
 - [ ] Security log (`/config/logs/security.log`) with a documented format; fail2ban filter
       and CrowdSec parser in `deploy/`
-- [ ] Session list and revocation; password change revokes other sessions
+- [x] Session list and revocation; password change revokes other sessions
 
 ## Step 7: Invites and user management
 

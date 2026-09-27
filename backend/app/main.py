@@ -2,13 +2,15 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 
-from app.api import auth, health
+from app.api import auth, health, mfa
 from app.api.errors import install_error_handlers
 from app.auth.session_keys import SessionKey
 from app.core.config import Settings, load_settings
+from app.core.crypto import Keyring
 from app.core.http import (
     AccessLogMiddleware,
     BodySizeLimitMiddleware,
@@ -40,9 +42,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.db = db
     app.state.session_key = SessionKey.from_dir(settings.secrets_dir)
+    app.state.keyring = Keyring.from_file(Path(settings.secrets_dir) / "master.key")
     install_error_handlers(app)
     app.include_router(health.router)
     app.include_router(auth.router)
+    app.include_router(mfa.router)
 
     # add_middleware wraps from the inside out: the last one added is the outermost.
     app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_json_bytes)

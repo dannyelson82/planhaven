@@ -70,5 +70,21 @@ async def require_session(
     return session
 
 
-SessionDep = Annotated[CurrentSession, Depends(require_session)]
+async def require_verified_session(
+    session: Annotated[CurrentSession, Depends(require_session)],
+) -> CurrentSession:
+    """A session that has completed the second factor. Everything except sign-in, the second
+    factor itself and sign-out requires this (SECURITY.md §7.1)."""
+    if not session.mfa_verified:
+        raise HTTPException(403, "Second factor required.")
+    return session
+
+
+def keyring(request: Request) -> Any:
+    return request.app.state.keyring
+
+
+# Password only (partial) sessions: use solely for the second-factor and sign-out routes.
+PartialSessionDep = Annotated[CurrentSession, Depends(require_session)]
+SessionDep = Annotated[CurrentSession, Depends(require_verified_session)]
 SameOrigin = Depends(require_same_origin)

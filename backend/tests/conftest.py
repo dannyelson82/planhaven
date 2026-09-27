@@ -14,6 +14,8 @@ from app.main import create_app
 _SECRETS = Path(tempfile.mkdtemp(prefix="planhaven-test-secrets-"))
 (_SECRETS / "session.key").write_bytes(os.urandom(32))
 (_SECRETS / "session.key").chmod(0o600)
+(_SECRETS / "master.key").write_bytes(os.urandom(32))
+(_SECRETS / "master.key").chmod(0o600)
 
 
 def make_settings(**overrides: object) -> Settings:
