@@ -19,11 +19,11 @@ them. Every PR gets a security review before merge.
 - [x] `import-linter` contracts for the backend layering (A§6)
 - [x] Frontend skeleton in `frontend/`: Vite + React + TypeScript, **oxlint**, **Vitest**,
       `package-lock.json`; npm install scripts disabled, 7-day minimum package age
-- [ ] `ci.yml`: lint, type-check and tests for backend and frontend
-- [ ] `security.yml`: CodeQL, Bandit, Semgrep, `pip-audit`, `npm audit`, Gitleaks (with a
+- [x] `ci.yml`: lint, type-check and tests for backend and frontend
+- [x] `security.yml`: CodeQL, Bandit, Semgrep, `pip-audit`, `npm audit`, Gitleaks (with a
       rule for `phv_` tokens), dependency license check against the ADR 0010 policy
-- [ ] Actions pinned to commit SHAs; least-privilege `permissions:`
-- [ ] Dependabot config for pip, npm, GitHub Actions and Docker
+- [x] Actions pinned to commit SHAs; least-privilege `permissions:`; workflows audited by zizmor
+- [x] Dependabot config for uv, npm and GitHub Actions (Docker added in step 2)
 - [ ] Add the CI and security checks as **required status checks** in the "Protect main"
       ruleset
 - [ ] Commands documented in `CLAUDE.md`

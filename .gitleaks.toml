@@ -1,0 +1,11 @@
+# Gitleaks configuration: the default rule set plus Planhaven's own token format
+# (SECURITY.md §7.3). Runs in CI over the full git history.
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "planhaven-token"
+description = "Planhaven token (sync, ICS, PAT, OAuth, invite)"
+regex = '''phv_(sync|ics|pat|oat|ort|inv)_[A-Za-z0-9_-]{32,}'''
+keywords = ["phv_"]
