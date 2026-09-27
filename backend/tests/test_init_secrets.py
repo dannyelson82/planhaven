@@ -76,5 +76,5 @@ def test_main_prints_names_not_contents(tmp_path: Path, capsys: pytest.CaptureFi
 
     out = capsys.readouterr().out
     key = (tmp_path / mod.MASTER_KEY).read_bytes()
-    assert "master.key" in out
+    assert out == "init-secrets: created 4 new secret file(s)\n"
     assert key.hex() not in out

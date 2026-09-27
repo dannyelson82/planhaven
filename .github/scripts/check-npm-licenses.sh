@@ -4,7 +4,7 @@
 set -euo pipefail
 
 lockfile="${1:-frontend/package-lock.json}"
-allowed=" MIT ISC Apache-2.0 BSD-2-Clause BSD-3-Clause 0BSD MPL-2.0 CC0-1.0 CC-BY-4.0 BlueOak-1.0.0 Python-2.0 Unlicense Zlib "
+allowed=" MIT MIT-0 ISC Apache-2.0 BSD-2-Clause BSD-3-Clause 0BSD MPL-2.0 CC0-1.0 CC-BY-4.0 BlueOak-1.0.0 Python-2.0 Unlicense Zlib "
 
 is_allowed() { [[ "$allowed" == *" $1 "* ]]; }
 

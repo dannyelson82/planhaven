@@ -118,8 +118,8 @@ def main(argv: list[str]) -> int:
         return 2
     os.umask(0o077)
     created = init_secrets(Path(argv[1]))
-    # Names only, never contents.
-    print(f"init-secrets: created {', '.join(created)}" if created else "init-secrets: all present")
+    # A count only: nothing derived from the secrets goes to the log.
+    print(f"init-secrets: created {len(created)} new secret file(s)")
     return 0
 
 
