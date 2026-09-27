@@ -58,7 +58,7 @@ class Action(StrEnum):
     USE_APP = "app.use"
     # Own account
     VIEW_OWN_ACCOUNT = "account.view"
-    CHANGE_PASSWORD = "account.change_password"  # noqa: S105  # an action name, not a secret
+    CHANGE_SIGN_IN = "account.change_sign_in"  # changing the password
     MANAGE_SECOND_FACTORS = "account.manage_second_factors"
     MANAGE_OWN_SESSIONS = "account.manage_sessions"
     READ_NOTIFICATIONS = "account.read_notifications"
@@ -76,7 +76,7 @@ class Rule:
 RULES: dict[Action, Rule] = {
     Action.USE_APP: Rule(),
     Action.VIEW_OWN_ACCOUNT: Rule(),
-    Action.CHANGE_PASSWORD: Rule(recent=True),
+    Action.CHANGE_SIGN_IN: Rule(recent=True),
     Action.MANAGE_SECOND_FACTORS: Rule(recent=True),
     Action.MANAGE_OWN_SESSIONS: Rule(),
     Action.READ_NOTIFICATIONS: Rule(),

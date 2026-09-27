@@ -14,7 +14,7 @@ def _routes() -> dict[tuple[str, str], APIRoute]:
         for router in ROUTERS
         for r in router.routes
         if isinstance(r, APIRoute)
-        for method in r.methods
+        for method in (r.methods or set())
     }
 
 

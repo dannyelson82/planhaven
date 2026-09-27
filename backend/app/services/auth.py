@@ -247,7 +247,7 @@ async def change_password(
 ) -> None:
     """Requires the current password and a recent second factor; signs out every other
     session (SECURITY.md §7.1, §7.2)."""
-    authz.require(session.principal, authz.Action.CHANGE_PASSWORD)
+    authz.require(session.principal, authz.Action.CHANGE_SIGN_IN)
     user = session.user
     passwords.check_policy(new_password, email=user.email, display_name=user.display_name)
     async with db.user_transaction(user.id) as conn:
