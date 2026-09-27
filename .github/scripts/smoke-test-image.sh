@@ -32,7 +32,7 @@ docker run -d --name "$name" \
   --tmpfs /tmp:rw,noexec,nosuid,size=64m \
   --cap-drop=ALL \
   --cap-add=CHOWN --cap-add=SETUID --cap-add=SETGID --cap-add=DAC_OVERRIDE \
-  ${EXTRA_CAPS:---cap-add=FOWNER --cap-add=KILL} \
+  --cap-add=FOWNER --cap-add=KILL \
   --security-opt=no-new-privileges:true \
   -v "$work/config:/config" -v "$work/data:/data" \
   -p "127.0.0.1:$port:8080" \
