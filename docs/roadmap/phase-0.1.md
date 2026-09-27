@@ -65,7 +65,7 @@ them. Every PR gets a security review before merge.
 - [x] `audit_events` (append-only for the app role) and `events` outbox tables
 - [x] Database tests run locally (`planhaven-dev-db`) and in CI (`Database` job)
 - [x] Job queue (ADR 0003, in-house) and the `worker` s6 service; worker heartbeat in `/readyz`
-- [ ] Master-key encryption helper (AES-256-GCM, HKDF per purpose, key IDs) (S§7.9)
+- [x] Master-key encryption helper (AES-256-GCM, HKDF per purpose, key IDs) (S§7.9)
 
 ## Step 5: Sign-in, part 1
 
