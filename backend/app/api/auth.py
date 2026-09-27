@@ -1,12 +1,14 @@
 """Setup, sign-in and session endpoints (SECURITY.md §7.1, §7.2)."""
 
+import uuid
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api import deps
-from app.api.deps import SameOrigin, SessionDep
+from app.api.deps import PartialSessionDep, SameOrigin, SessionDep
 from app.auth.passwords import MAX_LENGTH, PasswordPolicyError
 from app.services import auth as auth_service
 from app.services.auth import AuthError, CurrentSession, NewSession, User
@@ -130,7 +132,7 @@ async def login(body: LoginRequest, request: Request, response: Response) -> Ses
 
 
 @router.post("/auth/logout", status_code=204)
-async def logout(session: SessionDep, request: Request, response: Response) -> None:
+async def logout(session: PartialSessionDep, request: Request, response: Response) -> None:
     await auth_service.logout(deps.database(request), session, deps.client_ip(request))
     response.delete_cookie(
         deps.session_cookie_name(deps.settings(request)),
@@ -142,7 +144,7 @@ async def logout(session: SessionDep, request: Request, response: Response) -> N
 
 
 @router.get("/auth/session")
-async def current_session(session: SessionDep, request: Request) -> SessionOut:
+async def current_session(session: PartialSessionDep, request: Request) -> SessionOut:
     return _session_out(request, session)
 
 
@@ -160,3 +162,43 @@ async def change_password(
         )
     except (AuthError, PasswordPolicyError) as exc:
         raise HTTPException(400, str(exc)) from None
+
+
+class SessionInfoOut(BaseModel):
+    id: str
+    created_at: datetime
+    last_seen_at: datetime
+    ip: str | None
+    user_agent: str | None
+    current: bool
+
+
+@router.get("/auth/sessions")
+async def list_sessions(session: SessionDep, request: Request) -> list[SessionInfoOut]:
+    sessions = await auth_service.list_sessions(deps.database(request), session)
+    return [
+        SessionInfoOut(
+            id=str(s.id),
+            created_at=s.created_at,
+            last_seen_at=s.last_seen_at,
+            ip=s.ip,
+            user_agent=s.user_agent,
+            current=s.current,
+        )
+        for s in sessions
+    ]
+
+
+@router.delete("/auth/sessions/{session_id}", status_code=204)
+async def revoke_session(session_id: uuid.UUID, session: SessionDep, request: Request) -> None:
+    if not await auth_service.revoke_own_session(
+        deps.database(request), session, session_id, deps.client_ip(request)
+    ):
+        raise HTTPException(404)
+
+
+@router.post("/auth/sessions/revoke-others", status_code=204)
+async def revoke_other_sessions(session: SessionDep, request: Request) -> None:
+    await auth_service.revoke_other_sessions(
+        deps.database(request), session, deps.client_ip(request)
+    )

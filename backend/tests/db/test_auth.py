@@ -209,11 +209,20 @@ async def test_new_login_replaces_existing_session(
     assert await auth_service.authenticate(db, old_token) is None
 
 
-async def test_password_change_signs_out_other_sessions(
+async def test_password_change_needs_step_up_and_signs_out_others(
     client: httpx2.AsyncClient, db: Database
 ) -> None:
+    from tests.db.test_mfa import enroll_totp
+
     setup = await _setup_admin(client, db)
     csrf = setup.json()["csrf_token"]
+    body = {"current_password": GOOD_PASSWORD, "new_password": "a completely different passphrase"}
+
+    # Password-only session: second factor required first.
+    assert (
+        await client.post("/api/v1/auth/password", headers={"x-csrf-token": csrf}, json=body)
+    ).status_code == 403
+    await enroll_totp(client, csrf)
     other = await auth_service.login(
         db, email="admin@example.com", password=GOOD_PASSWORD, ip=None, user_agent=None
     )
@@ -225,12 +234,7 @@ async def test_password_change_signs_out_other_sessions(
     )
     assert wrong.status_code == 400
 
-    new_password = "a completely different passphrase"
-    ok = await client.post(
-        "/api/v1/auth/password",
-        headers={"x-csrf-token": csrf},
-        json={"current_password": GOOD_PASSWORD, "new_password": new_password},
-    )
+    ok = await client.post("/api/v1/auth/password", headers={"x-csrf-token": csrf}, json=body)
     assert ok.status_code == 204
     assert await auth_service.authenticate(db, other.token) is None
     assert (await client.get("/api/v1/auth/session")).status_code == 200
@@ -240,7 +244,7 @@ async def test_password_change_signs_out_other_sessions(
         "/api/v1/auth/login", json={"email": "admin@example.com", "password": GOOD_PASSWORD}
     )
     new = await client.post(
-        "/api/v1/auth/login", json={"email": "admin@example.com", "password": new_password}
+        "/api/v1/auth/login", json={"email": "admin@example.com", "password": body["new_password"]}
     )
     assert (old.status_code, new.status_code) == (401, 200)
 

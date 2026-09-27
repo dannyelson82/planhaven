@@ -8,7 +8,7 @@ import json
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncConnection
 
@@ -49,6 +49,28 @@ class CurrentSession:
     token: str
     user: User
     mfa_verified: bool
+    reauth_at: datetime | None = None
+
+
+class StepUpRequiredError(AuthError):
+    """The action needs a fresh second factor (SECURITY.md §7.1)."""
+
+
+STEP_UP_WINDOW = timedelta(minutes=5)
+
+
+def recently_verified(session: CurrentSession, now: datetime | None = None) -> bool:
+    now = now or datetime.now(UTC)
+    return (
+        session.mfa_verified
+        and session.reauth_at is not None
+        and now - session.reauth_at <= STEP_UP_WINDOW
+    )
+
+
+def require_recent(session: CurrentSession) -> None:
+    if not recently_verified(session):
+        raise StepUpRequiredError("Confirm it's you with your second factor to continue.")
 
 
 def normalize_email(email: str) -> str:
@@ -174,7 +196,7 @@ async def authenticate(db: Database, token: str) -> CurrentSession | None:
             return None
         if (session.idle_expires_at - session.last_seen_at) < IDLE_TIMEOUT - TOUCH_INTERVAL:
             await store.touch_session(conn, session.id, IDLE_TIMEOUT)
-    return CurrentSession(session.id, token, _user(user), session.mfa_verified)
+    return CurrentSession(session.id, token, _user(user), session.mfa_verified, session.reauth_at)
 
 
 async def logout(db: Database, session: CurrentSession, ip: str | None) -> None:
@@ -191,7 +213,9 @@ async def change_password(
     new_password: str,
     ip: str | None,
 ) -> None:
-    """Requires the current password; signs out every other session (SECURITY.md §7.2)."""
+    """Requires the current password and a recent second factor; signs out every other
+    session (SECURITY.md §7.1, §7.2)."""
+    require_recent(session)
     user = session.user
     passwords.check_policy(new_password, email=user.email, display_name=user.display_name)
     async with db.user_transaction(user.id) as conn:
@@ -204,3 +228,43 @@ async def change_password(
 
 
 __all__ = ["AuthError", "PasswordPolicyError"]
+
+
+@dataclass(frozen=True, slots=True)
+class SessionInfo:
+    id: uuid.UUID
+    created_at: datetime
+    last_seen_at: datetime
+    ip: str | None
+    user_agent: str | None
+    current: bool
+
+
+async def list_sessions(db: Database, session: CurrentSession) -> list[SessionInfo]:
+    async with db.user_transaction(session.user.id) as conn:
+        rows = await store.own_active_sessions(conn, session.user.id)
+    return [
+        SessionInfo(r.id, r.created_at, r.last_seen_at, r.ip, r.user_agent, r.id == session.id)
+        for r in rows
+    ]
+
+
+async def revoke_own_session(
+    db: Database, session: CurrentSession, session_id: uuid.UUID, ip: str | None
+) -> bool:
+    async with db.user_transaction(session.user.id) as conn:
+        revoked = await store.revoke_own_session(conn, session.user.id, session_id)
+        if revoked:
+            await store.record_audit(
+                conn, action="session.revoked", actor_user_id=session.user.id, ip=ip
+            )
+    return revoked
+
+
+async def revoke_other_sessions(db: Database, session: CurrentSession, ip: str | None) -> int:
+    async with db.user_transaction(session.user.id) as conn:
+        count = await store.revoke_other_sessions(conn, session.user.id, keep=session.id)
+        await store.record_audit(
+            conn, action="session.revoked_others", actor_user_id=session.user.id, ip=ip
+        )
+    return count

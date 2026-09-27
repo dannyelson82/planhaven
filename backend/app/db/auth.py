@@ -24,6 +24,7 @@ class SessionRow:
     id: uuid.UUID
     user_id: uuid.UUID
     mfa_verified: bool
+    reauth_at: datetime | None
     last_seen_at: datetime
     idle_expires_at: datetime
     absolute_expires_at: datetime
@@ -130,7 +131,7 @@ async def active_session(conn: AsyncConnection, token_hash: bytes) -> SessionRow
     row = (
         await conn.execute(
             text("""
-                SELECT s.id, s.user_id, s.mfa_verified, s.last_seen_at,
+                SELECT s.id, s.user_id, s.mfa_verified, s.reauth_at, s.last_seen_at,
                        s.idle_expires_at, s.absolute_expires_at
                 FROM sessions s JOIN users u ON u.id = s.user_id
                 WHERE s.token_hash = :th AND s.revoked_at IS NULL
@@ -141,6 +142,41 @@ async def active_session(conn: AsyncConnection, token_hash: bytes) -> SessionRow
         )
     ).first()
     return SessionRow(**row._mapping) if row else None
+
+
+@dataclass(frozen=True, slots=True)
+class OwnSessionRow:
+    id: uuid.UUID
+    created_at: datetime
+    last_seen_at: datetime
+    ip: str | None
+    user_agent: str | None
+
+
+async def own_active_sessions(conn: AsyncConnection, user_id: uuid.UUID) -> list[OwnSessionRow]:
+    rows = await conn.execute(
+        text("""
+            SELECT id, created_at, last_seen_at, host(ip) AS ip, user_agent FROM sessions
+            WHERE user_id = :u AND revoked_at IS NULL
+              AND idle_expires_at > now() AND absolute_expires_at > now()
+            ORDER BY last_seen_at DESC LIMIT 100
+        """),
+        {"u": user_id},
+    )
+    return [OwnSessionRow(**r._mapping) for r in rows]
+
+
+async def revoke_own_session(
+    conn: AsyncConnection, user_id: uuid.UUID, session_id: uuid.UUID
+) -> bool:
+    result = await conn.execute(
+        text(
+            "UPDATE sessions SET revoked_at = now() "
+            "WHERE id = :id AND user_id = :u AND revoked_at IS NULL"
+        ),
+        {"id": session_id, "u": user_id},
+    )
+    return result.rowcount == 1
 
 
 async def touch_session(conn: AsyncConnection, session_id: uuid.UUID, idle: timedelta) -> None:
