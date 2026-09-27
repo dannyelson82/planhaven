@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
+import { RouterProvider } from 'react-aria-components'
 import { api, type Session } from './api.ts'
-import { match, usePath } from './router.ts'
+import { match, navigate, usePath } from './router.ts'
 import { AccountScreen } from './screens/Account.tsx'
+import { AssetScreen, AssetsScreen } from './screens/Assets.tsx'
 import { InviteScreen, LoginScreen, SecondFactorScreen, SetupScreen } from './screens/Auth.tsx'
 import { ListScreen } from './screens/Lists.tsx'
 import { NoteScreen } from './screens/Notes.tsx'
@@ -17,7 +19,10 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 10
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Root />
+      {/* In-app links change the page without reloading the whole app. */}
+      <RouterProvider navigate={navigate}>
+        <Root />
+      </RouterProvider>
     </QueryClientProvider>
   )
 }
@@ -55,6 +60,10 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
       return <ListScreen id={route.id} />
     case 'note':
       return <NoteScreen id={route.id} me={{ id: session.user.id, name: session.user.display_name }} />
+    case 'assets':
+      return <AssetsScreen />
+    case 'asset':
+      return <AssetScreen id={route.id} myId={session.user.id} />
     case 'account':
       return <AccountScreen session={session} />
     default:
@@ -64,6 +73,7 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
 
 const NAV = [
   { to: '/projects', label: 'Projects' },
+  { to: '/assets', label: 'Assets' },
   { to: '/account', label: 'Account' },
 ]
 

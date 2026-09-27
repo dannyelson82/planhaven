@@ -4,6 +4,7 @@ import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import * as Y from 'yjs'
 import { api } from '../api.ts'
@@ -64,7 +65,7 @@ export default function NoteEditor(props: { noteId: string; canEdit: boolean; me
 function LiveEditor({ noteId, canEdit, me, doc, connection, status, synced }: {
   noteId: string; canEdit: boolean; me: { id: string; name: string }; status: Status; synced: boolean
 } & Live) {
-
+  const client = useQueryClient()
   const editor = useEditor({
     injectCSS: false,
     editable: canEdit,
@@ -93,7 +94,9 @@ function LiveEditor({ noteId, canEdit, me, doc, connection, status, synced }: {
     const save = () => {
       if (!dirty) return
       dirty = false
-      void api('PUT', `/api/v1/notes/${noteId}/text`, { text: toMarkdown(editor.getJSON()).slice(0, 200_000) }).catch(() => { dirty = true })
+      void api('PUT', `/api/v1/notes/${noteId}/text`, { text: toMarkdown(editor.getJSON()).slice(0, 200_000) })
+        .then(() => client.invalidateQueries({ queryKey: ['notes'] }))
+        .catch(() => { dirty = true })
     }
     const onUpdate = (_update: Uint8Array, origin: unknown) => {
       if (origin === connection) return // someone else's edit: their browser saves it
@@ -103,7 +106,7 @@ function LiveEditor({ noteId, canEdit, me, doc, connection, status, synced }: {
     }
     doc.on('update', onUpdate)
     return () => { doc.off('update', onUpdate); clearTimeout(timer); save() }
-  }, [canEdit, editor, doc, connection, noteId])
+  }, [canEdit, editor, doc, connection, noteId, client])
 
   return (
     <div className="space-y-2">

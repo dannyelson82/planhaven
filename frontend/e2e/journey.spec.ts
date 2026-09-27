@@ -103,6 +103,23 @@ test('first boot to first project', async ({ page }) => {
   await expect.poll(() => thumb.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
   await expect(page.getByRole('link', { name: 'parts.csv' })).toHaveAttribute('href', /\/download$/)
 
+  // An asset (the boat) with details, linked to this project: its service history.
+  const projectUrl = page.url()
+  await page.goto('/assets')
+  await page.getByLabel('New asset').fill('Sea Ray 240')
+  await page.getByLabel('Kind').selectOption('boat')
+  await page.getByRole('button', { name: 'Add asset' }).click()
+  await expect(page.getByRole('heading', { name: 'Sea Ray 240' })).toBeVisible()
+  await page.getByLabel('Hull ID', { exact: true }).fill('SERA1234B626')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled()
+  await page.goto(projectUrl)
+  await page.getByLabel('For', { exact: true }).selectOption({ label: 'Sea Ray 240' })
+  await page.getByRole('link', { name: 'Open' }).click()
+  await expect(page.getByLabel('Hull ID', { exact: true })).toHaveValue('SERA1234B626')
+  await expect(page.getByRole('region', { name: 'Service history' }).getByRole('link', { name: 'Winterize boat' })).toBeVisible()
+  await page.goto(projectUrl)
+
   // Sharing dialog lists the owner.
   await page.getByRole('button', { name: 'Share' }).click()
   await expect(page.getByRole('heading', { name: 'Share this project' })).toBeVisible()

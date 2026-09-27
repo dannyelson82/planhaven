@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from app.api import (
     admin,
+    assets,
     attachments,
     auth,
     health,
@@ -55,6 +56,7 @@ ROUTERS = (
     lists.router,
     notes.router,
     attachments.router,
+    assets.router,
     spa.router,  # last: catches every path the API didn't
 )
 

@@ -5,6 +5,7 @@ import { api, type Project, STAGES, type Stage, type Task } from '../api.ts'
 import { navigate } from '../router.ts'
 import { Button, Card, ErrorText, Field, Form } from '../ui.tsx'
 import { useLiveProject } from '../live.ts'
+import { ProjectAssetPicker } from './Assets.tsx'
 import { ProjectAttachments } from './Attachments.tsx'
 import { ProjectLists } from './Lists.tsx'
 import { ProjectNotes } from './Notes.tsx'
@@ -55,7 +56,7 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{p.title}</h1>
         <div className="flex flex-wrap items-center gap-2">
-        <ShareButton projectId={id} isOwner={p.role === 'owner'} myId={myId} />
+        <ShareButton kind="project" id={id} isOwner={p.role === 'owner'} myId={myId} />
         <Select
           aria-label="Stage"
           selectedKey={p.stage}
@@ -78,6 +79,7 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
         </Select>
         </div>
       </div>
+      <ProjectAssetPicker projectId={id} assetId={p.asset_id ?? null} assetName={p.asset_name ?? null} canEdit={canEdit} />
       {p.description && <p className="whitespace-pre-wrap text-stone-700 dark:text-stone-300">{p.description}</p>}
       <ErrorText error={setStage.error ?? toggle.error ?? remove.error ?? tasks.error} />
 

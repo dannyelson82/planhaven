@@ -18,10 +18,11 @@ type Note = {
 
 /** Notes section on a project page. */
 export function ProjectNotes({ projectId, canEdit }: { projectId: string; canEdit: boolean }) {
+  const client = useQueryClient()
   const notes = useQuery({ queryKey: ['notes', projectId], queryFn: () => api<Note[]>('GET', `/api/v1/projects/${projectId}/notes`) })
   const create = useMutation({
     mutationFn: () => api<Note>('POST', `/api/v1/projects/${projectId}/notes`, { title: 'Untitled note' }),
-    onSuccess: (note) => navigate(`/notes/${note.id}`),
+    onSuccess: async (note) => { await client.invalidateQueries({ queryKey: ['notes', projectId] }); navigate(`/notes/${note.id}`) },
   })
   return (
     <section aria-label="Notes" className="space-y-3">
@@ -53,7 +54,10 @@ export function NoteScreen({ id, me }: { id: string; me: { id: string; name: str
   const [confirmDelete, setConfirmDelete] = useState(false)
   const rename = useMutation({
     mutationFn: (value: string) => api('PATCH', `/api/v1/notes/${id}`, { title: value }, { 'If-Match': `"${note.data?.version}"` }),
-    onSettled: async () => { setTitle(null); await client.invalidateQueries({ queryKey: ['note', id] }) },
+    onSettled: async () => {
+      setTitle(null)
+      await Promise.all([client.invalidateQueries({ queryKey: ['note', id] }), client.invalidateQueries({ queryKey: ['notes'] })])
+    },
   })
   const remove = useMutation({
     mutationFn: () => api('DELETE', `/api/v1/notes/${id}`),

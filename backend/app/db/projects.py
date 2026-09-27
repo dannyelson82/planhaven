@@ -23,6 +23,10 @@ class ProjectRow:
     updated_at: datetime
     version: int
     open_tasks: int
+    # The linked asset, when this user can see it (only filled in by get_project).
+    asset_id: uuid.UUID | None = None
+    asset_name: str | None = None
+    asset_kind: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,8 +75,11 @@ async def get_project(conn: AsyncConnection, project_id: uuid.UUID) -> ProjectRo
                 SELECT p.id, p.title, p.description, p.stage, p.local_ai_only,
                        app.project_role(p.id) AS role, p.created_at, p.updated_at, p.version,
                        (SELECT count(*) FROM tasks t WHERE t.project_id = p.id
-                          AND t.deleted_at IS NULL AND t.done_at IS NULL) AS open_tasks
-                FROM projects p WHERE p.id = :id AND p.deleted_at IS NULL
+                          AND t.deleted_at IS NULL AND t.done_at IS NULL) AS open_tasks,
+                       a.id AS asset_id, a.name AS asset_name, a.kind AS asset_kind
+                FROM projects p
+                LEFT JOIN assets a ON a.id = p.asset_id AND a.deleted_at IS NULL
+                WHERE p.id = :id AND p.deleted_at IS NULL
             """),
             {"id": project_id},
         )

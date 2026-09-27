@@ -69,6 +69,11 @@ class Action(StrEnum):
     PROJECT_EDIT = "project.edit"
     PROJECT_MANAGE = "project.manage"
     PROJECT_SHARE = "project.share"  # add/remove members, change roles
+    # Assets (vehicle, boat, house, ...): shared like projects, same roles (ADR 0005)
+    ASSET_VIEW = "asset.view"
+    ASSET_EDIT = "asset.edit"
+    ASSET_MANAGE = "asset.manage"
+    ASSET_SHARE = "asset.share"
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +96,10 @@ RULES: dict[Action, Rule] = {
     Action.PROJECT_MANAGE: Rule(),
     # Changing who can see a project needs a fresh second factor (SECURITY.md §7.1).
     Action.PROJECT_SHARE: Rule(recent=True),
+    Action.ASSET_VIEW: Rule(),
+    Action.ASSET_EDIT: Rule(),
+    Action.ASSET_MANAGE: Rule(),
+    Action.ASSET_SHARE: Rule(recent=True),
 }
 
 # Which project roles allow each project action (ARCHITECTURE.md §7.5). Mirrored by the
@@ -100,12 +109,17 @@ PROJECT_ROLES: dict[Action, frozenset[str]] = {
     Action.PROJECT_EDIT: frozenset({"owner", "editor"}),
     Action.PROJECT_MANAGE: frozenset({"owner"}),
     Action.PROJECT_SHARE: frozenset({"owner"}),
+    Action.ASSET_VIEW: frozenset({"owner", "editor", "viewer"}),
+    Action.ASSET_EDIT: frozenset({"owner", "editor"}),
+    Action.ASSET_MANAGE: frozenset({"owner"}),
+    Action.ASSET_SHARE: frozenset({"owner"}),
 }
 
 
 @dataclass(frozen=True, slots=True)
 class ProjectAccess:
-    """The principal's role on one project, as read from the database (None = not a member)."""
+    """The principal's role on one project or asset, as read from the database (None = not a
+    member)."""
 
     role: str | None
 
@@ -123,7 +137,7 @@ def require(principal: Principal, action: Action, resource: ProjectAccess | None
             # Not a member: the project doesn't exist as far as this principal knows.
             raise NotFoundError("Not found.")
         if resource.role not in PROJECT_ROLES[action]:
-            raise ForbiddenError("Your role on this project doesn't allow that.")
+            raise ForbiddenError("Your role doesn't allow that.")
 
 
 def allowed(principal: Principal, action: Action, resource: ProjectAccess | None = None) -> bool:

@@ -17,7 +17,7 @@ MATRIX: dict[tuple[str, str], str] = {
     ("GET", "/healthz"): "public",
     ("GET", "/readyz"): "public",
     ("GET", "/api/v1/setup"): "public",
-    ("GET", "/assets/{file_path:path}"): "public",
+    ("GET", "/static/{file_path:path}"): "public",
     ("GET", "/{path:path}"): "public",
     ("POST", "/api/v1/setup"): "public_origin",
     ("POST", "/api/v1/auth/login"): "public_origin",
@@ -83,6 +83,17 @@ MATRIX: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/attachments/{attachment_id}/view"): "verified",
     ("GET", "/api/v1/attachments/{attachment_id}/thumbnail"): "verified",
     ("DELETE", "/api/v1/attachments/{attachment_id}"): "verified",
+    # Assets: verified, then asset role; sharing needs step-up inside (tests/db/test_assets.py)
+    ("GET", "/api/v1/assets"): "verified",
+    ("POST", "/api/v1/assets"): "verified",
+    ("GET", "/api/v1/assets/{asset_id}"): "verified",
+    ("PUT", "/api/v1/assets/{asset_id}"): "verified",
+    ("DELETE", "/api/v1/assets/{asset_id}"): "verified",
+    ("PUT", "/api/v1/projects/{project_id}/asset"): "verified",
+    ("GET", "/api/v1/assets/{asset_id}/members"): "verified",
+    ("POST", "/api/v1/assets/{asset_id}/members"): "verified",
+    ("PATCH", "/api/v1/assets/{asset_id}/members/{user_id}"): "verified",
+    ("DELETE", "/api/v1/assets/{asset_id}/members/{user_id}"): "verified",
     ("POST", "/api/v1/auth/password"): "step_up",
     ("POST", "/api/v1/auth/mfa/recovery/regenerate"): "step_up",
     ("DELETE", "/api/v1/auth/passkeys/{passkey_id}"): "step_up",
@@ -114,6 +125,9 @@ BODIES: dict[tuple[str, str], object] = {
     ("POST", "/api/v1/projects/{project_id}/notes"): {"title": "Matrix note"},
     ("PATCH", "/api/v1/notes/{note_id}"): {"title": "Matrix note"},
     ("PUT", "/api/v1/notes/{note_id}/text"): {"text": "x"},
+    ("POST", "/api/v1/assets"): {"name": "Matrix boat", "kind": "boat"},
+    ("PUT", "/api/v1/assets/{asset_id}"): {"name": "Matrix boat", "kind": "boat"},
+    ("PUT", "/api/v1/projects/{project_id}/asset"): {"asset_id": None},
 }
 
 # Expected outcome per principal: "ok" means authorization passed (any status except

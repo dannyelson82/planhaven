@@ -14,29 +14,31 @@ const ROLE_LABEL: Record<Role, string> = { owner: 'Owner', editor: 'Can edit', v
 const select =
   'min-h-11 rounded-xl border border-stone-300 bg-white px-2 dark:border-stone-700 dark:bg-stone-900'
 
-/** Members of a project; owners can add people, change roles and remove them. */
-export function ShareButton({ projectId, isOwner, myId }: { projectId: string; isOwner: boolean; myId: string }) {
+type Kind = 'project' | 'asset'
+
+/** Members of a project or asset; owners can add people, change roles and remove them. */
+export function ShareButton({ kind, id, isOwner, myId }: { kind: Kind; id: string; isOwner: boolean; myId: string }) {
   return (
     <DialogTrigger>
       <Button variant="secondary">{isOwner ? 'Share' : 'Members'}</Button>
       <Modal isDismissable className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 p-4 sm:items-center">
         <Dialog className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 outline-none dark:bg-stone-900">
-          {({ close }) => <SharePanel projectId={projectId} isOwner={isOwner} myId={myId} close={close} />}
+          {({ close }) => <SharePanel kind={kind} id={id} isOwner={isOwner} myId={myId} close={close} />}
         </Dialog>
       </Modal>
     </DialogTrigger>
   )
 }
 
-function SharePanel({ projectId, isOwner, myId, close }: { projectId: string; isOwner: boolean; myId: string; close: () => void }) {
+function SharePanel({ kind, id, isOwner, myId, close }: { kind: Kind; id: string; isOwner: boolean; myId: string; close: () => void }) {
   const client = useQueryClient()
   const stepUp = useStepUp()
-  const base = `/api/v1/projects/${projectId}/members`
-  const members = useQuery({ queryKey: ['members', projectId], queryFn: () => api<Member[]>('GET', base) })
+  const base = `/api/v1/${kind}s/${id}/members`
+  const members = useQuery({ queryKey: ['members', kind, id], queryFn: () => api<Member[]>('GET', base) })
   const people = useQuery({ queryKey: ['people'], queryFn: () => api<Person[]>('GET', '/api/v1/people'), enabled: isOwner })
   const [personId, setPersonId] = useState('')
   const [role, setRole] = useState<Role>('editor')
-  const refresh = () => client.invalidateQueries({ queryKey: ['members', projectId] })
+  const refresh = () => client.invalidateQueries({ queryKey: ['members', kind, id] })
   const add = useMutation({
     mutationFn: () => stepUp(() => api('POST', base, { user_id: personId, role })),
     onSuccess: async () => { setPersonId(''); await refresh() },
@@ -48,7 +50,7 @@ function SharePanel({ projectId, isOwner, myId, close }: { projectId: string; is
   const remove = useMutation({
     mutationFn: (id: string) => stepUp(() => api('DELETE', `${base}/${id}`)),
     onSuccess: async (_d, id) => {
-      if (id === myId) { close(); navigate('/projects'); await client.invalidateQueries() } else await refresh()
+      if (id === myId) { close(); navigate(`/${kind}s`); await client.invalidateQueries() } else await refresh()
     },
   })
   const memberIds = new Set((members.data ?? []).map((m) => m.user_id))
@@ -56,7 +58,7 @@ function SharePanel({ projectId, isOwner, myId, close }: { projectId: string; is
 
   return (
     <div className="space-y-4">
-      <Heading slot="title" className="text-lg font-semibold">{isOwner ? 'Share this project' : 'Members'}</Heading>
+      <Heading slot="title" className="text-lg font-semibold">{isOwner ? `Share this ${kind}` : 'Members'}</Heading>
       <ul className="space-y-2">
         {(members.data ?? []).map((m) => (
           <li key={m.user_id} className="flex flex-wrap items-center gap-2">
@@ -73,7 +75,7 @@ function SharePanel({ projectId, isOwner, myId, close }: { projectId: string; is
               <span className="text-sm text-stone-500">{ROLE_LABEL[m.role]}</span>
             )}
             {(isOwner || m.user_id === myId) && (
-              <Button variant="danger-ghost" aria-label={m.user_id === myId ? 'Leave project' : `Remove ${m.display_name}`}
+              <Button variant="danger-ghost" aria-label={m.user_id === myId ? `Leave ${kind}` : `Remove ${m.display_name}`}
                 onPress={() => remove.mutate(m.user_id)}>
                 {m.user_id === myId ? 'Leave' : 'Remove'}
               </Button>

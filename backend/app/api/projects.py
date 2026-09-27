@@ -48,6 +48,10 @@ class ProjectOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     version: int
+    # The linked asset, when you can see it (single-project responses only).
+    asset_id: uuid.UUID | None = None
+    asset_name: str | None = None
+    asset_kind: str | None = None
 
 
 class ProjectPage(BaseModel):
