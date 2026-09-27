@@ -1,0 +1,15 @@
+# Allowlist: only what docker/Dockerfile copies is sent to the build.
+# (Keeps local notes, git history, virtualenvs and node_modules out of the build context.)
+*
+!README.md
+!backend/pyproject.toml
+!backend/uv.lock
+!backend/.python-version
+!backend/app/
+!frontend/
+!docker/pgdg-archive-key.asc
+!docker/rootfs/
+**/__pycache__
+**/*.pyc
+frontend/node_modules
+frontend/dist

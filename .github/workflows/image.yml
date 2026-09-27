@@ -1,0 +1,73 @@
+# Build the container image for both architectures, smoke-test it with the recommended
+# hardening flags, and scan it with Trivy (ARCHITECTURE.md §17, SECURITY.md §8).
+# Nothing is pushed or published here; publishing and signing come with releases.
+name: Image
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "37 6 * * 1" # weekly: catch new CVEs in the base image and packages
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    name: Image (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            trivy_asset: Linux-64bit
+            trivy_sha256: 2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            trivy_asset: Linux-ARM64
+            trivy_sha256: b94ce1976bbf3c15b514b605ee88be7c6d94a29be2302847ff01cb794d47aad5
+    env:
+      TRIVY_VERSION: 0.74.0
+      IMAGE: planhaven:ci
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check PostgreSQL apt key fingerprint
+        run: |
+          gpg --show-keys --with-colons docker/pgdg-archive-key.asc \
+            | grep -qx 'fpr:::::::::B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8:'
+
+      - name: Build
+        run: DOCKER_BUILDKIT=1 docker build --pull -f docker/Dockerfile -t "$IMAGE" .
+
+      - name: Smoke test
+        run: .github/scripts/smoke-test-image.sh "$IMAGE"
+
+      - name: Install Trivy (checksum verified)
+        env:
+          TRIVY_ASSET: ${{ matrix.trivy_asset }}
+          TRIVY_SHA256: ${{ matrix.trivy_sha256 }}
+        run: |
+          file="trivy_${TRIVY_VERSION}_${TRIVY_ASSET}.tar.gz"
+          curl -fsSLo "$RUNNER_TEMP/$file" "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/$file"
+          echo "${TRIVY_SHA256}  $RUNNER_TEMP/$file" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$file" -C "$RUNNER_TEMP" trivy
+
+      - name: Trivy image scan (report high and critical)
+        run: '"$RUNNER_TEMP/trivy" image --scanners vuln,secret --severity HIGH,CRITICAL --exit-code 0 "$IMAGE"'
+
+      - name: Trivy image scan (fail on fixable critical)
+        run: '"$RUNNER_TEMP/trivy" image --scanners vuln,secret --severity CRITICAL --ignore-unfixed --exit-code 1 "$IMAGE"'
+
+      - name: Trivy Dockerfile scan
+        run: '"$RUNNER_TEMP/trivy" config --severity HIGH,CRITICAL --exit-code 1 --ignorefile docker/.trivyignore.yaml docker/'

@@ -1,0 +1,30 @@
+#!/command/with-contenv sh
+# Wait for PostgreSQL, then create the database, roles and extensions if missing (idempotent).
+# Row-Level Security and grants on tables are set up by migrations (ARCHITECTURE.md §8.3).
+. /etc/s6-overlay/scripts/common.sh
+
+i=0
+until pg_isready -q -h "$PG_SOCKET_DIR" -U postgres; do
+  i=$((i + 1))
+  [ "$i" -le 60 ] || { echo "planhaven: PostgreSQL did not become ready" >&2; exit 1; }
+  sleep 1
+done
+
+as_postgres psql -h "$PG_SOCKET_DIR" -U postgres -d postgres -v ON_ERROR_STOP=1 -q <<'SQL'
+SELECT 'CREATE ROLE planhaven_owner LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION'
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'planhaven_owner') \gexec
+SELECT 'CREATE ROLE planhaven_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS'
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'planhaven_app') \gexec
+ALTER ROLE planhaven_owner NOBYPASSRLS;
+SELECT 'CREATE DATABASE planhaven OWNER planhaven_owner ENCODING ''UTF8'' TEMPLATE template0'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'planhaven') \gexec
+REVOKE ALL ON DATABASE planhaven FROM PUBLIC;
+GRANT CONNECT ON DATABASE planhaven TO planhaven_owner, planhaven_app;
+SQL
+
+as_postgres psql -h "$PG_SOCKET_DIR" -U postgres -d planhaven -v ON_ERROR_STOP=1 -q <<'SQL'
+CREATE EXTENSION IF NOT EXISTS vector;
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+ALTER SCHEMA public OWNER TO planhaven_owner;
+GRANT USAGE ON SCHEMA public TO planhaven_app;
+SQL
