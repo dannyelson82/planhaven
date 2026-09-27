@@ -48,7 +48,11 @@ expect_refusal() { # message docker-run-args...
   done
   [[ "$(docker inspect -f '{{.State.Running}}' "$name")" == "false" ]] \
     || fail "container kept running; expected refusal: $message"
-  docker logs "$name" 2>&1 | grep -qF "$message" || fail "missing refusal message: $message"
+  for _ in $(seq 1 10); do  # log output can lag the container exit
+    docker logs "$name" 2>&1 | grep -qF "$message" && return 0
+    sleep 1
+  done
+  fail "missing refusal message: $message"
 }
 
 # Insecure configuration must stop the container before anything is set up.
