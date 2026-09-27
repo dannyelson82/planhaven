@@ -99,6 +99,14 @@ docker logs "$name" 2>&1 | grep '"logger": "planhaven.access"' | tail -1 | pytho
   || fail "no structured access log line"
 echo "ok: structured access log"
 
+page="$(curl -fsS -D "$work/page-headers" "http://127.0.0.1:$port/projects")"
+grep -q '<div id="root">' <<<"$page" || fail "web app not served"
+grep -qi '^content-security-policy:' "$work/page-headers" || fail "web app without CSP"
+asset="$(grep -oE '/assets/[A-Za-z0-9_.-]+\.js' <<<"$page" | head -1)"
+curl -fsS -D "$work/asset-headers" -o /dev/null "http://127.0.0.1:$port$asset" || fail "asset $asset not served"
+grep -qi 'immutable' "$work/asset-headers" || fail "assets not cached as immutable"
+echo "ok: web app and hashed assets served"
+
 # First boot: a one-time setup token in the log, no default account. Use it to create the
 # admin through the API, the way the web UI will.
 token="$(docker logs "$name" 2>&1 | grep -oE 'phv_setup_[A-Za-z0-9_-]{40,}' | tail -1)"

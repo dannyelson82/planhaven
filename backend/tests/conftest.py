@@ -29,6 +29,7 @@ def make_settings(**overrides: object) -> Settings:
         "log_level": "info",
         "secrets_dir": str(_SECRETS),
         "log_dir": None,
+        "frontend_dir": None,
     }
     values.update(overrides)
     return Settings(**values)  # type: ignore[arg-type]

@@ -40,7 +40,8 @@ def app(settings: object) -> FastAPI:
     async def echo(item: Item) -> dict[str, str]:
         return {"name": item.name}
 
-    @app.get("/boom")
+    # POST: GET paths the API doesn't know are served the web app shell.
+    @app.post("/boom")
     async def boom() -> None:
         raise RuntimeError("secret detail phv_pat_" + "a" * 40)
 
@@ -52,7 +53,7 @@ def app(settings: object) -> FastAPI:
 
 @pytest.mark.parametrize(
     ("method", "path", "status"),
-    [("GET", "/healthz", 200), ("GET", "/nope", 404), ("GET", "/boom", 500)],
+    [("GET", "/healthz", 200), ("GET", "/nope", 404), ("POST", "/boom", 500)],
 )
 def test_security_headers_on_every_response(
     client: TestClient, method: str, path: str, status: int
@@ -97,7 +98,7 @@ def test_not_found_is_problem_json(client: TestClient) -> None:
 
 
 def test_server_error_reveals_nothing(client: TestClient) -> None:
-    response = client.get("/boom")
+    response = client.post("/boom")
 
     assert response.status_code == 500
     assert response.json() == {
@@ -257,7 +258,7 @@ def test_access_log_redacts_and_omits_query(
 def test_unhandled_error_is_logged_without_message(
     client: TestClient, caplog: pytest.LogCaptureFixture
 ) -> None:
-    client.get("/boom")
+    client.post("/boom")
 
     records = [r for r in caplog.records if r.name == "planhaven.errors"]
     assert records
