@@ -13,6 +13,7 @@ from app import authz
 from app.db import auth as audit
 from app.db import projects as store
 from app.db.database import Database
+from app.services import live
 from app.services.auth import CurrentSession
 
 # Row types the API layer serialises (the API may not import app.db directly).
@@ -163,6 +164,7 @@ async def update_project(
         after = await store.get_project(conn, project_id)
     if after is None:
         raise authz.NotFoundError("Not found.")
+    live.publish(project_id, "project")
     return after
 
 
@@ -184,6 +186,7 @@ async def delete_project(
             resource_type="project",
             resource_id=project_id,
         )
+    live.publish(project_id, "project")
 
 
 # ---------------------------------------------------------------- tasks
@@ -239,6 +242,7 @@ async def create_task(
         row = await store.get_task(conn, task_id)
     if row is None:
         raise RuntimeError("created task not visible")
+    live.publish(project_id, "tasks")
     return row
 
 
@@ -302,6 +306,7 @@ async def update_task(
         after = await store.get_task(conn, task_id)
     if after is None:
         raise authz.NotFoundError("Not found.")
+    live.publish(before.project_id, "tasks")
     return after
 
 
@@ -323,3 +328,4 @@ async def delete_task(
             resource_type="task",
             resource_id=task_id,
         )
+    live.publish(task.project_id, "tasks")

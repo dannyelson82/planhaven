@@ -17,6 +17,7 @@ from sqlalchemy import text
 from app.db import jobs as job_store
 from app.db import rate_limits
 from app.db.database import Database
+from app.services import notes as note_service
 from app.workers.registry import JobContext, get_handler
 
 log = logging.getLogger("planhaven.worker")
@@ -59,6 +60,7 @@ class Worker:
             await conn.execute(
                 text("DELETE FROM idempotency_keys WHERE created_at < now() - interval '7 days'")
             )
+        await note_service.compact_notes(self.db)
 
     async def run_once(self) -> bool:
         """Claim and run one job. Returns False when nothing was due."""

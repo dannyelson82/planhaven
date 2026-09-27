@@ -12,6 +12,7 @@ dependencies = [
     "cryptography>=50",
     "fastapi>=0.120",
     "planhaven-sdk",
+    "pycrdt>=0.14",
     "pyotp>=2.10",
     "sqlalchemy[asyncio]>=2.1",
     "uvicorn>=0.38",
