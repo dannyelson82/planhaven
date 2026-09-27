@@ -97,11 +97,13 @@ them. Every PR gets a security review before merge.
 
 ## Step 9: Projects and tasks
 
-- [ ] Choose the UI component library (A§19.2) and record it in an ADR
+- [ ] Choose the UI component library (A§19.2) and record it in an ADR; criteria include
+      responsive and touch-friendly components, accessibility and CSP compatibility (A§13.5)
 - [ ] Projects: CRUD, stages, membership roles (owner/editor/viewer), RLS policies
 - [ ] Tasks: CRUD, due dates, assignee, done state
 - [ ] API conventions: cursor pagination, `If-Match` concurrency, soft delete (A§8.2)
-- [ ] Minimal UI: sign-in, 2FA enrollment, project list, project view with tasks
+- [ ] Minimal UI: sign-in, 2FA enrollment, project list, project view with tasks;
+      responsive for phone and desktop (A§13.5), checked at 390 px and 1280 px widths
 - [ ] Matrix entries and audit events for every new route
 
 ## Step 10: Plugin foundation
