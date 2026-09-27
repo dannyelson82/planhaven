@@ -47,3 +47,22 @@ async def owner_db() -> AsyncIterator[Database]:
     database = Database(_settings(), role=OWNER_ROLE)
     yield database
     await database.dispose()
+
+
+@pytest.fixture(autouse=True)
+def fresh_rate_limits() -> None:
+    """Tests share one client address; start each with empty rate-limit buckets. (Sync, with
+    its own short-lived connection, so it also works for non-async tests.)"""
+    import asyncio
+
+    from sqlalchemy import text
+
+    async def clear() -> None:
+        database = Database(_settings())
+        try:
+            async with database.system_transaction() as conn:
+                await conn.execute(text("DELETE FROM rate_limits"))
+        finally:
+            await database.dispose()
+
+    asyncio.run(clear())

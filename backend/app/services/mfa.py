@@ -18,10 +18,12 @@ from dataclasses import dataclass
 import pyotp
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from app.core import security_log
 from app.core.crypto import Keyring
 from app.db import auth as auth_store
 from app.db import mfa as store
 from app.db.database import Database
+from app.services import limits
 from app.services.auth import AuthError, CurrentSession, recently_verified, require_recent
 
 ISSUER = "Planhaven"
@@ -138,6 +140,7 @@ async def verify_totp(
 ) -> None:
     """Second step of sign-in, or step-up. Wrong codes count toward ending the session."""
     user = session.user
+    await check_mfa_limit(db, session, ip)
     async with db.user_transaction(user.id) as conn:
         totp = await store.totp_for(conn, user.id, confirmed=True)
         step = None
@@ -156,6 +159,7 @@ async def verify_recovery_code(
 ) -> int:
     """Use a recovery code instead of TOTP. Returns how many unused codes remain."""
     user = session.user
+    await check_mfa_limit(db, session, ip)
     if len(code) <= 40:
         async with db.user_transaction(user.id) as conn:
             if await store.use_recovery_code(conn, user.id, _recovery_hash(code)):
@@ -187,6 +191,11 @@ async def regenerate_recovery_codes(
     return codes
 
 
+async def check_mfa_limit(db: Database, session: CurrentSession, ip: str | None) -> None:
+    bucket = limits.key(limits.MFA_USER, session.user.id)
+    await limits.check(db, [(limits.MFA_USER, bucket)], ip=ip, user_id=session.user.id)
+
+
 async def record_failure(db: Database, session: CurrentSession, ip: str | None) -> None:
     # Commit first, then raise: raising inside the transaction would roll back the counter
     # and the revocation.
@@ -197,6 +206,7 @@ async def record_failure(db: Database, session: CurrentSession, ip: str | None) 
         )
         if failures >= MAX_FAILURES:
             await auth_store.revoke_session(conn, session.id)
+    security_log.event("mfa_failed", ip=ip, user_id=session.user.id, failures=failures)
     if failures >= MAX_FAILURES:
         raise AuthError("Too many wrong codes. Sign in again.")
     raise AuthError("That code is not valid.")

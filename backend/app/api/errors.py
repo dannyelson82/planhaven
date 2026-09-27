@@ -10,6 +10,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.services.limits import RateLimitedError
+
 PROBLEM_JSON = "application/problem+json"
 
 
@@ -51,6 +53,14 @@ async def _validation_error(_: Request, exc: Exception) -> JSONResponse:
     return problem(422, "The request is not valid.", errors=errors)
 
 
+async def _rate_limited(_: Request, exc: Exception) -> JSONResponse:
+    retry_after = exc.retry_after if isinstance(exc, RateLimitedError) else 60
+    response = problem(429, "Too many attempts. Try again later.")
+    response.headers["Retry-After"] = str(max(1, retry_after))
+    return response
+
+
 def install_error_handlers(app: FastAPI) -> None:
+    app.add_exception_handler(RateLimitedError, _rate_limited)
     app.add_exception_handler(StarletteHTTPException, _http_error)
     app.add_exception_handler(RequestValidationError, _validation_error)

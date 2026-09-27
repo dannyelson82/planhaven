@@ -327,9 +327,11 @@ Cross-Origin-Resource-Policy: same-origin
 - Rate limits (token bucket, stored in PostgreSQL/in-memory):
   login and 2FA per IP and per account; invite and OAuth registration per IP; MCP write tools
   per client; sync per token; uploads per user; AI questions per user.
-- Progressive lockout on failed logins (delays, then temporary lock) with notification to the
-  account owner. Lockout is per-account-per-IP to avoid a trivial denial-of-service against a
-  known user.
+- Lockout on failed logins: token buckets per IP (20, then 1 per 30 s), per account per IP (5,
+  then 1 per minute; reset on success) and per account across all IPs (50, then 1 per minute),
+  so an attacker elsewhere can't lock a real user out. Second-factor attempts: 10 per user,
+  then 1 per minute, and 5 wrong codes end the session. Notification to the account owner
+  follows with notifications (phase 0.3).
 - Request body limits for JSON (1 MB default) separate from upload limits.
 - `ADMIN_ALLOWED_CIDRS` can restrict the admin panel and admin API to LAN addresses.
 

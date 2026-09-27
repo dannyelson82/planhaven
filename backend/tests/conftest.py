@@ -28,6 +28,7 @@ def make_settings(**overrides: object) -> Settings:
         "max_json_bytes": 1024,
         "log_level": "info",
         "secrets_dir": str(_SECRETS),
+        "log_dir": None,
     }
     values.update(overrides)
     return Settings(**values)  # type: ignore[arg-type]

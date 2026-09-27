@@ -12,7 +12,10 @@ import socket
 import uuid
 from datetime import timedelta
 
+from sqlalchemy import text
+
 from app.db import jobs as job_store
+from app.db import rate_limits
 from app.db.database import Database
 from app.workers.registry import JobContext, get_handler
 
@@ -22,6 +25,7 @@ JOB_TIMEOUT = timedelta(minutes=10)
 LEASE = JOB_TIMEOUT + timedelta(minutes=1)
 POLL_INTERVAL = 2.0
 HEARTBEAT_INTERVAL = 10.0
+MAINTENANCE_INTERVAL = 3600.0
 BACKOFF_BASE = timedelta(seconds=10)
 BACKOFF_MAX = timedelta(hours=1)
 
@@ -43,6 +47,14 @@ class Worker:
     async def beat(self) -> None:
         async with self.db.system_transaction() as conn:
             await job_store.heartbeat(conn, self.worker_id)
+
+    async def maintenance(self) -> None:
+        """Hourly housekeeping: drop idle rate-limit buckets and old passkey challenges."""
+        async with self.db.system_transaction() as conn:
+            await rate_limits.purge_idle(conn)
+            await conn.execute(
+                text("DELETE FROM webauthn_challenges WHERE expires_at < now() - interval '1 hour'")
+            )
 
     async def run_once(self) -> bool:
         """Claim and run one job. Returns False when nothing was due."""
@@ -84,11 +96,15 @@ class Worker:
         log.info("worker started", extra={"worker_id": self.worker_id})
         last_beat = -HEARTBEAT_INTERVAL
         loop = asyncio.get_running_loop()
+        last_maintenance = loop.time()
         while not self._stopping.is_set():
             try:
                 if loop.time() - last_beat >= HEARTBEAT_INTERVAL:
                     await self.beat()
                     last_beat = loop.time()
+                if loop.time() - last_maintenance >= MAINTENANCE_INTERVAL:
+                    await self.maintenance()
+                    last_maintenance = loop.time()
                 if await self.run_once():
                     continue
             except Exception as exc:  # database hiccup: log, wait, carry on
