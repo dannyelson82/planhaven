@@ -80,10 +80,10 @@ filterwarnings = ["error"]
 root_package = "app"
 
 [[tool.importlinter.contracts]]
-name = "Backend layering: api -> services -> lower layers"
+name = "Backend layering: api/workers -> services -> lower layers"
 type = "layers"
 layers = [
-    "app.api",
+    "app.api | app.workers",
     "app.services",
     "app.authz : app.db : app.ai : app.files : app.sync",
 ]
