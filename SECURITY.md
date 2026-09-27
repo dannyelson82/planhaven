@@ -139,7 +139,7 @@ Organized by STRIDE category. Details for each control are in §7.
 | IDOR (reading another user's project by ID) | Info disclosure | Central authz layer + PostgreSQL RLS with `FORCE`; UUIDv7 IDs; automated cross-user test matrix (§7.4) |
 | Token leakage (ICS URL, sync token) | Info disclosure | Narrow scopes, hashed storage, revocation, "titles only" feeds, identifiable prefixes for secret scanning (§7.3) |
 | Malicious upload (parser exploit, zip bomb, polyglot) | Elevation / DoS | Byte-sniffed type allowlist, size limits, no auto-extract of archives, sandboxed extractor subprocess with rlimits and timeouts (§7.5, §7.6) |
-| Prompt injection via documents or web content | Tampering / Info disclosure | Content delimited as data; no delete tools via MCP; scoped OAuth; `local_ai_only` projects hidden; audit + undo (§7.7) |
+| Prompt injection via documents or web content | Tampering / Info disclosure | Content delimited as data; AI acts only with the user's rights; no delete tools; propose-and-approve by default; scoped OAuth; `local_ai_only` projects hidden; audit + undo; features experimental until tested (§7.7) |
 | Over-privileged AI connector | Elevation | Read vs. write scopes chosen at consent, per-client revocation, 2FA at consent (§7.3, §7.7) |
 | SSRF via configurable URLs | Elevation / Info disclosure | AI endpoints admin-only; push hosts allowlisted; no user-supplied fetch URLs in core (§7.8) |
 | Spoofed client IP via forwarded headers | Spoofing | Forwarded headers honoured only from `TRUSTED_PROXIES`; refuse to start in public mode without it (§7.11) |
@@ -271,8 +271,16 @@ Prompt injection can't be fully prevented, so the design limits what a hijacked 
 - **Audit and undo.** Every AI-originated write is audited with client identity and can be
   reverted from the activity view.
 - **Rate limits** per OAuth client on write tools.
-- **No automatic actions from local AI output.** Local model answers are displayed and can be
-  saved as notes; they do not trigger tool calls in v1.
+- **AI changes follow the assistant rules (ADR 0012).** Local and commercial models act only
+  through assistant tools that run as the signed-in user (`authz.require` + RLS), never with
+  more rights. No delete, sharing, account or admin tools. Every change is attributed and
+  undoable. The default mode is **propose and approve**: nothing is written until the user
+  approves the change set. "Apply directly" is a per-feature option the admin may allow.
+- **Experimental features are off by default.** Admin enables availability (step-up, audited),
+  users opt in individually; a feature leaves experimental only with tests and a threat-model
+  entry here.
+- **Voice** (future): audio goes to an admin-configured local speech server; any service that
+  sends audio off-site is a separate, clearly labelled opt-in.
 
 ### 7.8 Outbound requests and SSRF
 

@@ -44,6 +44,9 @@ Representative projects it must handle well:
 - Answer questions about a project and its attachments using **local** AI models.
 - Let **commercial** AI assistants (Claude, ChatGPT) brainstorm and write into the app through
   an MCP connector, storing notes that local models can use later.
+- An **AI project assistant**, local or commercial, that creates and edits tasks, notes,
+  contacts and other items, and later voice chat, released as experimental features (§20,
+  ADR 0012).
 - Be extensible through a plugin system (first plugin: plywood cut-list optimizer).
 - Ship as a single Docker image with an Unraid Community Applications template.
 - Be secure enough to expose to the internet from the very first release.
@@ -491,6 +494,15 @@ The check happens in the provider layer (not the UI), so no code path can bypass
 
 ---
 
+### 11.5 Assistant actions (experimental)
+
+With the `assistant.local` experimental feature enabled (§20), the local model can use the
+same assistant tools as MCP clients (§12.3) to create and edit items, instead of only
+answering. Changes are proposed for approval or applied directly with undo, per the feature's
+mode (ADR 0012).
+
+---
+
 ## 12. MCP connector (commercial AI)
 
 ### 12.1 Transport and endpoint
@@ -530,6 +542,10 @@ Tool names use a `planhaven_` prefix. Every tool declares MCP annotations.
 
 Deliberately excluded: delete tools, sharing/membership changes, account settings, attachment
 download of raw files. Plugins may register additional tools (§14.4) subject to the same rules.
+
+Assistant write tools (experimental feature `assistant.mcp_write`, ADR 0012): add and
+update notes, tasks, list items, contacts, quotes and cost entries; change project stage.
+Still no delete, sharing, account or admin tools.
 
 ### 12.4 Rules
 
@@ -770,9 +786,9 @@ Every phase ships meeting `SECURITY.md` §11.
 | **0.2 — Daily use** | Lists, notes, attachments (upload pipeline, EXIF strip), assets, contacts/quotes, sharing UI, PWA with offline lists. Real-time collaborative note editing and live list updates (ADR 0011). |
 | **0.3 — iPhone** | Shortcuts sync + published Shortcut, ICS feed, Web Push, notification preferences. |
 | **0.4 — Cut list plugin** | Reference plugin end-to-end; plugin API v1 frozen; `docs/plugin-api.md`. |
-| **0.5 — Local AI** | Extraction sandbox, OCR, embeddings, hybrid retrieval, Q&A with citations, `local_ai_only`. Unraid CA submission. |
-| **0.6 — MCP connector** | OAuth authorization server, `/mcp` tools, consent UI, connected-clients management, undo for AI changes. |
-| **Later** | Recurrence by asset meter, plugin process isolation, backup encryption, separate files origin, more plugins (vehicle log, Home Assistant bridge, electronics BOM). |
+| **0.5 — Local AI** | Extraction sandbox, OCR, embeddings, hybrid retrieval, Q&A with citations, `local_ai_only`. Experimental-features framework; local AI project assistant (experimental, ADR 0012). Unraid CA submission. |
+| **0.6 — MCP connector** | OAuth authorization server, `/mcp` tools, consent UI, connected-clients management, undo for AI changes. Assistant write tools for commercial AI (experimental, ADR 0012). |
+| **Later** | Voice chat with a local speech server (experimental, ADR 0012), recurrence by asset meter, plugin process isolation, backup encryption, separate files origin, more plugins (vehicle log, Home Assistant bridge, electronics BOM). |
 
 ---
 
@@ -793,6 +809,7 @@ Every phase ships meeting `SECURITY.md` §11.
 | 0009 | Deployment behind user's existing reverse proxy; no forward-auth in front of the app |
 | 0010 | Apache-2.0 license and dependency license policy |
 | 0011 | Real-time collaborative editing with Yjs over authenticated WebSockets |
+| 0012 | AI project assistant (local and commercial) behind experimental feature flags |
 
 ### 19.2 Open questions
 
@@ -804,3 +821,19 @@ Every phase ships meeting `SECURITY.md` §11.
 - Rich-text editor for notes (Markdown-first vs. block editor); must bind to Yjs and work
   under the CSP (ADR 0011).
 - Whether commercial chat providers are offered for in-app Q&A or only via MCP.
+
+---
+
+## 20. Experimental features
+
+New or risky capabilities ship behind named feature flags (ADR 0012).
+
+- A registry in code lists each feature: key, description, known risks, and allowed modes
+  (e.g. propose-and-approve, apply-directly).
+- **Off by default.** An admin makes a feature available in Admin → Experimental (step-up and
+  audit, S§7.1); each user opts in under their own settings.
+- Everything experimental is labelled "Experimental" in the UI.
+- Graduating from experimental needs tests, a SECURITY.md threat-model entry and the
+  maintainer's sign-off.
+- First features: `assistant.local` (phase 0.5), `assistant.mcp_write` (0.6), `voice.chat`
+  (later).
