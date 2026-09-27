@@ -25,15 +25,46 @@ trap cleanup EXIT
 
 fail() { echo "::error::$*"; exit 1; }
 
-# Recommended runtime flags (SECURITY.md §7.13).
-docker run -d --name "$name" \
-  --read-only \
-  --tmpfs /run:rw,exec,nosuid,size=64m \
-  --tmpfs /tmp:rw,noexec,nosuid,size=64m \
-  --cap-drop=ALL \
-  --cap-add=CHOWN --cap-add=SETUID --cap-add=SETGID --cap-add=DAC_OVERRIDE \
-  --cap-add=FOWNER --cap-add=KILL \
-  --security-opt=no-new-privileges:true \
+# Recommended runtime flags (SECURITY.md §7.13) and the required public-mode settings.
+hardening=(
+  --read-only
+  --tmpfs /run:rw,exec,nosuid,size=64m
+  --tmpfs /tmp:rw,noexec,nosuid,size=64m
+  --cap-drop=ALL
+  --cap-add=CHOWN --cap-add=SETUID --cap-add=SETGID --cap-add=DAC_OVERRIDE
+  --cap-add=FOWNER --cap-add=KILL
+  --security-opt=no-new-privileges:true
+)
+config=(-e BASE_URL=https://planhaven.example.com -e TRUSTED_PROXIES=192.0.2.0/24)
+
+expect_refusal() { # message docker-run-args...
+  local message="$1"; shift
+  docker rm -f "$name" >/dev/null 2>&1 || true
+  docker run -d --name "$name" "${hardening[@]}" "$@" \
+    -v "$work/config:/config" -v "$work/data:/data" "$image" >/dev/null
+  for _ in $(seq 1 30); do
+    [[ "$(docker inspect -f '{{.State.Running}}' "$name")" == "true" ]] || break
+    sleep 1
+  done
+  [[ "$(docker inspect -f '{{.State.Running}}' "$name")" == "false" ]] \
+    || fail "container kept running; expected refusal: $message"
+  for _ in $(seq 1 10); do  # log output can lag the container exit
+    docker logs "$name" 2>&1 | grep -qF "$message" && return 0
+    sleep 1
+  done
+  fail "missing refusal message: $message"
+}
+
+# Insecure configuration must stop the container before anything is set up.
+expect_refusal "configuration error: BASE_URL is required"
+expect_refusal "BASE_URL must use https in public mode" \
+  -e BASE_URL=http://planhaven.example.com -e TRUSTED_PROXIES=192.0.2.0/24
+expect_refusal "TRUSTED_PROXIES is required in public mode" -e BASE_URL=https://planhaven.example.com
+[[ -z "$(sudo ls -A "$work/config")" ]] || fail "refused configuration still wrote to /config"
+echo "ok: refuses insecure configuration, before touching /config"
+docker rm -f "$name" >/dev/null
+
+docker run -d --name "$name" "${hardening[@]}" "${config[@]}" \
   -v "$work/config:/config" -v "$work/data:/data" \
   -p "127.0.0.1:$port:8080" \
   "$image" >/dev/null
@@ -56,7 +87,16 @@ echo "ok: ready"
 headers="$(curl -fsS -D - -o /dev/null "http://127.0.0.1:$port/healthz")"
 curl -fsS "http://127.0.0.1:$port/healthz" | grep -q '"ok"' || fail "/healthz did not report ok"
 if grep -qi '^server:' <<<"$headers"; then fail "Server header present"; fi
-echo "ok: /healthz, no Server header"
+for h in content-security-policy strict-transport-security x-content-type-options \
+         referrer-policy permissions-policy cross-origin-opener-policy x-request-id; do
+  grep -qi "^$h:" <<<"$headers" || fail "missing header: $h"
+done
+echo "ok: /healthz, security headers, no Server header"
+
+docker logs "$name" 2>&1 | grep '"logger": "planhaven.access"' | tail -1 | python3 -c \
+  'import json,sys; e=json.loads(sys.stdin.read()); assert e["path"]=="/healthz" and e["status"]==200' \
+  || fail "no structured access log line"
+echo "ok: structured access log"
 
 echo "Processes:"
 docker top "$name" -eo pid,uid,user,args
@@ -105,20 +145,9 @@ elapsed=$((SECONDS - start))
 echo "ok: clean shutdown in ${elapsed}s"
 
 # A symlinked volume directory must stop startup, not be followed by root.
-docker rm -f "$name" >/dev/null
 sudo rm -rf "$work/config/logs"
 sudo ln -s /etc "$work/config/logs"
-docker run -d --name "$name" --cap-drop=ALL \
-  --cap-add=CHOWN --cap-add=SETUID --cap-add=SETGID --cap-add=DAC_OVERRIDE \
-  --cap-add=FOWNER --cap-add=KILL --security-opt=no-new-privileges:true \
-  --read-only --tmpfs /run:rw,exec,nosuid,size=64m --tmpfs /tmp:rw,noexec,nosuid,size=64m \
-  -v "$work/config:/config" -v "$work/data:/data" "$image" >/dev/null
-for _ in $(seq 1 30); do
-  [[ "$(docker inspect -f '{{.State.Running}}' "$name")" == "true" ]] || break
-  sleep 1
-done
-[[ "$(docker inspect -f '{{.State.Running}}' "$name")" == "false" ]] || fail "started despite a symlinked /config/logs"
-docker logs "$name" 2>&1 | grep -q "is a symlink; refusing to start" || fail "no symlink refusal message"
+expect_refusal "is a symlink; refusing to start" "${config[@]}"
 echo "ok: refuses symlinked volume directories"
 
 echo "All smoke tests passed."

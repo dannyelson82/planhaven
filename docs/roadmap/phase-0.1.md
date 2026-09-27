@@ -45,11 +45,11 @@ them. Every PR gets a security review before merge.
 
 ## Step 3: Core safety layer
 
-- [ ] Settings from environment (A§4.3); `PUBLIC_MODE` refuses insecure configuration (test)
-- [ ] Trusted-proxy client-IP resolution from `TRUSTED_PROXIES` only (S§7.11)
-- [ ] Security headers and CSP on every response (S§7.10) (test)
-- [ ] Request IDs, JSON body-size limit, RFC 9457 error responses with no internals
-- [ ] Structured JSON logging with a redaction filter (test: no secrets or content in logs)
+- [x] Settings from environment (A§4.3); `PUBLIC_MODE` refuses insecure configuration (test)
+- [x] Trusted-proxy client-IP resolution from `TRUSTED_PROXIES` only (S§7.11)
+- [x] Security headers and CSP on every response (S§7.10) (test); also on 413 and 500 responses
+- [x] Request IDs, JSON body-size limit, RFC 9457 error responses with no internals
+- [x] Structured JSON logging with a redaction filter (test: no secrets or content in logs)
 
 ## Step 4: Database foundation
 
