@@ -34,7 +34,8 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 curl -fsS http://localhost:18082/readyz >/dev/null || { echo "::error::not ready after restore"; exit 1; }
-titles="$(docker exec "$target" s6-setuidgid postgres psql -h /run/postgresql -U postgres \
+titles="$(docker exec "$target" /command/s6-setuidgid postgres /usr/lib/postgresql/18/bin/psql \
+  -h /run/postgresql -U postgres \
   -d planhaven -tAc 'SELECT title FROM projects')"
 grep -qxF "$expected" <<<"$titles" || { echo "::error::restored data missing: got '$titles'"; exit 1; }
 setup="$(curl -fsS http://localhost:18082/api/v1/setup)"
