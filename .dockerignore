@@ -9,6 +9,8 @@
 !frontend/
 !docker/pgdg-archive-key.asc
 !docker/rootfs/
+!sdk/python/
+!plugins/
 **/__pycache__
 **/*.pyc
 frontend/node_modules

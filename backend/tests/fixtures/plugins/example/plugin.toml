@@ -1,0 +1,14 @@
+[plugin]
+id = "example"
+name = "Example plugin (tests)"
+version = "0.1.0"
+api_version = "1"
+description = "Used by the tests to exercise the plugin host."
+
+[permissions]
+project_data = ["read", "write"]
+projects = ["read"]
+events = ["task.completed"]
+
+[entrypoints]
+backend = "example_plugin.backend:register"

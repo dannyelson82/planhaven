@@ -63,6 +63,8 @@ MATRIX: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/admin/invites"): "admin",
     ("GET", "/api/v1/admin/invites"): "admin",
     ("DELETE", "/api/v1/admin/invites/{invite_id}"): "admin",
+    ("GET", "/api/v1/admin/plugins"): "admin",
+    ("POST", "/api/v1/admin/plugins/{plugin_id}/enabled"): "admin",
 }
 
 # Bodies that pass validation, so checks inside services (step-up) are reached.
@@ -74,6 +76,7 @@ BODIES: dict[tuple[str, str], object] = {
     ("POST", "/api/v1/admin/users/{user_id}/disabled"): {"value": False},
     ("POST", "/api/v1/admin/users/{user_id}/admin"): {"value": False},
     ("POST", "/api/v1/admin/invites"): {},
+    ("POST", "/api/v1/admin/plugins/{plugin_id}/enabled"): {"value": False},
     ("POST", "/api/v1/projects"): {"title": "Matrix test project"},
     ("POST", "/api/v1/projects/{project_id}/tasks"): {"title": "Matrix test task"},
 }

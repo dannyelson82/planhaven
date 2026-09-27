@@ -32,6 +32,8 @@ from app.core.http import (
 )
 from app.core.logging import configure_logging
 from app.db.database import Database
+from app.plugins_host.host import LoadedPlugins, discover
+from app.services import plugins as plugin_service
 
 # Every router the app serves. The authorization test matrix reads this list, so a router
 # can't be added without its routes being classified and tested (SECURITY.md §7.4).
@@ -58,7 +60,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     db = Database(settings)
 
     @asynccontextmanager
-    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+        # Only admin-enabled plugins are imported (ARCHITECTURE.md §14.7).
+        try:
+            application.state.plugins = await plugin_service.load_enabled(
+                db, application.state.plugins_discovered
+            )
+        except Exception:  # database not ready: start without plugins, /readyz will say so
+            application.state.plugins = LoadedPlugins()
         yield
         await db.dispose()
 
@@ -67,6 +76,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.db = db
+    app.state.plugins_discovered = discover(settings.plugin_dirs)
+    app.state.plugins = LoadedPlugins()
     app.state.session_key = SessionKey.from_dir(settings.secrets_dir)
     app.state.keyring = Keyring.from_file(Path(settings.secrets_dir) / "master.key")
     install_error_handlers(app)

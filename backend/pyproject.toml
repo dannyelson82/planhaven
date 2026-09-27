@@ -11,11 +11,15 @@ dependencies = [
     "asyncpg>=0.31",
     "cryptography>=50",
     "fastapi>=0.120",
+    "planhaven-sdk",
     "pyotp>=2.10",
     "sqlalchemy[asyncio]>=2.1",
     "uvicorn>=0.38",
     "webauthn>=3.0",
 ]
+
+[tool.uv.sources]
+planhaven-sdk = { path = "../sdk/python" }
 
 [dependency-groups]
 dev = [

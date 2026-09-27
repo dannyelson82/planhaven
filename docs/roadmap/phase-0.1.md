@@ -132,9 +132,15 @@ them. Every PR gets a security review before merge.
 
 ## Step 10: Plugin foundation
 
-- [ ] `sdk/python`: `PluginContext` protocol and types (async, serializable)
-- [ ] Plugin loader: `plugin.toml` manifest, `api_version` check, admin enable/disable
-- [ ] `import-linter` contract: plugins import only the SDK
+- [x] `sdk/python` (`planhaven_sdk`, API v1): manifest model, `PluginContext` protocol and
+      serializable types; async only
+- [x] Plugin host: `plugin.toml` discovery without importing, `api_version` check, admin
+      enable/disable (takes effect on restart; only enabled plugins are imported), a broken
+      plugin can't stop startup; `PluginContext` enforces manifest permissions and acts as the
+      user under RLS; plugin data table with RLS (project- or user-scoped)
+- [x] Boundary test: plugins and the SDK never import the application
+- [ ] Later: deliver outbox events to plugin handlers (with the event consumer, phase 0.3);
+      plugin UI iframes and the JS bridge (with the first plugin UI, phase 0.7)
 
 ## Step 11: Release
 

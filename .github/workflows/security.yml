@@ -60,7 +60,7 @@ jobs:
         run: uv run bandit -r app
       - name: pip-audit (known vulnerabilities)
         run: |
-          uv export --locked --all-groups --no-emit-project --format requirements-txt -o "$RUNNER_TEMP/requirements.txt"
+          uv export --locked --all-groups --no-emit-project --no-emit-package planhaven-sdk --format requirements-txt -o "$RUNNER_TEMP/requirements.txt"
           uv run pip-audit --strict --progress-spinner off --disable-pip --require-hashes -r "$RUNNER_TEMP/requirements.txt"
       - name: License policy (ADR 0010)
         run: >-
