@@ -41,7 +41,7 @@ them. Every PR gets a security review before merge.
 - [x] `/healthz` and `/readyz` (database check); Docker `HEALTHCHECK`
 - [x] `image.yml`: native amd64 and arm64 builds, smoke test with hardening flags, Trivy
       scan (fail on fixable critical) and Dockerfile scan
-- [ ] Add `Image (amd64)` and `Image (arm64)` as required status checks
+- [x] Add `Image (amd64)` and `Image (arm64)` as required status checks
 
 ## Step 3: Core safety layer
 
