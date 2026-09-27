@@ -53,7 +53,7 @@ echo "Waiting for /readyz"
 wait_ready
 echo "ok: ready"
 
-headers="$(curl -fsSI "http://127.0.0.1:$port/healthz")"
+headers="$(curl -fsS -D - -o /dev/null "http://127.0.0.1:$port/healthz")"
 curl -fsS "http://127.0.0.1:$port/healthz" | grep -q '"ok"' || fail "/healthz did not report ok"
 if grep -qi '^server:' <<<"$headers"; then fail "Server header present"; fi
 echo "ok: /healthz, no Server header"
