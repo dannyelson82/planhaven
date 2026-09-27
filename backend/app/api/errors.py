@@ -10,6 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app import authz
 from app.services.limits import RateLimitedError
 
 PROBLEM_JSON = "application/problem+json"
@@ -60,7 +61,15 @@ async def _rate_limited(_: Request, exc: Exception) -> JSONResponse:
     return response
 
 
+async def _authz(_: Request, exc: Exception) -> JSONResponse:
+    # Not-found over forbidden: a resource the principal can't know about is simply absent.
+    if isinstance(exc, authz.NotFoundError):
+        return problem(404)
+    return problem(403, str(exc))
+
+
 def install_error_handlers(app: FastAPI) -> None:
+    app.add_exception_handler(authz.AuthzError, _authz)
     app.add_exception_handler(RateLimitedError, _rate_limited)
     app.add_exception_handler(StarletteHTTPException, _http_error)
     app.add_exception_handler(RequestValidationError, _validation_error)

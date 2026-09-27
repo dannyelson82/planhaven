@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.api import deps
 from app.api.deps import PartialSessionDep, SessionDep
 from app.services import mfa as mfa_service
-from app.services.auth import AuthError, StepUpRequiredError
+from app.services.auth import AuthError
 
 router = APIRouter(prefix="/api/v1/auth/mfa")
 
@@ -42,7 +42,7 @@ class StatusOut(BaseModel):
 
 
 def _error(exc: AuthError) -> HTTPException:
-    return HTTPException(403 if isinstance(exc, StepUpRequiredError) else 400, str(exc))
+    return HTTPException(400, str(exc))
 
 
 @router.get("/status")

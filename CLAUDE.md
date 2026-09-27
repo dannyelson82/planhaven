@@ -41,8 +41,9 @@ Security is a baseline, not a phase (A§2). Every release meets S§11.
   `backend/app/authz/`. Never write ad hoc permission checks.
 - **Every user-content table** gets `ENABLE` **and** `FORCE ROW LEVEL SECURITY` with policies
   (A§8.3). The app role never owns tables. A missing `app.user_id` must return zero rows.
-- **Every new route** gets entries in the authz test matrix (route × role × token type), or CI
-  fails (S§7.4).
+- **Every new route** gets an entry in `backend/tests/authz_matrix.py` (its access class and,
+  if needed, a valid sample body), or CI fails (S§7.4). New routers go in `ROUTERS` in
+  `backend/app/main.py`. Permission rules live only in `backend/app/authz/`.
 - Resources the principal can't read return **404, not 403**.
 - Admins manage users, settings and plugins, and **cannot read other users' projects**.
 - Validate all input with explicit limits (Pydantic). No raw SQL string building.

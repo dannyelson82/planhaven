@@ -11,15 +11,12 @@ from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from app import authz
 from app.core import security_log
 from app.db import admin as store
 from app.db import auth as auth_store
 from app.db.database import Database
-from app.services.auth import AuthError, CurrentSession, require_recent
-
-
-class NotAdminError(AuthError):
-    """Not an admin (reported as 404 so the admin area isn't discoverable)."""
+from app.services.auth import AuthError, CurrentSession
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,9 +26,7 @@ class AdminContext:
 
 
 def require_admin(session: CurrentSession) -> None:
-    if not session.user.is_admin:
-        raise NotAdminError("Not found.")
-    require_recent(session)
+    authz.require(session.principal, authz.Action.ADMIN)
 
 
 async def list_users(db: Database, ctx: AdminContext) -> list[store.UserSummary]:

@@ -108,9 +108,13 @@ them. Every PR gets a security review before merge.
 
 ## Step 8: Authorization layer and test matrix
 
-- [ ] `authz.require(principal, action, resource)` as the only permission path (S§7.4)
-- [ ] 404 (not 403) for resources the principal can't read
-- [ ] Route × role × token-type test matrix; a route without matrix entries fails CI
+- [x] `authz.require(principal, action)` as the only permission path (S§7.4): one rules table
+      (verified / step-up / admin); project resources join it in step 9
+- [x] 404 (not 403) for resources the principal can't know about; one error mapping
+- [x] Route × principal matrix (`backend/tests/authz_matrix.py`): a route without an entry
+      fails CI; structural check of each route's guard; every route called as anonymous,
+      password-only, stale, fresh, stale admin and fresh admin; CSRF and Origin checks on
+      every unsafe route. Token principals get columns when tokens exist
 
 ## Step 9: Projects and tasks
 

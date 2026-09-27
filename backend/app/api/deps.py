@@ -5,6 +5,7 @@ from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Request
 
+from app import authz
 from app.core.config import Settings
 from app.services import auth as auth_service
 from app.services.auth import CurrentSession
@@ -75,8 +76,7 @@ async def require_verified_session(
 ) -> CurrentSession:
     """A session that has completed the second factor. Everything except sign-in, the second
     factor itself and sign-out requires this (SECURITY.md §7.1)."""
-    if not session.mfa_verified:
-        raise HTTPException(403, "Second factor required.")
+    authz.require(session.principal, authz.Action.USE_APP)
     return session
 
 
@@ -105,3 +105,12 @@ def require_admin_network(request: Request) -> None:
         address = None
     if address is None or not any(address in net for net in allowed):
         raise HTTPException(404)
+
+
+async def require_admin(
+    session: Annotated[CurrentSession, Depends(require_session)],
+) -> CurrentSession:
+    """Admin with a recent second factor. Runs before request bodies are validated, so a
+    non-admin gets the same 404 for every admin route."""
+    authz.require(session.principal, authz.Action.ADMIN)
+    return session

@@ -23,6 +23,18 @@ from app.core.http import (
 from app.core.logging import configure_logging
 from app.db.database import Database
 
+# Every router the app serves. The authorization test matrix reads this list, so a router
+# can't be added without its routes being classified and tested (SECURITY.md §7.4).
+ROUTERS = (
+    health.router,
+    auth.router,
+    mfa.router,
+    passkeys.router,
+    invites.router,
+    admin.router,
+    notifications.router,
+)
+
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or load_settings()
@@ -46,13 +58,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.session_key = SessionKey.from_dir(settings.secrets_dir)
     app.state.keyring = Keyring.from_file(Path(settings.secrets_dir) / "master.key")
     install_error_handlers(app)
-    app.include_router(health.router)
-    app.include_router(auth.router)
-    app.include_router(mfa.router)
-    app.include_router(passkeys.router)
-    app.include_router(invites.router)
-    app.include_router(admin.router)
-    app.include_router(notifications.router)
+    for router in ROUTERS:
+        app.include_router(router)
 
     # add_middleware wraps from the inside out: the last one added is the outermost.
     app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_json_bytes)

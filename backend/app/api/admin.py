@@ -12,10 +12,13 @@ from app.api import deps
 from app.api.deps import SessionDep
 from app.services import admin as admin_service
 from app.services import invites as invite_service
-from app.services.admin import AdminContext, NotAdminError
-from app.services.auth import AuthError, StepUpRequiredError
+from app.services.admin import AdminContext
+from app.services.auth import AuthError
 
-router = APIRouter(prefix="/api/v1/admin", dependencies=[Depends(deps.require_admin_network)])
+router = APIRouter(
+    prefix="/api/v1/admin",
+    dependencies=[Depends(deps.require_admin_network), Depends(deps.require_admin)],
+)
 
 
 class InviteRequest(BaseModel):
@@ -61,10 +64,8 @@ Ctx = Annotated[AdminContext, Depends(_ctx)]
 
 
 def _error(exc: Exception) -> HTTPException:
-    if isinstance(exc, (NotAdminError, LookupError)):
+    if isinstance(exc, LookupError):
         return HTTPException(404)
-    if isinstance(exc, StepUpRequiredError):
-        return HTTPException(403, str(exc))
     return HTTPException(400, str(exc))
 
 
