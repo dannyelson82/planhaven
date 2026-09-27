@@ -47,6 +47,12 @@ jobs:
           gpg --show-keys --with-colons docker/pgdg-archive-key.asc \
             | grep -qx 'fpr:::::::::B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8:'
 
+      - name: ShellCheck (startup and CI scripts)
+        run: |
+          shellcheck -s sh -e SC1091 docker/rootfs/etc/s6-overlay/scripts/* \
+            docker/rootfs/etc/s6-overlay/s6-rc.d/*/run
+          shellcheck .github/scripts/*.sh
+
       - name: Build
         run: DOCKER_BUILDKIT=1 docker build --pull -f docker/Dockerfile -t "$IMAGE" .
 

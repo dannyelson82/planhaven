@@ -1,24 +1,19 @@
-"""Database reachability check for /readyz."""
+"""Database checks for /readyz."""
 
-import asyncpg
+from sqlalchemy import text
 
-# PostgreSQL listens only on a Unix socket inside the container (ARCHITECTURE.md §4.4).
-SOCKET_DIR = "/run/postgresql"
-DATABASE = "planhaven"
-APP_ROLE = "planhaven_app"
-TIMEOUT_SECONDS = 2.0
+from app.db.database import Database
 
 
-async def database_reachable() -> bool:
+async def database_ready(db: Database, expected_revision: str | None) -> bool:
+    """Reachable, and migrated to the revision this code expects."""
     try:
-        conn = await asyncpg.connect(
-            host=SOCKET_DIR, user=APP_ROLE, database=DATABASE, timeout=TIMEOUT_SECONDS
-        )
-    except OSError, TimeoutError, asyncpg.PostgresError:
+        async with db.anonymous_transaction() as conn:
+            if (await conn.scalar(text("SELECT 1"))) != 1:
+                return False
+            if expected_revision is None:
+                return True
+            current = await conn.scalar(text("SELECT version_num FROM alembic_version"))
+            return bool(current == expected_revision)
+    except Exception:
         return False
-    try:
-        return bool(await conn.fetchval("SELECT 1", timeout=TIMEOUT_SECONDS) == 1)
-    except OSError, TimeoutError, asyncpg.PostgresError:
-        return False
-    finally:
-        await conn.close()

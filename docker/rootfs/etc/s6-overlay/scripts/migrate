@@ -1,0 +1,5 @@
+#!/command/with-contenv sh
+# Apply Alembic migrations as planhaven_owner, before the app starts (ARCHITECTURE.md §4.5).
+. /etc/s6-overlay/scripts/common.sh
+cd /app || exit 1
+as_app python -m app.db.migrate

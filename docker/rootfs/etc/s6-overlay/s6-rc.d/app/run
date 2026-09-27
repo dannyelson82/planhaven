@@ -2,6 +2,6 @@
 # The web app, as PUID:PGID. The app writes its own redacted access log and resolves client
 # addresses from TRUSTED_PROXIES itself, so uvicorn's versions of both are off.
 . /etc/s6-overlay/scripts/common.sh
-cd /app
+cd /app || exit 1
 as_app uvicorn --factory app.main:create_app --host 0.0.0.0 --port 8080 \
   --no-server-header --no-access-log --no-proxy-headers

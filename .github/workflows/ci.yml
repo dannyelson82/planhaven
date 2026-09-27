@@ -35,6 +35,41 @@ jobs:
       - run: uv run lint-imports
       - run: uv run pytest
 
+  database:
+    name: Database
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.6-pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a
+        env:
+          # Throwaway CI database on a private runner network.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-retries 30
+    env:
+      PLANHAVEN_DB_HOST: localhost
+      PLANHAVEN_DB_PORT: "5432"
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          working-directory: backend
+      - name: Bootstrap roles and database (same SQL as the container)
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
+            -f ../docker/rootfs/etc/planhaven/bootstrap-cluster.sql
+          psql -h localhost -U postgres -d planhaven -v ON_ERROR_STOP=1 -q \
+            -f ../docker/rootfs/etc/planhaven/bootstrap-database.sql
+      - run: uv sync --locked
+      - run: uv run pytest -m db
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest

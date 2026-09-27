@@ -53,14 +53,18 @@ them. Every PR gets a security review before merge.
 
 ## Step 4: Database foundation
 
-- [ ] Roles `planhaven_owner` / `planhaven_app`; Alembic migrations run as owner
-- [ ] RLS session setup (`SET LOCAL app.user_id`); `app.can_read` / `app.can_write` helpers
-      with fixed `search_path` (ADR 0004)
-- [ ] UUIDv7 keys; common columns (`created_at`, `updated_at`, `created_by`, `version`,
-      `deleted_at`)
-- [ ] Test: every user-content table has RLS enabled **and** forced (`pg_class`)
-- [ ] `audit_events` (append-only for the app role) and `events` outbox tables
-- [ ] Job queue (ADR 0003) and the `worker` s6 service; `migrate` s6 service running Alembic
+- [x] Roles `planhaven_owner` / `planhaven_app`; Alembic migrations run as owner (`migrate`
+      s6 service); migrations ship inside the app package
+- [x] RLS session setup: transaction-local `app.user_id` / `app.system`; helper functions
+      with fixed `search_path`; no identity sees no rows (ADR 0004). The membership helpers
+      `app.can_read` / `app.can_write` come with projects (step 9)
+- [x] UUIDv7 primary keys (`uuidv7()` in PostgreSQL 18); common columns (`created_by`,
+      `version`, `deleted_at`) come with the first user-content table (step 9)
+- [x] Test: every table has RLS enabled **and** forced (`pg_class`); app role owns nothing
+      and can't bypass RLS
+- [x] `audit_events` (append-only for the app role) and `events` outbox tables
+- [x] Database tests run locally (`planhaven-dev-db`) and in CI (`Database` job)
+- [ ] Job queue (ADR 0003, in-house) and the `worker` s6 service; worker heartbeat in `/readyz`
 - [ ] Master-key encryption helper (AES-256-GCM, HKDF per purpose, key IDs) (S§7.9)
 
 ## Step 5: Sign-in, part 1

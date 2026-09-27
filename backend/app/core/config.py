@@ -35,6 +35,11 @@ class Settings:
     max_upload_mb: int
     max_json_bytes: int
     log_level: LogLevel
+    # Internal: the bundled PostgreSQL's Unix socket. Overridable (PLANHAVEN_DB_HOST/PORT)
+    # only so tests can point at a throwaway database; not a supported user setting.
+    db_host: str = "/run/postgresql"
+    db_port: int = 5432
+    db_name: str = "planhaven"
 
     @property
     def base_scheme(self) -> str:
@@ -125,6 +130,8 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         max_upload_mb=_int(env, "MAX_UPLOAD_MB", default=100, low=1, high=10_240),
         max_json_bytes=1024 * 1024,  # SECURITY.md §7.11
         log_level=log_level,
+        db_host=env.get("PLANHAVEN_DB_HOST", "/run/postgresql"),
+        db_port=_int(env, "PLANHAVEN_DB_PORT", default=5432, low=1, high=65535),
     )
 
 

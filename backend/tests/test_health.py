@@ -26,7 +26,7 @@ def test_api_docs_are_not_served(client: TestClient) -> None:
 
 
 def test_readyz_ready(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    async def ready() -> bool:
+    async def ready(_: object) -> bool:
         return True
 
     monkeypatch.setattr(health_service, "is_ready", ready)
@@ -40,7 +40,7 @@ def test_readyz_ready(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> No
 def test_readyz_not_ready_reveals_nothing(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    async def not_ready() -> bool:
+    async def not_ready(_: object) -> bool:
         return False
 
     monkeypatch.setattr(health_service, "is_ready", not_ready)
@@ -51,9 +51,10 @@ def test_readyz_not_ready_reveals_nothing(
     assert response.json() == {"status": "not ready"}
 
 
-def test_database_unreachable_is_not_ready(monkeypatch: pytest.MonkeyPatch) -> None:
-    from app.db import health as db_health
+def test_database_unreachable_is_not_ready() -> None:
+    from app.db.database import Database
+    from app.db.health import database_ready
+    from tests.conftest import make_settings
 
-    monkeypatch.setattr(db_health, "SOCKET_DIR", "/nonexistent-planhaven-socket-dir")
-
-    assert asyncio.run(db_health.database_reachable()) is False
+    db = Database(make_settings(db_host="/nonexistent-planhaven-socket-dir"))
+    assert asyncio.run(database_ready(db, None)) is False

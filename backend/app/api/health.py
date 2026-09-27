@@ -1,6 +1,6 @@
 """Health endpoints (ARCHITECTURE.md §4.6). They never reveal version or configuration."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from app.services import health as health_service
@@ -15,8 +15,8 @@ async def healthz() -> dict[str, str]:
 
 
 @router.get("/readyz", include_in_schema=False)
-async def readyz() -> JSONResponse:
+async def readyz(request: Request) -> JSONResponse:
     """Readiness: dependencies are reachable. Says nothing about which one failed."""
-    if await health_service.is_ready():
+    if await health_service.is_ready(request.app.state.db):
         return JSONResponse({"status": "ready"})
     return JSONResponse({"status": "not ready"}, status_code=503)

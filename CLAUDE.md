@@ -98,6 +98,8 @@ uv run ruff check .           # lint (includes Bandit security rules)
 uv run ruff format --check .  # formatting (drop --check to fix)
 uv run mypy                   # strict type checks
 uv run lint-imports           # layering contracts (A§6)
+uv run pytest -m db           # database tests: need a PostgreSQL 18 + pgvector with the
+                              # bootstrap SQL applied; set PLANHAVEN_DB_HOST/PLANHAVEN_DB_PORT
 uv add <pkg>                  # add a dependency: review license (ADR 0010) and CVEs first
 ```
 
