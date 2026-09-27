@@ -62,7 +62,8 @@ events, browser tests at phone and desktop widths, threat-model check.
 
 - [x] Installable PWA (`vite-plugin-pwa`): icons, standalone display; the app opens offline
       and says when the server can't be reached
-- [ ] Offline lists and open tasks in IndexedDB; check-offs queued and replayed with
-      idempotency keys; conflicts shown; caches cleared on sign-out (A§13.4)
+- [x] Offline lists and open tasks in IndexedDB; check-offs queued and replayed with
+      idempotency keys; conflicts shown; caches cleared on sign-out (A§13.4). Tasks are
+      read-only offline for now; list items can be added and checked off.
 - [x] Trash: soft-deleted items restorable for 30 days, then purged by a worker job
 - [ ] Phase security review against S§11; release v0.2.0

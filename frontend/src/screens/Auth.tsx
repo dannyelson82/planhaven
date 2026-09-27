@@ -5,6 +5,7 @@ import { navigate } from '../router.ts'
 import { useRefreshSession } from '../session.ts'
 import { AuthPage, Button, ErrorText, Field, Form } from '../ui.tsx'
 import { createPasskey, getPasskey, passkeysSupported } from '../webauthn.ts'
+import { wipeOfflineData } from '../offline.ts'
 
 type Options = { challenge_id: string; options: Record<string, unknown> }
 
@@ -242,7 +243,8 @@ export function SignOutButton() {
       variant="ghost"
       className="w-full"
       onPress={() =>
-        void api('POST', '/api/v1/auth/logout').finally(() => {
+        void api('POST', '/api/v1/auth/logout').finally(async () => {
+          await wipeOfflineData()
           navigate('/')
           void refresh()
         })
