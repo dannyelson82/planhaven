@@ -64,8 +64,13 @@ to admins and admin tokens.
     Raise to 1 when there is a second maintainer.
   - Dismiss stale approvals on new commits; require conversation resolution
   - Allowed merge method: squash
-- [ ] Require status checks to pass: add the CI and security workflows once they exist
-      (phase 0.1)
+- [x] Require status checks to pass, with "branch must be up to date" (strict). Required
+      checks, all from GitHub Actions: `Backend`, `Frontend`, `CodeQL (python)`,
+      `CodeQL (javascript-typescript)`, `CodeQL (actions)`, `Python dependencies and Bandit`,
+      `npm dependencies`, `Semgrep`, `Gitleaks`, `Dependency review`,
+      `Workflow audit (zizmor)`. Renaming a job in a workflow means updating this list.
+- [x] Require code scanning results: CodeQL, blocking security alerts of high severity or
+      higher and alerts of level "error"
 
 Squash merges done in the GitHub UI are signed by GitHub and show as Verified.
 
@@ -74,7 +79,8 @@ Squash merges done in the GitHub UI are signed by GitHub and show as Verified.
 - [x] Private vulnerability reporting
 - [x] Dependency graph, Dependabot alerts, Dependabot security updates
 - [x] Secret scanning and push protection
-- [ ] Code scanning (CodeQL): enable once code exists (phase 0.1)
+- [x] Code scanning (CodeQL): advanced setup via `.github/workflows/security.yml`, not
+      default setup (the two can't run together)
 
 Not available on personal-account repos without paid Advanced Security, and covered instead
 by Gitleaks in CI (`SECURITY.md` §8):
