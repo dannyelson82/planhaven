@@ -73,6 +73,12 @@ if docker exec "$name" python -c "import socket; socket.create_connection(('127.
 fi
 echo "ok: no TCP database port"
 
+if docker exec "$name" sh -c 'ls /etc/ssl/private/*.key' >/dev/null 2>&1; then
+  fail "a private key file ships in the image (/etc/ssl/private)"
+fi
+if docker exec "$name" python -c "import pip" 2>/dev/null; then fail "pip present at runtime"; fi
+echo "ok: no bundled private keys, no pip"
+
 check_mode() { # path expected-mode expected-owner
   actual="$(sudo stat -c '%a %u' "$1")"
   [[ "$actual" == "$2 $3" ]] || fail "$1 is '$actual', expected '$2 $3'"

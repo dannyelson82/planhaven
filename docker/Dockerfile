@@ -87,7 +87,15 @@ RUN set -eu; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
       "postgresql-${PG_MAJOR}" "postgresql-${PG_MAJOR}-pgvector"; \
-    rm -rf /var/lib/apt/lists/* /var/lib/postgresql/*
+    rm -rf /var/lib/apt/lists/* /var/lib/postgresql/*; \
+    # Debian generates a "snakeoil" TLS keypair on install. PostgreSQL here has no network
+    # listener and never uses TLS, and a private key must not ship in a public image.
+    rm -f /etc/ssl/private/ssl-cert-snakeoil.key /etc/ssl/certs/ssl-cert-snakeoil.pem; \
+    # pip is not needed at runtime (the app's packages are installed by uv at build time);
+    # removing it also removes its vendored libraries from the scan surface.
+    rm -rf /usr/local/bin/pip* /usr/local/lib/python3*/site-packages/pip \
+      /usr/local/lib/python3*/site-packages/pip-*.dist-info \
+      /usr/local/lib/python3*/ensurepip
 
 COPY --from=s6 /s6root/ /
 COPY --from=backend /app/.venv /app/.venv
