@@ -30,11 +30,13 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
 )
 
+from app.core import security_log
 from app.core.config import Settings
 from app.db import auth as auth_store
 from app.db import mfa as mfa_store
 from app.db import passkeys as store
 from app.db.database import Database
+from app.services import limits
 from app.services import mfa as mfa_service
 from app.services.auth import (
     AuthError,
@@ -187,6 +189,7 @@ async def register(
         await auth_store.record_audit(
             conn, action="mfa.passkey.added", actor_user_id=user.id, ip=ip
         )
+    security_log.event("passkey_added", ip=ip, user_id=user.id)
     return codes
 
 
@@ -231,6 +234,7 @@ async def verify(
     ip: str | None,
 ) -> None:
     rp_id, origin = _rp(settings)
+    await mfa_service.check_mfa_limit(db, session, ip)
     async with db.system_transaction() as conn:
         challenge = await store.take_challenge(
             conn, challenge_id, purpose="verify", session_id=session.id
@@ -298,6 +302,9 @@ async def login(
 ) -> NewSession:
     """Sign in with a passkey alone. The resulting session is fully verified."""
     rp_id, origin = _rp(settings)
+    await limits.check(
+        db, [(limits.PASSKEY_LOGIN_IP, limits.key(limits.PASSKEY_LOGIN_IP, ip))], ip=ip
+    )
     new: NewSession | None = None
     async with db.system_transaction() as conn:
         challenge = await store.take_challenge(conn, challenge_id, purpose="login", session_id=None)
@@ -342,7 +349,9 @@ async def login(
                 details=json.dumps({"method": "passkey"}),
             )
     if new is None:
+        security_log.event("login_failed", ip=ip, user_id=None, method="passkey")
         raise AuthError("Passkey sign-in failed.")
+    security_log.event("login_succeeded", ip=ip, user_id=new.user.id, method="passkey")
     return new
 
 
@@ -372,4 +381,6 @@ async def remove(
             await auth_store.record_audit(
                 conn, action="mfa.passkey.removed", actor_user_id=user.id, ip=ip
             )
+    if removed:
+        security_log.event("passkey_removed", ip=ip, user_id=user.id)
     return removed

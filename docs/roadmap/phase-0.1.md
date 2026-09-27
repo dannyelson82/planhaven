@@ -88,9 +88,11 @@ them. Every PR gets a security review before merge.
       single-use challenges bound to the session; cloned-key (counter) detection; the last
       second factor can't be removed
 - [x] Step-up re-authentication (5 minutes) for sensitive actions
-- [ ] Rate limits on sign-in and 2FA (per IP and per account); progressive lockout (S§7.11)
-- [ ] Security log (`/config/logs/security.log`) with a documented format; fail2ban filter
-      and CrowdSec parser in `deploy/`
+- [x] Rate limits on sign-in, setup, passkey sign-in and second factor (per IP, per account
+      per IP, per account overall, per user); token buckets in PostgreSQL; 429 + Retry-After.
+      Lockout notifications to the account owner come with notifications (phase 0.3)
+- [x] Security log (`/config/logs/security.log`) with a documented format; fail2ban filter
+      and CrowdSec parser in `deploy/`, tested against real log lines
 - [x] Session list and revocation; password change revokes other sessions
 
 ## Step 7: Invites and user management

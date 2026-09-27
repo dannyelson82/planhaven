@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from app.api import auth, health, mfa, passkeys
 from app.api.errors import install_error_handlers
 from app.auth.session_keys import SessionKey
+from app.core import security_log
 from app.core.config import Settings, load_settings
 from app.core.crypto import Keyring
 from app.core.http import (
@@ -26,6 +27,7 @@ from app.db.database import Database
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or load_settings()
     configure_logging(settings.log_level)
+    security_log.configure(settings.log_dir)
 
     # Interactive docs and the OpenAPI schema are not served: they map the attack surface for
     # anyone on the internet. The schema is generated in CI instead (ARCHITECTURE.md §8.2).

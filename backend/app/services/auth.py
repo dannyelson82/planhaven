@@ -14,8 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.auth import passwords, tokens
 from app.auth.passwords import PasswordPolicyError
+from app.core import security_log
 from app.db import auth as store
 from app.db.database import Database
+from app.services import limits
 
 IDLE_TIMEOUT = timedelta(days=7)
 ABSOLUTE_TIMEOUT = timedelta(days=30)
@@ -134,6 +136,7 @@ async def complete_setup(
     ip: str | None,
     user_agent: str | None,
 ) -> NewSession:
+    await limits.check(db, [(limits.SETUP_IP, limits.key(limits.SETUP_IP, ip))], ip=ip)
     email = normalize_email(email)
     display_name = display_name.strip()
     passwords.check_policy(password, email=email, display_name=display_name)
@@ -153,6 +156,7 @@ async def complete_setup(
         await store.record_audit(conn, action="setup.completed", actor_user_id=user_id, ip=ip)
         await store.record_audit(conn, action="login.succeeded", actor_user_id=user_id, ip=ip)
         token = await start_session(conn, user_id, ip, user_agent)
+    security_log.event("setup_completed", ip=ip, user_id=user_id)
     return NewSession(token, User(user_id, email, display_name, True))
 
 
@@ -166,6 +170,17 @@ async def login(
         email = normalize_email(email)
     except AuthError:
         email = ""
+    account = limits.account_key(email)
+    account_ip_bucket = limits.key(limits.LOGIN_ACCOUNT_IP, account, ip)
+    await limits.check(
+        db,
+        [
+            (limits.LOGIN_IP, limits.key(limits.LOGIN_IP, ip)),
+            (limits.LOGIN_ACCOUNT_IP, account_ip_bucket),
+            (limits.LOGIN_ACCOUNT, limits.key(limits.LOGIN_ACCOUNT, account)),
+        ],
+        ip=ip,
+    )
     async with db.system_transaction() as conn:
         row = await store.user_by_email(conn, email) if email else None
         # Always verify (against a dummy hash if there's no account) so timing is identical.
@@ -186,7 +201,10 @@ async def login(
             await store.record_audit(conn, action="login.succeeded", actor_user_id=row.id, ip=ip)
             token = await start_session(conn, row.id, ip, user_agent)
     if failed or row is None:
+        security_log.event("login_failed", ip=ip, user_id=None, method="password")
         raise AuthError("Incorrect email or password.")
+    await limits.reset(db, account_ip_bucket)
+    security_log.event("login_succeeded", ip=ip, user_id=row.id, method="password")
     return NewSession(token, user_from_row(row))
 
 
@@ -233,6 +251,7 @@ async def change_password(
         await store.set_password_hash(conn, user.id, passwords.hash_password(new_password))
         await store.revoke_other_sessions(conn, user.id, keep=session.id)
         await store.record_audit(conn, action="password.changed", actor_user_id=user.id, ip=ip)
+    security_log.event("password_changed", ip=ip, user_id=user.id)
 
 
 __all__ = ["AuthError", "PasswordPolicyError"]
@@ -266,6 +285,8 @@ async def revoke_own_session(
             await store.record_audit(
                 conn, action="session.revoked", actor_user_id=session.user.id, ip=ip
             )
+    if revoked:
+        security_log.event("session_revoked", ip=ip, user_id=session.user.id)
     return revoked
 
 

@@ -1,0 +1,16 @@
+# Parses Planhaven's security.log (one JSON object per line).
+onsuccess: next_stage
+filter: "evt.Parsed.program == 'planhaven'"
+name: planhaven/planhaven-logs
+description: "Parse Planhaven security log events"
+statics:
+  - meta: service
+    value: planhaven
+  - meta: log_type
+    expression: "'planhaven_' + JsonExtract(evt.Line.Raw, 'event')"
+  - meta: source_ip
+    expression: "JsonExtract(evt.Line.Raw, 'ip')"
+  - meta: user_id
+    expression: "JsonExtract(evt.Line.Raw, 'user_id')"
+  - target: evt.StrTime
+    expression: "JsonExtract(evt.Line.Raw, 'ts')"
