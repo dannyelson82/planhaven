@@ -60,9 +60,9 @@ Security is a baseline, not a phase (A§2). Every release meets S§11.
 - Side effects go through domain events persisted in the outbox table (A§8.4).
 - API: REST under `/api/v1`, cursor pagination (max 200), `If-Match` optimistic concurrency,
   `Idempotency-Key` on sync/MCP writes, RFC 9457 errors, UTC ISO 8601 timestamps (A§8.2).
-- Prefer boring, well-maintained dependencies. Avoid AGPL dependencies until the license is
-  decided (A§19.2). New dependencies need review for maintenance, license and CVEs; pin them
-  with hashes.
+- Prefer boring, well-maintained dependencies. The project is Apache-2.0; dependencies must
+  follow the license policy in ADR 0010 (no GPL, AGPL, SSPL or source-available licenses).
+  New dependencies need review for maintenance, license and CVEs; pin them with hashes.
 
 ## Stack
 
