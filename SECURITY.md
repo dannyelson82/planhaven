@@ -151,6 +151,8 @@ Organized by STRIDE category. Details for each control are in §7.
 | Cross-site WebSocket hijacking of the collaboration channel | Spoofing | Session or token required at handshake, `Origin` must equal `BASE_URL` (§7.15) |
 | Stale access on a live connection after removal from a project | Elevation / Info disclosure | Membership re-checked on change; revoked members' connections closed (§7.15) |
 | Viewer or malicious client pushing edits or oversized/malformed updates | Tampering / DoS | Server rejects viewer updates; size, rate and document limits; malformed updates close the connection (§7.15) |
+| Assignee (e.g. a child) seeing more than their chores | Info disclosure | Assignee access limited to their assigned tasks by authz and RLS; tested in the authz matrix (ADR 0013) |
+| Proof photos exposing location or reaching the wrong people | Info disclosure | EXIF GPS stripped; visible only to assignee, assigner and project members (RLS) |
 | Malicious plugin | Elevation | Admin-only install, no install-from-URL, permissions manifest, sandboxed UI iframes; backend isolation planned (§10) |
 
 ---

@@ -33,6 +33,10 @@ Representative projects it must handle well:
 
 ### 1.1 Goals
 
+- Assign scheduled chores and tasks to household members, with phone notifications and
+  photo proof of completion (§21, ADR 0013).
+- Help plan and pace personal time around a work rotation, rest first, favouring finishing
+  projects over starting new ones (§22, ADR 0013).
 - Track projects through a lifecycle: **Idea → Planning → Ready → In progress → Done → Archived**.
 - Store tasks, lists (shopping, parts, checklists), notes, and attachments per project.
 - Multi-user: every user starts with a clean slate; projects are shared explicitly.
@@ -784,10 +788,11 @@ Every phase ships meeting `SECURITY.md` §11.
 |---|---|
 | **0.1 — Secure foundation** | Container + s6 + Postgres, first-boot setup token, auth (password + passkey/TOTP mandatory), sessions, invites, RLS, authz matrix tests, security headers, rate limiting, audit log, CI security pipeline, signed images. Projects + tasks (minimal UI). Plugin host skeleton + SDK boundary. |
 | **0.2 — Daily use** | Lists, notes, attachments (upload pipeline, EXIF strip), assets, contacts/quotes, sharing UI, PWA with offline lists. Real-time collaborative note editing and live list updates (ADR 0011). |
-| **0.3 — iPhone** | Shortcuts sync + published Shortcut, ICS feed, Web Push, notification preferences. |
-| **0.4 — Cut list plugin** | Reference plugin end-to-end; plugin API v1 frozen; `docs/plugin-api.md`. |
+| **0.3 — iPhone and chores** | Shortcuts sync + published Shortcut, ICS feed, Web Push, notification preferences. Chores: assigned and scheduled tasks, reminders, proof of completion and approval, limited assignee access (ADR 0013). |
+| **0.4 — Time planner** | Work rotations and away periods, capacity with rest first, home-stretch plans, in-progress limit, next small step, stalled projects review, remote-doable tasks (ADR 0013). |
 | **0.5 — Local AI** | Extraction sandbox, OCR, embeddings, hybrid retrieval, Q&A with citations, `local_ai_only`. Experimental-features framework; local AI project assistant (experimental, ADR 0012). Unraid CA submission. |
 | **0.6 — MCP connector** | OAuth authorization server, `/mcp` tools, consent UI, connected-clients management, undo for AI changes. Assistant write tools for commercial AI (experimental, ADR 0012). |
+| **0.7 — Cut list plugin** | Reference plugin end-to-end; plugin API v1 frozen; `docs/plugin-api.md`. |
 | **Later** | Voice chat with a local speech server (experimental, ADR 0012), recurrence by asset meter, plugin process isolation, backup encryption, separate files origin, more plugins (vehicle log, Home Assistant bridge, electronics BOM). |
 
 ---
@@ -810,6 +815,7 @@ Every phase ships meeting `SECURITY.md` §11.
 | 0010 | Apache-2.0 license and dependency license policy |
 | 0011 | Real-time collaborative editing with Yjs over authenticated WebSockets |
 | 0012 | AI project assistant (local and commercial) behind experimental feature flags |
+| 0013 | Household chores with proof of completion; personal time planner; cut-list plugin moved to 0.7 |
 
 ### 19.2 Open questions
 
@@ -837,3 +843,32 @@ New or risky capabilities ship behind named feature flags (ADR 0012).
   maintainer's sign-off.
 - First features: `assistant.local` (phase 0.5), `assistant.mcp_write` (0.6), `voice.chat`
   (later).
+
+---
+
+## 21. Chores and assignments
+
+Decided in ADR 0013; built in phase 0.3.
+
+- Tasks can be assigned to any household member, once or on a schedule (RRULE subset with a
+  time of day), with reminders until done.
+- Proof of completion: none, photo or note. Completion creates a submission the assigner
+  approves or sends back.
+- Assignees see and complete their assigned tasks without project membership: tasks are
+  visible to project members **or the assignee** (RLS). Proof is visible to the assignee,
+  assigner and project members only.
+- Notifications via Web Push carry the task title only.
+
+---
+
+## 22. Time planner
+
+Decided in ADR 0013; built in phase 0.4.
+
+- Availability from a work rotation (e.g. 14 on / 14 off, anchor date) and away periods.
+- Daily capacity for home days, with rest days planned first; plans never exceed capacity.
+- A proposed plan before each home stretch; accepted blocks go to the calendar feed.
+- Finishing over starting: in-progress limit (default 3), a "next small step" per project,
+  a stalled-projects review, a weekly review prompt.
+- "Can do remotely" tasks surface during away periods.
+- Rule-based first; AI suggestions later as an experimental feature (ADR 0012).

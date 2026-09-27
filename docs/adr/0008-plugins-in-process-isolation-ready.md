@@ -42,6 +42,7 @@ Option 3 (A§14):
 - Plugin UIs can't read cookies, storage or the parent page.
 - The path to isolation (separate UID and socket RPC, then sidecars, then signing) needs no
   plugin rewrites (A§14.8).
-- The plugin API is frozen as v1 in phase 0.4, with `docs/plugin-api.md`. Plugins declare
+- The plugin API is frozen as v1 with the cut-list plugin (phase 0.7 since ADR 0013), with
+  `docs/plugin-api.md`. Plugins declare
   `api_version`.
 - The SDK is Apache-2.0 (ADR 0010), so plugin authors can pick any license.
