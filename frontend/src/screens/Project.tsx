@@ -4,6 +4,7 @@ import { Checkbox, ListBox, ListBoxItem, Popover, Select, SelectValue, Button as
 import { api, type Project, STAGES, type Stage, type Task } from '../api.ts'
 import { navigate } from '../router.ts'
 import { Button, Card, ErrorText, Field, Form } from '../ui.tsx'
+import { ProjectLists } from './Lists.tsx'
 import { ShareButton } from './Sharing.tsx'
 import { TaskEditor } from './TaskEditor.tsx'
 
@@ -64,7 +65,7 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
           <Popover className="rounded-xl bg-white p-1 shadow-lg ring-1 ring-stone-200 dark:bg-stone-900 dark:ring-stone-700">
             <ListBox className="outline-none">
               {STAGES.map((s) => (
-                <ListBoxItem key={s.id} id={s.id} className="min-h-11 cursor-default rounded-lg px-3 py-2 outline-none focus:bg-stone-100 selected:font-semibold dark:focus:bg-stone-800">
+                <ListBoxItem key={s.id} id={s.id} className="min-h-11 cursor-default rounded-lg px-3 py-2 outline-none focus:bg-stone-100 data-[selected]:font-semibold dark:focus:bg-stone-800">
                   {s.label}
                 </ListBoxItem>
               ))}
@@ -99,6 +100,7 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
           <TaskList tasks={done} canEdit={canEdit} onToggle={(t) => toggle.mutate(t)} onDelete={(t) => remove.mutate(t)} />
         </details>
       )}
+      <ProjectLists projectId={id} canEdit={canEdit} />
       {p.role === 'owner' && (
         <Button variant="danger-ghost" onPress={() => { if (window.confirm('Delete this project?')) deleteProject.mutate() }}>
           Delete project
@@ -124,7 +126,7 @@ function TaskList({ tasks, canEdit, onToggle, onDelete }: {
             onChange={() => onToggle(t)}
             className="group flex min-h-12 flex-1 items-center gap-3"
           >
-            <span aria-hidden className="flex size-6 shrink-0 items-center justify-center rounded-md border-2 border-stone-400 group-selected:border-brand-600 group-selected:bg-brand-600 group-selected:text-white">
+            <span aria-hidden className="flex size-6 shrink-0 items-center justify-center rounded-md border-2 border-stone-400 group-data-[selected]:border-brand-600 group-data-[selected]:bg-brand-600 group-data-[selected]:text-white">
               {t.done ? '✓' : ''}
             </span>
             <span className="min-w-0 flex-1 py-2">

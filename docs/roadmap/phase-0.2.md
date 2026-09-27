@@ -25,10 +25,10 @@ events, browser tests at phone and desktop widths, threat-model check.
 
 ## Milestone 2: Lists (v0.1.2)
 
-- [ ] Lists and list items (shopping, parts, checklist) per project, with quantity and
+- [x] Lists and list items (shopping, parts, checklist) per project, with quantity and
       optional price; reorder; check off
-- [ ] API with pagination, `If-Match`, `Idempotency-Key` on writes (for offline replay)
-- [ ] Lists screen, phone-first; check-off with one tap
+- [x] API with pagination, `If-Match`, `Idempotency-Key` on writes (for offline replay)
+- [x] Lists screen, phone-first; check-off with one tap
 
 ## Milestone 3: Notes and real-time collaboration (v0.1.3)
 

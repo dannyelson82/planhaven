@@ -59,6 +59,15 @@ MATRIX: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/projects/{project_id}/members"): "verified",
     ("PATCH", "/api/v1/projects/{project_id}/members/{user_id}"): "verified",
     ("DELETE", "/api/v1/projects/{project_id}/members/{user_id}"): "verified",
+    # Lists: verified, then project role (tests/db/test_lists.py)
+    ("GET", "/api/v1/projects/{project_id}/lists"): "verified",
+    ("POST", "/api/v1/projects/{project_id}/lists"): "verified",
+    ("GET", "/api/v1/lists/{list_id}"): "verified",
+    ("PATCH", "/api/v1/lists/{list_id}"): "verified",
+    ("DELETE", "/api/v1/lists/{list_id}"): "verified",
+    ("POST", "/api/v1/lists/{list_id}/items"): "verified",
+    ("PATCH", "/api/v1/list-items/{item_id}"): "verified",
+    ("DELETE", "/api/v1/list-items/{item_id}"): "verified",
     ("POST", "/api/v1/auth/password"): "step_up",
     ("POST", "/api/v1/auth/mfa/recovery/regenerate"): "step_up",
     ("DELETE", "/api/v1/auth/passkeys/{passkey_id}"): "step_up",
@@ -85,6 +94,8 @@ BODIES: dict[tuple[str, str], object] = {
     ("POST", "/api/v1/admin/plugins/{plugin_id}/enabled"): {"value": False},
     ("POST", "/api/v1/projects"): {"title": "Matrix test project"},
     ("POST", "/api/v1/projects/{project_id}/tasks"): {"title": "Matrix test task"},
+    ("POST", "/api/v1/projects/{project_id}/lists"): {"title": "Matrix list"},
+    ("POST", "/api/v1/lists/{list_id}/items"): {"text": "Matrix item"},
 }
 
 # Expected outcome per principal: "ok" means authorization passed (any status except

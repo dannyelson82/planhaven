@@ -4,6 +4,7 @@ import { api, type Session } from './api.ts'
 import { match, usePath } from './router.ts'
 import { AccountScreen } from './screens/Account.tsx'
 import { InviteScreen, LoginScreen, SecondFactorScreen, SetupScreen } from './screens/Auth.tsx'
+import { ListScreen } from './screens/Lists.tsx'
 import { ProjectScreen } from './screens/Project.tsx'
 import { ProjectsScreen } from './screens/Projects.tsx'
 import { useSession } from './session.ts'
@@ -49,6 +50,8 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
       return <ProjectsScreen />
     case 'project':
       return <ProjectScreen id={route.id} myId={session.user.id} />
+    case 'list':
+      return <ListScreen id={route.id} />
     case 'account':
       return <AccountScreen session={session} />
     default:

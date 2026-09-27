@@ -49,11 +49,15 @@ class Worker:
             await job_store.heartbeat(conn, self.worker_id)
 
     async def maintenance(self) -> None:
-        """Hourly housekeeping: drop idle rate-limit buckets and old passkey challenges."""
+        """Hourly housekeeping: drop idle rate-limit buckets, old passkey challenges and
+        week-old idempotency keys."""
         async with self.db.system_transaction() as conn:
             await rate_limits.purge_idle(conn)
             await conn.execute(
                 text("DELETE FROM webauthn_challenges WHERE expires_at < now() - interval '1 hour'")
+            )
+            await conn.execute(
+                text("DELETE FROM idempotency_keys WHERE created_at < now() - interval '7 days'")
             )
 
     async def run_once(self) -> bool:
