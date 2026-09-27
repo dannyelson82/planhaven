@@ -36,23 +36,28 @@ def _row(r: object) -> PasskeyRow:
     )
 
 
-_COLUMNS = text("""
-    SELECT id, user_id, credential_id, public_key, sign_count, transports, name, created_at,
-           last_used_at
-    FROM webauthn_credentials
-""")
-
-
 async def for_user(conn: AsyncConnection, user_id: uuid.UUID) -> list[PasskeyRow]:
     rows = await conn.execute(
-        text(_COLUMNS.text + " WHERE user_id = :u ORDER BY created_at"), {"u": user_id}
+        text("""
+            SELECT id, user_id, credential_id, public_key, sign_count, transports, name,
+                   created_at, last_used_at
+            FROM webauthn_credentials WHERE user_id = :u ORDER BY created_at
+        """),
+        {"u": user_id},
     )
     return [_row(r) for r in rows]
 
 
 async def by_credential_id(conn: AsyncConnection, credential_id: bytes) -> PasskeyRow | None:
     row = (
-        await conn.execute(text(_COLUMNS.text + " WHERE credential_id = :c"), {"c": credential_id})
+        await conn.execute(
+            text("""
+                SELECT id, user_id, credential_id, public_key, sign_count, transports, name,
+                       created_at, last_used_at
+                FROM webauthn_credentials WHERE credential_id = :c
+            """),
+            {"c": credential_id},
+        )
     ).first()
     return _row(row) if row else None
 
