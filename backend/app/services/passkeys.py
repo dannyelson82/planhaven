@@ -32,6 +32,7 @@ from webauthn.helpers.structs import (
 
 from app.core import security_log
 from app.core.config import Settings
+from app.db import admin as admin_store
 from app.db import auth as auth_store
 from app.db import mfa as mfa_store
 from app.db import passkeys as store
@@ -189,6 +190,9 @@ async def register(
         await auth_store.record_audit(
             conn, action="mfa.passkey.added", actor_user_id=user.id, ip=ip
         )
+        await admin_store.notify(
+            conn, user.id, "security_change", {"change": "passkey_added", "ip": ip}
+        )
     security_log.event("passkey_added", ip=ip, user_id=user.id)
     return codes
 
@@ -329,6 +333,13 @@ async def login(
                     require_user_verification=True,
                 )
                 await store.record_use(conn, row.id, result.new_sign_count)
+                if not await admin_store.seen_ip_recently(conn, user.id, ip, None):
+                    await admin_store.notify(
+                        conn,
+                        user.id,
+                        "new_sign_in",
+                        {"ip": ip, "user_agent": (user_agent or "")[:120], "method": "passkey"},
+                    )
                 token = await start_session(conn, user.id, ip, user_agent, mfa_verified=True)
                 await auth_store.record_audit(
                     conn,

@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.core import security_log
 from app.core.crypto import Keyring
+from app.db import admin as admin_store
 from app.db import auth as auth_store
 from app.db import mfa as store
 from app.db.database import Database
@@ -129,6 +130,9 @@ async def confirm_totp_enrollment(
         await store.confirm_totp(conn, user.id, step)
         codes = await issue_recovery_codes(conn, user.id)
         await store.mark_session_verified(conn, session.id)
+        await admin_store.notify(
+            conn, user.id, "security_change", {"change": "authenticator_added", "ip": ip}
+        )
         await auth_store.record_audit(
             conn, action="mfa.totp.enrolled", actor_user_id=user.id, ip=ip
         )

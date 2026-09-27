@@ -97,9 +97,14 @@ them. Every PR gets a security review before merge.
 
 ## Step 7: Invites and user management
 
-- [ ] Admin creates single-use, 72-hour `phv_inv_` invite links; no public registration
-- [ ] Admin user management; `ADMIN_ALLOWED_CIDRS` restriction
-- [ ] New sign-in notifications (in-app for now)
+- [x] Admin creates single-use, 72-hour `phv_inv_` invite links (token in the URL fragment,
+      optionally bound to an email); no public registration
+- [x] Admin user management: list, disable (signs out everywhere), grant/revoke admin, reset a
+      lost second factor; last-admin and self-disable protection; every action needs step-up;
+      `ADMIN_ALLOWED_CIDRS` makes the admin API answer 404 elsewhere
+- [x] New sign-in notifications (new address in 30 days) and security-change notifications
+      (in-app; push in phase 0.3)
+- [ ] Later: admin-issued password reset links (no email server needed)
 
 ## Step 8: Authorization layer and test matrix
 
