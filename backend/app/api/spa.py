@@ -47,6 +47,47 @@ async def static_file(file_path: str, request: Request) -> FileResponse:
     return FileResponse(target, headers={"Cache-Control": _IMMUTABLE})
 
 
+# Installable-app files at fixed names in the site root (vite.config.ts, VitePWA). They are
+# revalidated on every load so app updates reach phones promptly.
+def _root_file(request: Request, name: str, media_type: str) -> FileResponse:
+    target = Path(_frontend_dir(request)) / name
+    if not target.is_file():
+        raise HTTPException(404)
+    return FileResponse(target, media_type=media_type, headers={"Cache-Control": "no-cache"})
+
+
+@router.get("/sw.js", include_in_schema=False)
+async def service_worker(request: Request) -> FileResponse:
+    return _root_file(request, "sw.js", "text/javascript")
+
+
+@router.get("/manifest.webmanifest", include_in_schema=False)
+async def manifest(request: Request) -> FileResponse:
+    return _root_file(request, "manifest.webmanifest", "application/manifest+json")
+
+
+@cache
+def _icons(directory: str) -> dict[str, Path]:
+    folder = Path(directory) / "icons"
+    if not folder.is_dir():
+        return {}
+    return {
+        p.name: p
+        for p in folder.iterdir()
+        if p.is_file() and not p.is_symlink() and p.suffix == ".png"
+    }
+
+
+@router.get("/icons/{file_path:path}", include_in_schema=False)
+async def icon(file_path: str, request: Request) -> FileResponse:
+    target = _icons(_frontend_dir(request)).get(file_path)
+    if target is None:
+        raise HTTPException(404)
+    return FileResponse(
+        target, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"}
+    )
+
+
 @router.get("/{path:path}", include_in_schema=False)
 async def app_shell(path: str, request: Request) -> FileResponse:
     if path == "api" or path.startswith("api/"):

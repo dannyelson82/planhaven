@@ -336,6 +336,9 @@ Cross-Origin-Resource-Policy: same-origin
   stylesheet (`'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='` in `style-src`). A hash
   allows only that exact text; the end-to-end test fails if it changes.
 - `camera=(self)` allows photo capture into attachments from the PWA.
+- The service worker (`/sw.js`, revalidated on every load) caches only the app itself:
+  `index.html`, the hashed scripts and styles, and icons. It never caches API responses or
+  files, and API paths are excluded from its offline fallback.
 - Plugin UI routes use a stricter per-plugin CSP and are framed only by the app.
 - `Server` and framework version headers are removed.
 
