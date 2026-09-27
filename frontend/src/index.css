@@ -1,4 +1,35 @@
-:root {
-  font-family: system-ui, sans-serif;
-  color-scheme: light dark;
+@import "tailwindcss";
+
+/* Planhaven design tokens. Mobile-first; dark mode follows the system (A§13.5). */
+@theme {
+  --color-brand-50: oklch(0.97 0.02 160);
+  --color-brand-100: oklch(0.93 0.05 160);
+  --color-brand-500: oklch(0.6 0.13 160);
+  --color-brand-600: oklch(0.52 0.12 160);
+  --color-brand-700: oklch(0.45 0.1 160);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-stone-50 text-stone-900 antialiased dark:bg-stone-950 dark:text-stone-100;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+  /* 16px+ inputs so iOS doesn't zoom on focus. */
+  input,
+  select,
+  textarea {
+    font-size: max(1rem, 16px);
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-500;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
 }

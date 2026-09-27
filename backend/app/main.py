@@ -6,7 +6,17 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
-from app.api import admin, auth, health, invites, mfa, notifications, passkeys, projects
+from app.api import (
+    admin,
+    auth,
+    health,
+    invites,
+    mfa,
+    notifications,
+    passkeys,
+    projects,
+    spa,
+)
 from app.api.errors import install_error_handlers
 from app.auth.session_keys import SessionKey
 from app.core import security_log
@@ -34,6 +44,7 @@ ROUTERS = (
     admin.router,
     notifications.router,
     projects.router,
+    spa.router,  # last: catches every path the API didn't
 )
 
 

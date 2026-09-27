@@ -17,6 +17,8 @@ MATRIX: dict[tuple[str, str], str] = {
     ("GET", "/healthz"): "public",
     ("GET", "/readyz"): "public",
     ("GET", "/api/v1/setup"): "public",
+    ("GET", "/assets/{file_path:path}"): "public",
+    ("GET", "/{path:path}"): "public",
     ("POST", "/api/v1/setup"): "public_origin",
     ("POST", "/api/v1/auth/login"): "public_origin",
     ("POST", "/api/v1/auth/passkeys/login/options"): "public_origin",
