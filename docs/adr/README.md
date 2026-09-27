@@ -15,3 +15,4 @@ A decision is changed by adding a new ADR that supersedes the old one, not by re
 | [0008](0008-plugins-in-process-isolation-ready.md) | Plugins: trusted in-process v1, isolation-ready boundary, sandboxed iframe UIs | Accepted |
 | [0009](0009-behind-existing-reverse-proxy.md) | Behind the user's existing reverse proxy; no forward-auth | Accepted |
 | [0010](0010-license-apache-2.md) | Apache-2.0 license and dependency license policy | Accepted |
+| [0011](0011-realtime-collaboration.md) | Real-time collaborative editing with Yjs over authenticated WebSockets | Accepted |

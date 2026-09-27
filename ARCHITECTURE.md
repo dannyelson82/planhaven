@@ -36,6 +36,8 @@ Representative projects it must handle well:
 - Track projects through a lifecycle: **Idea → Planning → Ready → In progress → Done → Archived**.
 - Store tasks, lists (shopping, parts, checklists), notes, and attachments per project.
 - Multi-user: every user starts with a clean slate; projects are shared explicitly.
+- Real-time collaboration: several people edit the same note at once, and list changes
+  appear on every device within seconds (§8.5).
 - Work equally well on a phone and a desktop browser: one responsive web app (§13.5).
 - Sync shopping lists and tasks to iPhone (Reminders via Shortcuts, Calendar via ICS feed,
   Web Push notifications, installable PWA).
@@ -52,8 +54,7 @@ Representative projects it must handle well:
 - No public sign-up; no multi-tenant SaaS hosting.
 - No native iOS app; iPhone integration uses web standards and Apple Shortcuts.
 - No third-party plugin marketplace or install-from-URL (see §14.7).
-- No real-time collaborative editing of the same note by multiple users (last write wins with
-  conflict detection is sufficient).
+- ~~No real-time collaborative editing~~: now a goal (ADR 0011, §8.5).
 
 ---
 
@@ -404,6 +405,23 @@ and re-indexing. This keeps side effects reliable and gives plugins a stable eve
 
 ---
 
+### 8.5 Real-time collaboration
+
+Decided in ADR 0011; built with notes in phase 0.2.
+
+- Notes are **Yjs CRDT documents**: edits from any device, including offline ones, merge
+  automatically. A Markdown rendering is derived for search, AI and export.
+- Clients connect over an authenticated **WebSocket** (`/api/v1/collab/{doc_id}`) using the
+  standard Yjs sync and awareness protocol; the server side uses `pycrdt`.
+- The same connection mechanism pushes live updates for lists and tasks.
+- Updates are stored as RLS-protected rows with attribution, and compacted into snapshots by
+  a worker job.
+- Authorization is checked at connect and re-checked on membership changes (revoked members
+  are disconnected); viewers can watch but their updates are rejected. Details: SECURITY.md
+  §7.15.
+
+---
+
 ## 9. Background jobs
 
 | Job | Trigger | Notes |
@@ -749,7 +767,7 @@ Every phase ships meeting `SECURITY.md` §11.
 | Phase | Scope |
 |---|---|
 | **0.1 — Secure foundation** | Container + s6 + Postgres, first-boot setup token, auth (password + passkey/TOTP mandatory), sessions, invites, RLS, authz matrix tests, security headers, rate limiting, audit log, CI security pipeline, signed images. Projects + tasks (minimal UI). Plugin host skeleton + SDK boundary. |
-| **0.2 — Daily use** | Lists, notes, attachments (upload pipeline, EXIF strip), assets, contacts/quotes, sharing UI, PWA with offline lists. |
+| **0.2 — Daily use** | Lists, notes, attachments (upload pipeline, EXIF strip), assets, contacts/quotes, sharing UI, PWA with offline lists. Real-time collaborative note editing and live list updates (ADR 0011). |
 | **0.3 — iPhone** | Shortcuts sync + published Shortcut, ICS feed, Web Push, notification preferences. |
 | **0.4 — Cut list plugin** | Reference plugin end-to-end; plugin API v1 frozen; `docs/plugin-api.md`. |
 | **0.5 — Local AI** | Extraction sandbox, OCR, embeddings, hybrid retrieval, Q&A with citations, `local_ai_only`. Unraid CA submission. |
@@ -774,6 +792,7 @@ Every phase ships meeting `SECURITY.md` §11.
 | 0008 | Plugins: trusted in-process v1 with serializable async boundary; sandboxed iframe UIs |
 | 0009 | Deployment behind user's existing reverse proxy; no forward-auth in front of the app |
 | 0010 | Apache-2.0 license and dependency license policy |
+| 0011 | Real-time collaborative editing with Yjs over authenticated WebSockets |
 
 ### 19.2 Open questions
 
@@ -782,5 +801,6 @@ Every phase ships meeting `SECURITY.md` §11.
 - UI component library (e.g. Radix/shadcn-style primitives vs. Mantine).
 - PDF extraction library: PyMuPDF is excluded by ADR 0010; pypdfium2 is the leading
   candidate, final choice in phase 0.5.
-- Rich-text editor for notes (Markdown-first vs. block editor).
+- Rich-text editor for notes (Markdown-first vs. block editor); must bind to Yjs and work
+  under the CSP (ADR 0011).
 - Whether commercial chat providers are offered for in-app Q&A or only via MCP.
