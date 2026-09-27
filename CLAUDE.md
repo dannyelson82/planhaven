@@ -89,4 +89,16 @@ image. Full table in A§5; layout in A§6.
 
 ## Commands
 
-None yet. Add build, lint and test commands here once `backend/` and `frontend/` have code.
+Backend (run in `backend/`; Python and dependencies are managed by `uv`, pinned in `uv.lock`):
+
+```bash
+uv sync --locked              # install exactly what uv.lock pins
+uv run pytest                 # tests
+uv run ruff check .           # lint (includes Bandit security rules)
+uv run ruff format --check .  # formatting (drop --check to fix)
+uv run mypy                   # strict type checks
+uv run lint-imports           # layering contracts (A§6)
+uv add <pkg>                  # add a dependency: review license (ADR 0010) and CVEs first
+```
+
+Frontend: to be added.
