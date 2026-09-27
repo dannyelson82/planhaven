@@ -64,5 +64,5 @@ events, browser tests at phone and desktop widths, threat-model check.
       and says when the server can't be reached
 - [ ] Offline lists and open tasks in IndexedDB; check-offs queued and replayed with
       idempotency keys; conflicts shown; caches cleared on sign-out (A§13.4)
-- [ ] Trash: soft-deleted items restorable for 30 days, then purged by a worker job
+- [x] Trash: soft-deleted items restorable for 30 days, then purged by a worker job
 - [ ] Phase security review against S§11; release v0.2.0

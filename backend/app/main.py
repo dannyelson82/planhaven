@@ -21,6 +21,7 @@ from app.api import (
     projects,
     sharing,
     spa,
+    trash,
 )
 from app.api.errors import install_error_handlers
 from app.auth.session_keys import SessionKey
@@ -57,6 +58,7 @@ ROUTERS = (
     notes.router,
     attachments.router,
     assets.router,
+    trash.router,
     spa.router,  # last: catches every path the API didn't
 )
 

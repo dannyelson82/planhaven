@@ -97,6 +97,9 @@ MATRIX: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/assets/{asset_id}/members"): "verified",
     ("PATCH", "/api/v1/assets/{asset_id}/members/{user_id}"): "verified",
     ("DELETE", "/api/v1/assets/{asset_id}/members/{user_id}"): "verified",
+    # Trash: verified, then the item's own role rules (tests/db/test_trash.py)
+    ("GET", "/api/v1/trash"): "verified",
+    ("POST", "/api/v1/trash/{kind}/{item_id}/restore"): "verified",
     ("POST", "/api/v1/auth/password"): "step_up",
     ("POST", "/api/v1/auth/mfa/recovery/regenerate"): "step_up",
     ("DELETE", "/api/v1/auth/passkeys/{passkey_id}"): "step_up",
