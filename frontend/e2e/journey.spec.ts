@@ -103,6 +103,14 @@ test('first boot to first project', async ({ page }) => {
   await expect.poll(() => thumb.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
   await expect(page.getByRole('link', { name: 'parts.csv' })).toHaveAttribute('href', /\/download$/)
 
+  // Deleted by mistake: the file comes back from the trash.
+  await page.getByRole('button', { name: 'Delete parts.csv' }).click()
+  await expect(page.getByRole('link', { name: 'parts.csv' })).toBeHidden()
+  await page.goto('/trash')
+  await page.getByRole('button', { name: 'Restore' }).click()
+  await page.getByRole('link', { name: 'Open' }).click()
+  await expect(page.getByRole('link', { name: 'parts.csv' })).toBeVisible()
+
   // An asset (the boat) with details, linked to this project: its service history.
   const projectUrl = page.url()
   await page.goto('/assets')

@@ -10,6 +10,7 @@ import { ListScreen } from './screens/Lists.tsx'
 import { NoteScreen } from './screens/Notes.tsx'
 import { ProjectScreen } from './screens/Project.tsx'
 import { ProjectsScreen } from './screens/Projects.tsx'
+import { TrashScreen } from './screens/Trash.tsx'
 import { useSession } from './session.ts'
 import { StepUpProvider } from './stepup.tsx'
 import { AuthPage, Button, Link } from './ui.tsx'
@@ -65,6 +66,8 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
       return <AssetsScreen />
     case 'asset':
       return <AssetScreen id={route.id} myId={session.user.id} />
+    case 'trash':
+      return <TrashScreen />
     case 'account':
       return <AccountScreen session={session} />
     default:
