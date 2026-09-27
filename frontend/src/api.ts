@@ -62,6 +62,9 @@ export type Project = {
   open_tasks: number
   updated_at: string
   version: number
+  asset_id?: string | null
+  asset_name?: string | null
+  asset_kind?: string | null
 }
 export type Task = {
   id: string

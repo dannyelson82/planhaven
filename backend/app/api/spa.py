@@ -17,8 +17,10 @@ _IMMUTABLE = "public, max-age=31536000, immutable"
 
 
 @cache
-def _assets(directory: str) -> dict[str, Path]:
-    folder = Path(directory) / "assets"
+def _static(directory: str) -> dict[str, Path]:
+    # Vite writes hashed files to static/ (vite.config.ts build.assetsDir); "/assets" is an
+    # app page (vehicles, boats, ...).
+    folder = Path(directory) / "static"
     if not folder.is_dir():
         return {}
     return {p.name: p for p in folder.iterdir() if p.is_file() and not p.is_symlink()}
@@ -37,9 +39,9 @@ def _frontend_dir(request: Request) -> str:
     return directory
 
 
-@router.get("/assets/{file_path:path}", include_in_schema=False)
-async def asset(file_path: str, request: Request) -> FileResponse:
-    target = _assets(_frontend_dir(request)).get(file_path)
+@router.get("/static/{file_path:path}", include_in_schema=False)
+async def static_file(file_path: str, request: Request) -> FileResponse:
+    target = _static(_frontend_dir(request)).get(file_path)
     if target is None:
         raise HTTPException(404)
     return FileResponse(target, headers={"Cache-Control": _IMMUTABLE})

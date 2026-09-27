@@ -23,8 +23,8 @@ export function useLiveProject(projectId: string | undefined): void {
       const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
       socket = new WebSocket(`${scheme}://${window.location.host}/api/v1/live/projects/${projectId}`)
       socket.onopen = () => {
-        // Anything could have changed while we were away.
-        if (retries > 0) for (const keys of Object.values(KINDS)) for (const k of keys(projectId)) void client.invalidateQueries({ queryKey: k })
+        // Anything could have changed while this page was closed or offline.
+        for (const keys of Object.values(KINDS)) for (const k of keys(projectId)) void client.invalidateQueries({ queryKey: k })
         retries = 0
       }
       socket.onmessage = (event: MessageEvent<string>) => {

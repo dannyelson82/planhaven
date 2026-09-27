@@ -1,4 +1,4 @@
-"""Queries for project membership and the household directory."""
+"""Queries for project and asset membership, and the household directory."""
 
 import uuid
 from dataclasses import dataclass
@@ -22,18 +22,43 @@ class DirectoryRow:
     email: str
 
 
-async def members(conn: AsyncConnection, project_id: uuid.UUID) -> list[MemberRow]:
-    """System context: names of members of a project the caller was authorized to view."""
-    rows = await conn.execute(
-        text("""
+# Full query text per kind of shared thing (never assembled from pieces).
+_QUERIES: dict[str, dict[str, str]] = {
+    "project": {
+        "members": """
             SELECT m.user_id, u.display_name, u.email, m.role
             FROM project_members m JOIN users u ON u.id = m.user_id
-            WHERE m.project_id = :p
+            WHERE m.project_id = :r
             ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'editor' THEN 1 ELSE 2 END,
                      u.display_name
-        """),
-        {"p": project_id},
-    )
+        """,
+        "add": "INSERT INTO project_members (project_id, user_id, role) VALUES (:r, :u, :role) "
+        "ON CONFLICT (project_id, user_id) DO NOTHING",
+        "set_role": "UPDATE project_members SET role = :role "
+        "WHERE project_id = :r AND user_id = :u",
+        "remove": "DELETE FROM project_members WHERE project_id = :r AND user_id = :u",
+    },
+    "asset": {
+        "members": """
+            SELECT m.user_id, u.display_name, u.email, m.role
+            FROM asset_members m JOIN users u ON u.id = m.user_id
+            WHERE m.asset_id = :r
+            ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'editor' THEN 1 ELSE 2 END,
+                     u.display_name
+        """,
+        "add": "INSERT INTO asset_members (asset_id, user_id, role) VALUES (:r, :u, :role) "
+        "ON CONFLICT (asset_id, user_id) DO NOTHING",
+        "set_role": "UPDATE asset_members SET role = :role WHERE asset_id = :r AND user_id = :u",
+        "remove": "DELETE FROM asset_members WHERE asset_id = :r AND user_id = :u",
+    },
+}
+
+
+async def members(
+    conn: AsyncConnection, resource_id: uuid.UUID, kind: str = "project"
+) -> list[MemberRow]:
+    """System context: members of a project or asset the caller was authorized to view."""
+    rows = await conn.execute(text(_QUERIES[kind]["members"]), {"r": resource_id})
     return [MemberRow(**r._mapping) for r in rows]
 
 
@@ -59,31 +84,33 @@ async def active_user_exists(conn: AsyncConnection, user_id: uuid.UUID) -> bool:
 
 
 async def add_member(
-    conn: AsyncConnection, project_id: uuid.UUID, user_id: uuid.UUID, role: str
+    conn: AsyncConnection,
+    resource_id: uuid.UUID,
+    user_id: uuid.UUID,
+    role: str,
+    kind: str = "project",
 ) -> bool:
     result = await conn.execute(
-        text(
-            "INSERT INTO project_members (project_id, user_id, role) VALUES (:p, :u, :r) "
-            "ON CONFLICT (project_id, user_id) DO NOTHING"
-        ),
-        {"p": project_id, "u": user_id, "r": role},
+        text(_QUERIES[kind]["add"]), {"r": resource_id, "u": user_id, "role": role}
     )
     return result.rowcount == 1
 
 
 async def set_role(
-    conn: AsyncConnection, project_id: uuid.UUID, user_id: uuid.UUID, role: str
+    conn: AsyncConnection,
+    resource_id: uuid.UUID,
+    user_id: uuid.UUID,
+    role: str,
+    kind: str = "project",
 ) -> bool:
     result = await conn.execute(
-        text("UPDATE project_members SET role = :r WHERE project_id = :p AND user_id = :u"),
-        {"p": project_id, "u": user_id, "r": role},
+        text(_QUERIES[kind]["set_role"]), {"r": resource_id, "u": user_id, "role": role}
     )
     return result.rowcount == 1
 
 
-async def remove(conn: AsyncConnection, project_id: uuid.UUID, user_id: uuid.UUID) -> bool:
-    result = await conn.execute(
-        text("DELETE FROM project_members WHERE project_id = :p AND user_id = :u"),
-        {"p": project_id, "u": user_id},
-    )
+async def remove(
+    conn: AsyncConnection, resource_id: uuid.UUID, user_id: uuid.UUID, kind: str = "project"
+) -> bool:
+    result = await conn.execute(text(_QUERIES[kind]["remove"]), {"r": resource_id, "u": user_id})
     return result.rowcount == 1

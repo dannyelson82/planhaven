@@ -13,7 +13,6 @@ import {
   TextArea,
   TextField,
 } from 'react-aria-components'
-import { navigate } from './router.ts'
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'danger-ghost'
 
@@ -98,7 +97,6 @@ export function Link({ to, children, className = '' }: { to: string; children: R
   return (
     <AriaLink
       href={to}
-      onPress={() => navigate(to)}
       className={`underline-offset-2 hover:underline ${className}`}
     >
       {children}

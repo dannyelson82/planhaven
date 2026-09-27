@@ -5,7 +5,7 @@ import { watchForProblems } from './helpers.ts'
 test('layout fits the screen and navigation is where the thumb or mouse is', async ({ page }, info) => {
   const problems = watchForProblems(page)
   const phone = info.project.name === 'phone'
-  for (const path of ['/projects', '/account']) {
+  for (const path of ['/projects', '/assets', '/account']) {
     await page.goto(path)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     const overflow = await page.evaluate(
@@ -13,6 +13,12 @@ test('layout fits the screen and navigation is where the thumb or mouse is', asy
     )
     expect(overflow, `horizontal scroll on ${path}`).toBeLessThanOrEqual(0)
   }
+  // An asset page, with its details form.
+  await page.goto('/assets')
+  await page.getByRole('link', { name: 'Sea Ray 240' }).click()
+  await expect(page.getByRole('heading', { name: 'Sea Ray 240' })).toBeVisible()
+  await page.screenshot({ path: `test-results/screens/${info.project.name}-asset.png`, fullPage: true })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0)
   // Both menus are in the page; CSS shows one per screen size (side first, bottom last).
   const navs = page.locator('nav[aria-label="Main"]')
   const side = navs.first()

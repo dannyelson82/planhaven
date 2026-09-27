@@ -53,7 +53,7 @@ events, browser tests at phone and desktop widths, threat-model check.
 
 ## Milestone 5: Assets, contacts and quotes (v0.1.5)
 
-- [ ] Assets (vehicle, boat, house, …) with metadata, shareable; projects link to an asset;
+- [x] Assets (vehicle, boat, house, …) with metadata, shareable; projects link to an asset;
       an asset's projects form its service history
 - [ ] Contacts (contractors, suppliers), quotes (requested / received / accepted /
       declined, with a document), cost entries per project
