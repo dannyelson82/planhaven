@@ -5,9 +5,10 @@ import { api, type Session } from './api.ts'
 import { flushOutbox } from './offline.ts'
 import { match, navigate, usePath } from './router.ts'
 import { AccountScreen } from './screens/Account.tsx'
+import { AdminScreen } from './screens/Admin.tsx'
 import { AssetScreen, AssetsScreen } from './screens/Assets.tsx'
 import { ContactScreen, ContactsScreen } from './screens/Contacts.tsx'
-import { InviteScreen, LoginScreen, SecondFactorScreen, SetupScreen, SignOutButton } from './screens/Auth.tsx'
+import { InviteScreen, LoginScreen, ResetScreen, SecondFactorScreen, SetupScreen, SignOutButton } from './screens/Auth.tsx'
 import { ListScreen } from './screens/Lists.tsx'
 import { NoteScreen } from './screens/Notes.tsx'
 import { ProjectScreen } from './screens/Project.tsx'
@@ -81,6 +82,8 @@ function Root() {
     enabled: session.isSuccess && session.data === null,
   })
   if (route.name === 'invite' && !session.data) return <InviteScreen />
+  // A reset link works whether or not someone is signed in on this device.
+  if (route.name === 'reset') return <ResetScreen />
   if (session.isPending) return <p className="p-6 text-stone-500">Loading…</p>
   if (session.isError) return <Unreachable retry={() => void session.refetch()} />
   if (!session.data) {
@@ -113,6 +116,8 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
       return <ContactsScreen />
     case 'contact':
       return <ContactScreen id={route.id} myId={session.user.id} />
+    case 'admin':
+      return session.user.is_admin ? <AdminScreen myId={session.user.id} /> : <p>Page not found.</p>
     case 'trash':
       return <TrashScreen />
     case 'account':
@@ -154,7 +159,7 @@ function Shell({ session, children }: { session: Session; children: ReactNode })
     <div className="min-h-dvh md:flex">
       <nav aria-label="Main" className="hidden w-56 shrink-0 flex-col gap-1 border-r border-stone-200 p-4 md:flex dark:border-stone-800">
         <p className="mb-4 font-bold text-brand-700 dark:text-brand-100">Planhaven</p>
-        {NAV.map((n) => (
+        {[...NAV, ...(session.user.is_admin ? [{ to: '/admin', label: 'Admin' }] : [])].map((n) => (
           <Link key={n.to} to={n.to} className={`rounded-xl px-3 py-2 ${active(n.to) ? 'bg-brand-100 font-semibold text-brand-700 dark:bg-stone-800 dark:text-brand-100' : ''}`}>
             {n.label}
           </Link>

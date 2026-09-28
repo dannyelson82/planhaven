@@ -132,6 +132,7 @@ Organized by STRIDE category. Details for each control are in §7.
 | Threat | Category | Mitigations |
 |---|---|---|
 | Password guessing / credential stuffing | Spoofing | Mandatory 2FA, passkeys, Argon2id, breached/common password rejection, per-account and per-IP rate limits, progressive lockout, edge banning via fail2ban/CrowdSec (§7.1, §7.11) |
+| Leaked password reset or invite link | Spoofing | Single use, short expiry (24 h / 72 h), token only in the URL fragment, hashed at rest, rate limited; a reset link still needs the account's second factor (§7.1) |
 | Default or leftover admin credentials | Spoofing | No default credentials; one-time setup token printed to log at first boot (§7.1) |
 | Session hijacking / fixation | Spoofing | HttpOnly+Secure+SameSite cookies, rotation on login and privilege change, server-side revocation (§7.2) |
 | CSRF | Tampering | SameSite cookies + CSRF token on state-changing requests, `Origin` check (§7.2) |
@@ -169,6 +170,12 @@ Organized by STRIDE category. Details for each control are in §7.
   no admin exists).
 - **Registration:** disabled. Users join by single-use, expiring invite links created by an
   admin (default expiry 72 hours).
+- **Forgotten password:** there is no email, so an admin makes a **password reset link**
+  for that person (`/reset#phv_rst_...`): 256-bit token in the URL fragment, stored hashed,
+  single use, 24 hours, a newer link cancels older ones, not for disabled accounts or the
+  admin's own account. Using it sets the new password (policy checked first, so a weak
+  password doesn't use up the link), signs out every device and notifies the user. The
+  second factor is unchanged; a lost second factor is a separate admin reset.
 - **Passwords:** minimum 12 characters, no composition rules, checked against a bundled list of
   common and breached passwords (offline; optional online k-anonymity check).
   Hashed with **Argon2id** at or above OWASP Password Storage Cheat Sheet minimums

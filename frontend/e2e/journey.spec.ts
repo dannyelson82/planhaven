@@ -202,6 +202,38 @@ test('first boot to first project', async ({ page }) => {
   await expect(page.getByText('Test Admin (you)')).toBeVisible()
   await page.getByRole('button', { name: 'Done', exact: true }).click()
 
+  // Admin: invite someone; they join in another browser. Then a password reset link for them.
+  await page.goto('/admin')
+  await page.getByRole('button', { name: 'Make invite link' }).click()
+  const inviteUrl = await page.getByRole('textbox', { name: 'Invite link' }).inputValue()
+  expect(inviteUrl).toMatch(/\/invite#phv_inv_/)
+  const guest = await page.context().browser()!.newContext()
+  const kid = await guest.newPage()
+  await kid.goto(inviteUrl)
+  await kid.getByLabel('Your name').fill('Sam')
+  await kid.getByLabel('Email').fill('sam@example.com')
+  await kid.getByLabel('Choose a password').fill('sam has a long password 42')
+  await kid.getByRole('button', { name: 'Create my account' }).click()
+  await expect(kid.getByRole('heading', { name: 'Protect your account' })).toBeVisible()
+  await page.reload()
+  const sam = page.getByRole('article', { name: 'Sam' })
+  await expect(sam).toContainText('no second factor yet')
+  await sam.getByRole('button', { name: 'Password reset link' }).click()
+  const resetUrl = await page.getByRole('textbox', { name: 'Password reset link for Sam' }).inputValue()
+  expect(resetUrl).toMatch(/\/reset#phv_rst_/)
+  await kid.goto(resetUrl)
+  await kid.getByLabel('New password').fill('sam chose another password 43')
+  await kid.getByLabel('Type it again').fill('sam chose another password 43')
+  await kid.getByRole('button', { name: 'Change password' }).click()
+  await expect(kid.getByRole('heading', { name: 'Password changed' })).toBeVisible()
+  await guest.close()
+
+  // Account: new recovery codes (two taps).
+  await page.goto('/account')
+  await page.getByRole('button', { name: 'New recovery codes' }).click()
+  await page.getByRole('button', { name: 'Tap again: replace my recovery codes' }).click()
+  await expect(page.getByText(/Save these recovery codes/)).toBeVisible()
+
   // Sign out and back in, with the second factor.
   await page.goto('/account')
   await expect(page.getByText(/^Planhaven (dev|\d+\.\d+\.\d+)$/)).toBeVisible()

@@ -264,3 +264,48 @@ function PendingChangesNotice() {
     </p>
   )
 }
+
+/** The password reset link an admin made: choose a new password. */
+export function ResetScreen() {
+  const { error, busy, run } = useSubmit()
+  const [token] = useState(() => (typeof window === 'undefined' ? '' : window.location.hash.slice(1)))
+  const check = useQuery({
+    queryKey: ['reset', token],
+    queryFn: () => api<{ valid: boolean }>('POST', '/api/v1/password-reset/check', { token }),
+    enabled: !!token,
+  })
+  const [password, setPassword] = useState('')
+  const [again, setAgain] = useState('')
+  const [done, setDone] = useState(false)
+  if (done) {
+    return (
+      <AuthPage title="Password changed">
+        <p className="mb-4">Sign in with your new password. You'll still need your authenticator app or passkey.</p>
+        <Button className="w-full" onPress={() => { window.history.replaceState(null, '', '/'); window.location.reload() }}>Sign in</Button>
+      </AuthPage>
+    )
+  }
+  if (!token || check.data?.valid === false) {
+    return <AuthPage title="Link not valid"><p>This reset link is invalid, used or expired. Ask an admin for a new one.</p></AuthPage>
+  }
+  const mismatch = again.length > 0 && again !== password
+  return (
+    <AuthPage title="Choose a new password">
+      <Form
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (mismatch) return
+          void run(async () => {
+            await api('POST', '/api/v1/password-reset', { token, password })
+            setDone(true)
+          })
+        }}
+      >
+        <Field label="New password" type="password" isRequired minLength={12} value={password} onChange={setPassword} autoComplete="new-password" description="At least 12 characters." />
+        <Field label="Type it again" type="password" isRequired value={again} onChange={setAgain} autoComplete="new-password" description={mismatch ? "The two don't match." : undefined} />
+        <ErrorText error={error} />
+        <Button type="submit" isDisabled={busy || check.isLoading || mismatch} className="w-full">Change password</Button>
+      </Form>
+    </AuthPage>
+  )
+}

@@ -37,6 +37,8 @@ export type Route =
   | { name: 'asset'; id: string }
   | { name: 'account' }
   | { name: 'invite' }
+  | { name: 'reset' }
+  | { name: 'admin' }
   | { name: 'not-found' }
 
 const UUID = /^[0-9a-f-]{36}$/i
@@ -56,5 +58,7 @@ export function match(path: string): Route {
   if (parts.length === 1 && parts[0] === 'trash') return { name: 'trash' }
   if (parts.length === 1 && parts[0] === 'account') return { name: 'account' }
   if (parts.length === 1 && parts[0] === 'invite') return { name: 'invite' }
+  if (parts.length === 1 && parts[0] === 'reset') return { name: 'reset' }
+  if (parts.length === 1 && parts[0] === 'admin') return { name: 'admin' }
   return { name: 'not-found' }
 }
