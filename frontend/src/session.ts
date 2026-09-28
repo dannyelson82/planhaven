@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, api, type Session, setCsrfToken } from './api.ts'
-import { isOffline, offlineUser, rememberUser, wipeOfflineData } from './offline.ts'
+import { isOffline, offlineUser, rememberUser, sessionEnded } from './offline.ts'
 
 export function useSession() {
   return useQuery({
@@ -14,7 +14,7 @@ export function useSession() {
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) {
           setCsrfToken(null)
-          await wipeOfflineData()
+          await sessionEnded()
           return null
         }
         // No connection: open with what this device kept, if someone was signed in here.

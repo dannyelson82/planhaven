@@ -409,8 +409,11 @@ Cross-Origin-Resource-Policy: same-origin
 - Soft-deleted content purged after 30 days; blobs removed when unreferenced.
 - Offline copies on phones (A§13.4): the app keeps what you last saw of your projects,
   lists and open tasks, plus list changes made offline, in the browser's IndexedDB on that
-  device. No passwords, session tokens or CSRF values are stored. It is wiped on sign-out,
-  when the server says the session has ended, and when a different person signs in. Device
+  device. No passwords, session tokens or CSRF values are stored. It is wiped on sign-out
+  and when a different person signs in. When the session simply runs out, the saved copies
+  are wiped at once, but list changes not yet sent (item names and check-offs) are kept,
+  marked with whose they are, until someone signs in: the same person sends them, anyone
+  else causes them to be deleted. Device
   loss is covered by the phone's own lock and storage encryption; revoke the device's session
   from Account → Signed-in devices.
 - Account deletion removes the user's owned projects (after transfer prompt) and all tokens,

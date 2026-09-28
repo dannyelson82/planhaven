@@ -5,7 +5,7 @@ import { navigate } from '../router.ts'
 import { useRefreshSession } from '../session.ts'
 import { AuthPage, Button, ErrorText, Field, Form } from '../ui.tsx'
 import { createPasskey, getPasskey, passkeysSupported } from '../webauthn.ts'
-import { wipeOfflineData } from '../offline.ts'
+import { pendingChanges, wipeOfflineData } from '../offline.ts'
 
 type Options = { challenge_id: string; options: Record<string, unknown> }
 
@@ -65,6 +65,7 @@ export function LoginScreen() {
     })
   return (
     <AuthPage title="Sign in">
+      <PendingChangesNotice />
       <Form
         onSubmit={(e) => {
           e.preventDefault()
@@ -250,4 +251,16 @@ function useSignOut(): () => void {
 export function SignOutButton({ className = 'w-full' }: { className?: string }) {
   const signOut = useSignOut()
   return <Button variant="ghost" className={className} onPress={signOut}>Sign out</Button>
+}
+
+/** Changes made offline that couldn't be sent before the sign-in ran out. */
+function PendingChangesNotice() {
+  const waiting = useQuery({ queryKey: ['pending-changes'], queryFn: pendingChanges, networkMode: 'always' })
+  if (!waiting.data) return null
+  return (
+    <p role="status" className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+      {waiting.data === 1 ? '1 change' : `${waiting.data} changes`} made offline {waiting.data === 1 ? 'is' : 'are'} waiting.
+      Sign in to send {waiting.data === 1 ? 'it' : 'them'}.
+    </p>
+  )
 }
