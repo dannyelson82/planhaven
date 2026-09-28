@@ -2,8 +2,11 @@
 
 import asyncio
 import contextlib
+import os
+import shutil
 import struct
 import sys
+import tempfile
 from pathlib import Path
 
 import app
@@ -64,3 +67,72 @@ async def clean(data: bytes, *, keep_metadata: bool) -> tuple[bytes, bytes]:
     if process.returncode != 0:
         raise ImageError("not a readable image")
     return _frames(output)
+
+
+# ------------------------------------------------------------------ HEIC (iPhone photos)
+# Pillow can't read HEIC, and the Python packages that can ship a GPL encoder (ADR 0010).
+# Debian's libheif decoder is a separate program (allowed as aggregation): it converts the
+# photo to JPEG in its own resource-limited process, then the JPEG goes through clean() like
+# any other photo (location removed, thumbnail made).
+HEIC_TOOLS = ("heif-dec", "heif-convert")  # heif-convert is the older name
+_HEIC_LIMITS = [
+    "--cpu=20",
+    f"--as={1024 * 1024 * 1024}",
+    f"--fsize={256 * 1024 * 1024}",
+    "--nofile=64",
+    "--core=0",
+]
+
+
+def heic_tool() -> str | None:
+    for name in HEIC_TOOLS:
+        path = shutil.which(name)
+        if path:
+            return path
+    return None
+
+
+async def heic_to_jpeg(data: bytes, workdir: Path) -> bytes:
+    """Decode an iPhone photo to JPEG. Raises ImageError if it can't be read."""
+    tool, prlimit = heic_tool(), shutil.which("prlimit")
+    if tool is None or prlimit is None:
+        raise ImageError("HEIC decoder not installed")
+    if len(data) > MAX_IMAGE_BYTES:
+        raise ImageError("image too large")
+    await asyncio.to_thread(workdir.mkdir, mode=0o700, parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=workdir) as tmp:
+        source, target = Path(tmp) / "in.heic", Path(tmp) / "out.jpg"
+        await asyncio.to_thread(source.write_bytes, data)
+        env = {
+            k: v for k, v in os.environ.items() if k in ("LD_LIBRARY_PATH", "LIBHEIF_PLUGIN_PATH")
+        }
+        async with _slots:
+            # Fixed arguments, no shell; the only inputs are our own temporary file names.
+            process = await asyncio.create_subprocess_exec(  # nosemgrep
+                prlimit,
+                *_HEIC_LIMITS,
+                "--",
+                tool,
+                "--quiet",
+                "-q",
+                "92",
+                str(source),
+                str(target),
+                stdin=asyncio.subprocess.DEVNULL,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+                env=env,
+                cwd=tmp,
+            )
+            try:
+                await asyncio.wait_for(process.wait(), TIMEOUT_SECONDS)
+            except TimeoutError:
+                with contextlib.suppress(ProcessLookupError):
+                    process.kill()
+                await process.wait()
+                raise ImageError("timed out") from None
+        # Some photos hold several images (bursts); the decoder then numbers the files.
+        outputs = await asyncio.to_thread(lambda: sorted(Path(tmp).glob("out*.jpg")))
+        if process.returncode != 0 or not outputs:
+            raise ImageError("not a readable HEIC image")
+        return await asyncio.to_thread(outputs[0].read_bytes)

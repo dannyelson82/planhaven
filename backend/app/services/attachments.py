@@ -102,20 +102,26 @@ async def upload(
             raise UnsupportedFileError("This type of file isn't supported.")
         thumb_sha: str | None = None
         size = received.size
-        if file_type.kind == "image" and file_type is not sniff.HEIC:
+        if file_type.kind == "image":
             data = await asyncio.to_thread(Path(tmp).read_bytes)
             try:
-                cleaned, thumbnail = await images.clean(data, keep_metadata=keep_metadata)
+                if file_type is sniff.HEIC:
+                    # iPhone photo: decoded to JPEG first (images.heic_to_jpeg).
+                    jpeg = await images.heic_to_jpeg(data, blobs.incoming)
+                    if keep_metadata:
+                        # Keep the original file as it is; the thumbnail comes from the JPEG.
+                        _, thumbnail = await images.clean(jpeg, keep_metadata=False)
+                        cleaned = data
+                    else:
+                        cleaned, thumbnail = await images.clean(jpeg, keep_metadata=False)
+                        file_type = sniff.JPEG
+                else:
+                    cleaned, thumbnail = await images.clean(data, keep_metadata=keep_metadata)
             except images.ImageError:
                 raise UnsupportedFileError("This image couldn't be read.") from None
             blob_sha = await asyncio.to_thread(blobs.put, cleaned)
             thumb_sha = await asyncio.to_thread(blobs.put, thumbnail)
             size = len(cleaned)
-        elif file_type is sniff.HEIC and not keep_metadata:
-            # Can't remove the location from HEIC yet; phones send JPEG when asked to.
-            raise UnsupportedFileError(
-                "HEIC photos aren't supported yet. Choose JPEG, or upload with location kept."
-            )
         else:
             blob_sha = received.sha256
             await asyncio.to_thread(blobs.adopt, tmp, blob_sha)

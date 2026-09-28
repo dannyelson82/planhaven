@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { ADMIN, totp, watchForProblems } from './helpers.ts'
 
@@ -123,11 +124,14 @@ test('first boot to first project', async ({ page }) => {
   await page.getByTestId('file-input').setInputFiles([
     { name: 'hull.png', mimeType: 'image/png', buffer: png },
     { name: 'parts.csv', mimeType: 'text/csv', buffer: Buffer.from('part,qty\nimpeller,1\n') },
+    // An iPhone photo (HEIC): converted to JPEG, location removed.
+    { name: 'IMG_0001.HEIC', mimeType: 'image/heic', buffer: fs.readFileSync(new URL('../../backend/tests/fixtures/iphone-photo.heic', import.meta.url)) },
   ])
   const thumb = page.getByRole('img', { name: 'hull.png' })
   await expect(thumb).toBeVisible()
   await expect.poll(() => thumb.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
   await expect(page.getByRole('link', { name: 'parts.csv' })).toHaveAttribute('href', /\/download$/)
+  await expect.poll(() => page.getByRole('img', { name: 'IMG_0001.jpg' }).evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
 
   // Deleted by mistake: the file comes back from the trash.
   await page.getByRole('button', { name: 'Delete parts.csv' }).click()

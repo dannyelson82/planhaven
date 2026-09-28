@@ -88,7 +88,14 @@ RUN set -eu; \
       > /etc/apt/sources.list.d/pgdg.sources; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-      "postgresql-${PG_MAJOR}" "postgresql-${PG_MAJOR}-pgvector"; \
+      "postgresql-${PG_MAJOR}" "postgresql-${PG_MAJOR}-pgvector" \
+      libheif-examples libheif-plugin-libde265; \
+    # iPhone (HEIC) photos are decoded by libheif's separate command-line tool (ADR 0010:
+    # a separate program, LGPL). Only the decoder plugin: the x265 encoder plugin is GPL and
+    # must never be in the image.
+    if dpkg-query -W -f='${Package}\n' | grep -q x265; then \
+      echo "GPL x265 found in the image" >&2; exit 1; \
+    fi; \
     rm -rf /var/lib/apt/lists/* /var/lib/postgresql/*; \
     # Debian generates a "snakeoil" TLS keypair on install. PostgreSQL here has no network
     # listener and never uses TLS, and a private key must not ship in a public image.
