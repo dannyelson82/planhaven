@@ -9,6 +9,9 @@ Amounts are in Canadian dollars (CAD).
 3. Tap **Add quote**.
 
 Later, on the quote:
+
+![Quotes on a project](screens/desktop/quotes.jpg)
+
 - **Attach estimate** if it has no document yet.
 - Change its status: **Requested**, **Received**, **Accepted**, **Declined**. An **accepted** quote counts in the budget.
 
@@ -21,6 +24,9 @@ was for an accepted quote, pick it under **Paid for quote**), tap **Add cost**.
 
 Tap an entry in the **Costs** tile to open it. Everything here is optional:
 
+![A purchase: store, receipt, items and totals](screens/desktop/purchase.jpg)
+
+
 - **Store**, **Date**, **Amount paid (CAD)**: saved when you leave the box.
 - **Receipt**: **Take photo** (phone) or **Add receipt** (a photo or PDF). **Replace** or **Remove** later.
 - **Items**: type them in (**Add an item**, **Qty**, **Price each**), or **Add items from a list** to pick checked-off items with their estimated prices. Change each price to what you actually paid.
@@ -32,6 +38,9 @@ Tip: from a list, **Record purchase** does most of this for you (see [Lists](lis
 ## The budget
 
 The **Costs** tile shows the budget:
+
+![The Costs tile with the budget](screens/desktop/costs.jpg)
+
 
 - **Accepted quotes** + **Lists (estimated)** = **Planned**
 - **Spent**, and what's **Left** (or **Over by**, in red)

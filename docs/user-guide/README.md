@@ -3,8 +3,10 @@
 How to use PlanHaven, one page per part of the app. Written for the people using it, not for
 developers: plain words, numbered steps, and the names of buttons as they appear on screen.
 
-These pages will also be shown inside the app (planned: a Help page). Each change to a feature
-updates its page in the same pull request.
+The same pages are shown in the app: **Help** in the menu on a computer, or **Help** at the
+bottom of any page (and on **Account**) on a phone. The screenshots show the phone or computer
+version to match your screen. Each feature added, changed or removed updates its page, and
+its screenshots, in the same change.
 
 1. [Getting started](getting-started.md): first sign-in, joining, your second factor, the app on your phone
 2. [Projects and tasks](projects.md): stages, the add bar, tasks and what they need
@@ -20,4 +22,4 @@ updates its page in the same pull request.
 12. [Your account and security](account-and-security.md)
 13. [Admin](admin.md): inviting people, reset links
 
-Written for PlanHaven 0.2.13.
+Written for PlanHaven 0.2.14.

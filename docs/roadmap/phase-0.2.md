@@ -112,8 +112,10 @@ as they're found rather than hunted now.
       a list, "Record purchase" on a list (migration 0023)
 - [x] v0.2.13: contacts import and export (contact cards, .vcf; Android contact picker);
       suggestions from past list items; fix: large contact photos were refused
-- [ ] v0.2.14: templates for lists and tasks, private and shareable one by one by their
+- [x] v0.2.14: the user guide in the app (Help), with screenshots for phone and computer
+      taken by `e2e/guide.spec.ts`; the add bar stacks on phones
+- [ ] v0.2.15: templates for lists and tasks, private and shareable one by one by their
       creator
-- [ ] v0.2.15: admin "Enable experimental features" switch (ADR 0012)
+- [ ] v0.2.16: admin "Enable experimental features" switch (ADR 0012)
 - Dropped: reading product details from a pasted link (reliability; server fetching
   arbitrary links)

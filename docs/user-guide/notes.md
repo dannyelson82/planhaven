@@ -7,6 +7,8 @@
 
 ## Write
 
+![The note editor, with Done at the bottom](screens/desktop/note-editor.jpg)
+
 - The toolbar: **H** (heading), **B** (bold), **I** (italic), **•** (bulleted list), **☑** (checklist).
 - Typing `[ ] ` at the start of a line also starts a checklist.
 
@@ -18,11 +20,15 @@ back to the project. **Not saved yet** next to it means there are changes.
 If you leave with unsaved changes (the back link, the menu, or the browser's back button),
 PlanHaven asks: **Save and leave**, **Leave without saving**, or **Keep editing**.
 
+![Leaving with unsaved changes](screens/desktop/note-leave.jpg)
+
 If someone else saved the same note while you were writing, your save is refused rather than
 overwriting theirs: **Copy my text** keeps yours on the clipboard, **Load their version**
 shows theirs.
 
 ## Note cards on the project
+
+![A note card on the project page](screens/desktop/note-card.jpg)
 
 - A card shows the note as written: text, headings, bullets and checkboxes, in order.
 - Long notes: **Show all (n more)** / **Show less**.

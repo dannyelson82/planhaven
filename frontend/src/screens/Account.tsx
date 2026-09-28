@@ -17,6 +17,10 @@ export function AccountScreen({ session }: { session: Session }) {
         </Card>
       )}
       <Card className="py-3">
+        <Link to="/help" className="font-medium text-brand-700 dark:text-brand-100">Help and user guide</Link>
+        <p className="text-sm text-stone-500">How to use every part of PlanHaven, on a phone and on a computer.</p>
+      </Card>
+      <Card className="py-3">
         <Link to="/trash" className="font-medium text-brand-700 dark:text-brand-100">Trash</Link>
         <p className="text-sm text-stone-500">Bring back something deleted in the last 30 days.</p>
       </Card>

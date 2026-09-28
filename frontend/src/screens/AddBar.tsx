@@ -18,10 +18,10 @@ export function AddBar({ forms }: { forms: Record<AddKind, ReactNode> }) {
   const [open, setOpen] = useState<AddKind | null>(null)
   return (
     <div className="space-y-3">
-      <div role="toolbar" aria-label="Add to this project" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0">
+      <div role="toolbar" aria-label="Add to this project" className="grid grid-cols-3 gap-2 md:flex md:flex-wrap">
         {(Object.keys(BUTTON) as AddKind[]).map((kind) => (
           <Button key={kind} variant={open === kind ? 'primary' : 'secondary'} aria-expanded={open === kind}
-            aria-controls={open === kind ? 'add-drawer' : undefined} className="shrink-0"
+            aria-controls={open === kind ? 'add-drawer' : undefined} className="px-2 text-sm md:px-4 md:text-base"
             onPress={() => setOpen(open === kind ? null : kind)}>
             <span aria-hidden="true">+</span>{BUTTON[kind]}
           </Button>

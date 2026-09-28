@@ -11,13 +11,23 @@ share a project with see your arrangement until they change theirs.
 Tap **Arrange** at the top of the project. The page shows a **≡ Move** handle on every tile, and
 on every note, list and photo inside the groups. The **Arrange this page** panel opens at the top.
 
+![Arranging: the panel, and a Move handle on each tile](screens/desktop/arrange.jpg)
+
 ## Move things by dragging
 
 - Drag a tile (or a note, list or photo out of its group) and drop it on another tile:
   - on its **top half** to put it **before** that tile,
   - on its **bottom half** to put it **after** it.
 - A note, list or photo dropped on its own group (**Notes**, **Lists**, **Photos and files**) goes back into it.
-- On a computer, tiles sit beside each other when they fit; on a phone they stack in your order.
+
+### On a phone
+
+Press and hold a tile (or a note, list or photo), then drag it. Tiles always stack one under
+the other, in your order; the sizes below only matter on a computer.
+
+### On a computer
+
+Drag with the mouse. Tiles sit beside each other when they fit (see sizes below).
 
 Tasks, quotes and costs always stay grouped, and a list's items always stay in their list.
 

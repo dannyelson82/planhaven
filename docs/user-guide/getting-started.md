@@ -30,8 +30,22 @@ safe (a password manager), then tap **I've saved them**.
 
 ## Signing in
 
+![Signing in](screens/desktop/sign-in.jpg)
+
 1. Enter your email and password, tap **Sign in**.
 2. Confirm with your passkey, or the 6-digit code from your authenticator app. No phone? Choose **Use a recovery code**.
+
+## Finding your way around
+
+### On a phone
+
+The menu is at the bottom: **Projects**, **Assets**, **Contacts**, **Account** and **Sign out**.
+**Help** is at the bottom of every page, and on **Account**.
+
+### On a computer
+
+The menu is on the left: **Projects**, **Assets**, **Contacts**, **Account**, **Admin** (admins
+only), **Help**, and **Sign out** at the bottom.
 
 ## PlanHaven on your phone
 

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
-import { type ReactNode, useEffect, useState, useSyncExternalStore } from 'react'
+import { lazy, type ReactNode, Suspense, useEffect, useState, useSyncExternalStore } from 'react'
 import { RouterProvider } from 'react-aria-components'
 import { api, type Session } from './api.ts'
 import { flushOutbox } from './offline.ts'
@@ -15,6 +15,8 @@ import { ProjectScreen } from './screens/Project.tsx'
 import { PurchaseScreen } from './screens/Purchase.tsx'
 import { ProjectsScreen } from './screens/Projects.tsx'
 import { TrashScreen } from './screens/Trash.tsx'
+
+const HelpScreen = lazy(() => import('./screens/Help.tsx'))
 import { useSession } from './session.ts'
 import { StepUpProvider } from './stepup.tsx'
 import { AuthPage, Button, Link } from './ui.tsx'
@@ -123,6 +125,8 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
       return session.user.is_admin ? <AdminScreen myId={session.user.id} /> : <p>Page not found.</p>
     case 'trash':
       return <TrashScreen />
+    case 'help':
+      return <Suspense fallback={<p className="text-stone-500">Loading…</p>}><HelpScreen slug={route.slug} /></Suspense>
     case 'project-trash':
       return <TrashScreen projectId={route.id} />
     case 'account':
@@ -153,7 +157,11 @@ function Unreachable({ retry }: { retry: () => void }) {
 function VersionFooter() {
   const about = useQuery({ queryKey: ['about'], queryFn: () => api<{ version: string }>('GET', '/api/v1/about'), staleTime: 60_000 })
   if (!about.data) return null
-  return <p className="mt-8 text-center text-xs text-stone-500">PlanHaven {about.data.version}</p>
+  return (
+    <p className="mt-8 text-center text-xs text-stone-500">
+      PlanHaven {about.data.version} · <Link to="/help" className="underline">Help</Link>
+    </p>
+  )
 }
 
 const NAV = [
@@ -172,7 +180,7 @@ function Shell({ session, children }: { session: Session; children: ReactNode })
     <div className="min-h-dvh md:flex">
       <nav aria-label="Main" className="hidden w-56 shrink-0 flex-col gap-1 border-r border-stone-200 p-4 md:flex dark:border-stone-800">
         <p className="mb-4 font-bold text-brand-700 dark:text-brand-100">PlanHaven</p>
-        {[...NAV, ...(session.user.is_admin ? [{ to: '/admin', label: 'Admin' }] : [])].map((n) => (
+        {[...NAV, ...(session.user.is_admin ? [{ to: '/admin', label: 'Admin' }] : []), { to: '/help', label: 'Help' }].map((n) => (
           <Link key={n.to} to={n.to} className={`rounded-xl px-3 py-2 ${active(n.to) ? 'bg-brand-100 font-semibold text-brand-700 dark:bg-stone-800 dark:text-brand-100' : ''}`}>
             {n.label}
           </Link>

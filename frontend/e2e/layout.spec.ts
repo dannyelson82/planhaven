@@ -423,3 +423,25 @@ test('a contact card from the phone, and item suggestions', async ({ page }, inf
   await expect(page.locator('label', { hasText: 'Hose clamps' })).toContainText('$10.00')
   expect(problems).toEqual([])
 })
+
+// The user guide in the app: from the footer, between pages, screenshots for this screen size.
+test('the Help pages', async ({ page }, info) => {
+  const problems = watchForProblems(page)
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Help', exact: true }).last().click()
+  await expect(page.getByRole('heading', { name: 'PlanHaven user guide' })).toBeVisible()
+  await page.getByRole('link', { name: 'Lists', exact: true }).last().click()
+  await expect(page.getByRole('heading', { name: 'Lists', level: 1 })).toBeVisible()
+  const shot = page.getByRole('img', { name: 'Edit mode: name, quantity and price each, and delete' }).filter({ visible: true })
+  await expect(shot).toHaveCount(1)
+  // The phone picture on a phone (390 px wide), the computer one on a computer (1280 px).
+  await expect.poll(() => shot.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0)
+  const width = await shot.evaluate((img: HTMLImageElement) => img.naturalWidth)
+  expect(info.project.name === 'phone' ? width < 800 : width > 800).toBe(true)
+  // A link to another page of the guide stays in the app.
+  await page.getByRole('link', { name: 'Quotes, costs and purchases' }).first().click()
+  await expect(page.getByRole('heading', { name: 'Quotes, costs and purchases', level: 1 })).toBeVisible()
+  await page.getByRole('link', { name: '← All help' }).first().click()
+  await expect(page.getByRole('heading', { name: 'PlanHaven user guide' })).toBeVisible()
+  expect(problems).toEqual([])
+})
