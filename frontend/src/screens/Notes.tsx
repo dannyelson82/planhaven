@@ -31,6 +31,7 @@ export function ProjectNotes({ projectId, canEdit }: { projectId: string; canEdi
   const checklists = useQuery({
     queryKey: ['note-checklists', projectId],
     queryFn: () => api<NoteChecklist[]>('GET', `/api/v1/projects/${projectId}/note-checklists`),
+    staleTime: 0, // notes change in the editor; always refetch when the page opens
   })
   const tick = useMutation({
     mutationFn: ({ noteId, item }: { noteId: string; item: ChecklistItem }) =>

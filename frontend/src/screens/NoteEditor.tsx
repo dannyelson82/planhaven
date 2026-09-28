@@ -95,7 +95,10 @@ function LiveEditor({ noteId, canEdit, me, doc, connection, status, synced }: {
       if (!dirty) return
       dirty = false
       void api('PUT', `/api/v1/notes/${noteId}/text`, { text: toMarkdown(editor.getJSON()).slice(0, 200_000) })
-        .then(() => client.invalidateQueries({ queryKey: ['notes'] }))
+        .then(() => Promise.all([
+          client.invalidateQueries({ queryKey: ['notes'] }),
+          client.invalidateQueries({ queryKey: ['note-checklists'] }),
+        ]))
         .catch(() => { dirty = true })
     }
     const onUpdate = (_update: Uint8Array, origin: unknown) => {
