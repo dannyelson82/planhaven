@@ -23,7 +23,7 @@ from app.services.projects import ConflictError
 
 NoteRow = store.NoteRow
 MAX_TEXT_CONTENT = content.MAX_TEXT
-MAX_CHECKLIST_NOTES = 50
+MAX_CARD_NOTES = 50
 
 __all__ = ["ConflictError", "ContentError", "NoteRow"]
 
@@ -186,18 +186,18 @@ async def delete_note(
 # ---------------------------------------------------------------- checkboxes on the project page
 
 
-async def project_checklists(
+async def project_note_cards(
     db: Database, session: CurrentSession, project_id: uuid.UUID
-) -> list[tuple[NoteRow, list[tuple[int, str, bool]]]]:
-    """Notes in the project that have checkboxes, with their items."""
+) -> list[tuple[NoteRow, list[dict[str, Any]], int]]:
+    """What the project page shows on each note's card: its lines in order, with checkboxes
+    that can be ticked there, and how many lines didn't fit."""
     async with db.user_transaction(session.user.id) as conn:
         _require(session, await _access(conn, project_id), write=False)
         notes = await store.notes_for_project(conn, project_id)
         result = []
-        for note in notes[:MAX_CHECKLIST_NOTES]:
-            items = content.checklist(await _document(conn, note.id))
-            if items:
-                result.append((note, items))
+        for note in notes[:MAX_CARD_NOTES]:
+            lines, more = content.card_lines(await _document(conn, note.id))
+            result.append((note, lines, more))
     return result
 
 

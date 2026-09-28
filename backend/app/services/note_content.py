@@ -215,6 +215,64 @@ def with_checked(document: dict[str, Any], index: int, text: str, checked: bool)
     return copy
 
 
+# ------------------------------------------------------------------ project page cards
+
+CARD_LINES = 200
+
+
+def card_lines(document: dict[str, Any]) -> tuple[list[dict[str, Any]], int]:
+    """The note as the project page card shows it: its lines in reading order (text, headings,
+    bullets and checkboxes, with their index for ticking), up to CARD_LINES, and how many more
+    there are."""
+    index = {id(item): i for i, item in enumerate(_task_items(document))}
+    lines: list[dict[str, Any]] = []
+
+    def add(kind: str, text: str, depth: int, **extra: Any) -> None:
+        if kind != "check" and not text.strip():
+            return
+        lines.append({"kind": kind, "text": text.strip()[:300], "depth": min(depth, 6), **extra})
+
+    def walk(node: dict[str, Any], depth: int) -> None:
+        kind = node.get("type")
+        if kind == "paragraph" or kind == "codeBlock":
+            add("text", _plain(node), depth)
+        elif kind == "heading":
+            add("heading", _plain(node), depth)
+        elif kind in ("bulletList", "orderedList"):
+            start = node.get("attrs", {}).get("start", 1)
+            for n, item in enumerate(node.get("content", [])):
+                marker = f"{start + n}." if kind == "orderedList" else "•"
+                children = item.get("content", [])
+                first = children[0] if children else {}
+                add(
+                    "bullet",
+                    _plain(first) if first.get("type") in ("paragraph", "heading") else "",
+                    depth,
+                    marker=marker,
+                )
+                for child in children[1 if first.get("type") in ("paragraph", "heading") else 0 :]:
+                    walk(child, depth + 1)
+        elif kind == "taskList":
+            for item in node.get("content", []):
+                add(
+                    "check",
+                    _plain(item),
+                    depth,
+                    index=index.get(id(item), 0),
+                    checked=item.get("attrs", {}).get("checked") is True,
+                )
+                for child in item.get("content", []):
+                    if child.get("type") == "taskList":
+                        walk(child, depth + 1)
+        elif kind == "blockquote":
+            for child in node.get("content", []):
+                walk(child, depth)
+
+    for block in document.get("content", []):
+        walk(block, 0)
+    return lines[:CARD_LINES], max(0, len(lines) - CARD_LINES)
+
+
 # ------------------------------------------------------------------ earlier live-editor notes
 
 

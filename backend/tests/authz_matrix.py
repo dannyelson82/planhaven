@@ -80,7 +80,7 @@ MATRIX: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/notes/{note_id}"): "verified",
     ("PUT", "/api/v1/notes/{note_id}"): "verified",
     ("DELETE", "/api/v1/notes/{note_id}"): "verified",
-    ("GET", "/api/v1/projects/{project_id}/note-checklists"): "verified",
+    ("GET", "/api/v1/projects/{project_id}/note-cards"): "verified",
     ("POST", "/api/v1/notes/{note_id}/checklist"): "verified",
     # Attachments: verified, then project role (tests/db/test_attachments.py)
     ("GET", "/api/v1/projects/{project_id}/attachments"): "verified",

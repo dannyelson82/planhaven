@@ -139,6 +139,11 @@ export function ListScreen({ id }: { id: string }) {
       api('PATCH', `/api/v1/list-items/${i.id}`, { text, quantity: qty.trim() || null }, { 'If-Match': `"${i.version}"` }),
     onSettled: refresh,
   })
+  // Edit mode: the list's name can be changed (saved when you leave the box).
+  const rename = useMutation({
+    mutationFn: (title: string) => api('PATCH', `/api/v1/lists/${id}`, { title }, { 'If-Match': `"${list.data?.version}"` }),
+    onSettled: async () => { await refresh(); await client.invalidateQueries({ queryKey: ['lists'] }) },
+  })
   if (list.error) return <ErrorText error={list.error} />
   if (!list.data) return <p className="text-stone-500">Loading…</p>
   const l = list.data
@@ -148,7 +153,13 @@ export function ListScreen({ id }: { id: string }) {
     <div className="space-y-4">
       <Link to={`/projects/${l.project_id}`} className="text-sm text-brand-700 dark:text-brand-100">← Back to project</Link>
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">{l.title}</h1>
+        {editing ? (
+          <input aria-label="List name" maxLength={200} defaultValue={l.title}
+            onBlur={(e) => { const t = e.target.value.trim(); if (t && t !== l.title) rename.mutate(t); else e.target.value = l.title }}
+            className="block min-w-0 flex-1 rounded-xl bg-transparent px-1 text-2xl font-bold ring-1 ring-stone-300 focus:outline-2 focus:outline-brand-600 dark:ring-stone-700" />
+        ) : (
+          <h1 className="text-2xl font-bold">{l.title}</h1>
+        )}
         <Button variant={editing ? 'primary' : 'secondary'} onPress={() => setEditing(!editing)}>{editing ? 'Done' : 'Edit'}</Button>
       </div>
       {deleted && (
@@ -181,7 +192,7 @@ export function ListScreen({ id }: { id: string }) {
           </Button>
         </div>
       )}
-      <ErrorText error={toggle.error ?? remove.error ?? save.error ?? undo.error ?? removeList.error} />
+      <ErrorText error={toggle.error ?? remove.error ?? save.error ?? undo.error ?? removeList.error ?? rename.error} />
     </div>
   )
 }

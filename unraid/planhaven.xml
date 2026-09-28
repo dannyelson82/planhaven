@@ -8,6 +8,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/dannyelson82/planhaven/issues</Support>
   <Project>https://github.com/dannyelson82/planhaven</Project>
+  <Icon>https://raw.githubusercontent.com/dannyelson82/planhaven/main/frontend/public/icons/icon-512.png</Icon>
   <Overview>Self-hosted project manager for home, vehicle and maker projects: from idea to done. Tasks, lists, notes, sharing with your household, iPhone-friendly web app. Built to be exposed to the internet: mandatory second factor (passkeys or authenticator app), row-level security, signed images.[br][br]A reverse proxy with HTTPS (e.g. Nginx Proxy Manager) is REQUIRED for internet use. Set BASE_URL to your public https address and TRUSTED_PROXIES to your proxy's address. On first start, the container log shows a one-time setup token for creating the admin account.[br][br]Back up /config/secrets separately: see docs/backup-restore.md.</Overview>
   <Category>Productivity: Tools:</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>

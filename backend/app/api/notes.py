@@ -7,7 +7,7 @@ document before storing it (app/services/note_content.py).
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Header, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
@@ -122,16 +122,19 @@ async def delete_note(note_id: uuid.UUID, session: SessionDep, request: Request)
     await service.delete_note(deps.database(request), session, note_id, deps.client_ip(request))
 
 
-class ChecklistItemOut(BaseModel):
-    index: int
+class CardLineOut(BaseModel):
+    kind: Literal["text", "heading", "bullet", "check"]
     text: str
-    checked: bool
+    depth: int
+    marker: str | None = None
+    index: int | None = None
+    checked: bool | None = None
 
 
-class NoteChecklistOut(BaseModel):
+class NoteCardOut(BaseModel):
     note_id: uuid.UUID
-    title: str
-    items: list[ChecklistItemOut]
+    lines: list[CardLineOut]
+    more: int
 
 
 class TickIn(BaseModel):
@@ -141,18 +144,14 @@ class TickIn(BaseModel):
     checked: bool
 
 
-@router.get("/projects/{project_id}/note-checklists")
-async def note_checklists(
+@router.get("/projects/{project_id}/note-cards")
+async def note_cards(
     project_id: uuid.UUID, session: SessionDep, request: Request
-) -> list[NoteChecklistOut]:
-    rows = await service.project_checklists(deps.database(request), session, project_id)
+) -> list[NoteCardOut]:
+    rows = await service.project_note_cards(deps.database(request), session, project_id)
     return [
-        NoteChecklistOut(
-            note_id=note.id,
-            title=note.title,
-            items=[ChecklistItemOut(index=i, text=t, checked=c) for i, t, c in items],
-        )
-        for note, items in rows
+        NoteCardOut(note_id=note.id, lines=[CardLineOut(**line) for line in lines], more=more)
+        for note, lines, more in rows
     ]
 
 

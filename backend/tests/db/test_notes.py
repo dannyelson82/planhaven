@@ -168,15 +168,20 @@ def test_checkboxes_from_the_project_page(team: Team) -> None:
     owner, viewer, stranger, pid, nid = team
     version = owner.get(f"/api/v1/notes/{nid}").json()["version"]
     _save(owner, nid, version, DOC)
-    lists = viewer.get(f"/api/v1/projects/{pid}/note-checklists").json()
-    assert lists == [
+    cards = viewer.get(f"/api/v1/projects/{pid}/note-cards").json()
+    line = {"marker": None, "index": None, "checked": None, "depth": 0}
+    assert cards == [
         {
             "note_id": nid,
-            "title": "Deck plan",
-            "items": [{"index": 0, "text": "Measure", "checked": False}],
+            "lines": [
+                {**line, "kind": "heading", "text": "Deck"},
+                {**line, "kind": "text", "text": "Use cedar"},
+                {**line, "kind": "check", "text": "Measure", "index": 0, "checked": False},
+            ],
+            "more": 0,
         }
     ]
-    assert stranger.get(f"/api/v1/projects/{pid}/note-checklists").status_code == 404
+    assert stranger.get(f"/api/v1/projects/{pid}/note-cards").status_code == 404
     tick = {"index": 0, "text": "Measure", "checked": True}
     assert (
         viewer.post(f"/api/v1/notes/{nid}/checklist", headers=viewer.h, json=tick).status_code

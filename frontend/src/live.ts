@@ -7,7 +7,7 @@ const KINDS: Record<string, (id: string) => unknown[][]> = {
   project: (id) => [['project', id], ['projects']],
   tasks: (id) => [['tasks', id], ['task-needs', id], ['project', id], ['projects']],
   lists: (id) => [['lists', id], ['list'], ['task-needs', id]],
-  notes: (id) => [['notes', id], ['note-checklists', id]],
+  notes: (id) => [['notes', id], ['note-cards', id]],
   attachments: (id) => [['attachments', id]],
   quotes: (id) => [['quotes', id]],
   costs: (id) => [['costs', id]],

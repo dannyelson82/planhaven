@@ -68,11 +68,10 @@ export function AssetsScreen() {
         {(assets.data ?? []).map((a) => (
           <li key={a.id}>
             <Card className="flex items-center gap-3">
-              {a.has_photo ? (
+              {/* No photo: nothing, rather than a placeholder. */}
+              {a.has_photo && (
                 <img src={`/api/v1/assets/${a.id}/photo/thumbnail?v=${a.version}`} alt="" loading="lazy"
                   className="size-16 shrink-0 rounded-xl bg-stone-200 object-cover dark:bg-stone-800" />
-              ) : (
-                <span aria-hidden className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-xs text-stone-500 dark:bg-stone-800">{KIND_LABEL[a.kind]}</span>
               )}
               <span className="min-w-0">
                 <Link to={`/assets/${a.id}`} className="block truncate font-semibold">{a.name}</Link>

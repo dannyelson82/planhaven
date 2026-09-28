@@ -28,7 +28,7 @@ async def notes_for_project(conn: AsyncConnection, project_id: uuid.UUID) -> lis
             SELECT id, project_id, title, left(text_content, 300) AS text_content, source,
                    updated_at, version
             FROM notes WHERE project_id = :p AND deleted_at IS NULL
-            ORDER BY updated_at DESC LIMIT 500
+            ORDER BY created_at DESC LIMIT 500
         """),
         {"p": project_id},
     )

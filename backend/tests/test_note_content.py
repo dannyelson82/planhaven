@@ -54,3 +54,48 @@ def test_line_breaks_inside_a_checkbox_are_kept() -> None:
     }
     doc = {"type": "doc", "content": [{"type": "taskList", "content": [item]}]}
     assert note_content.checklist(doc) == [(0, "one\ntwo", False)]
+
+
+def _task(text: str, checked: bool = False, *children: dict[str, object]) -> dict[str, object]:
+    return {"type": "taskItem", "attrs": {"checked": checked}, "content": [_para(text), *children]}
+
+
+def test_cards_show_the_note_in_its_own_order() -> None:
+    doc = {
+        "type": "doc",
+        "content": [
+            _para("Intro"),
+            {"type": "paragraph"},  # blank lines are left out
+            {
+                "type": "taskList",
+                "content": [
+                    _task("Parent", False, {"type": "taskList", "content": [_task("Child", True)]}),
+                    _task("Second"),
+                ],
+            },
+            {"type": "orderedList", "content": [{"type": "listItem", "content": [_para("Step")]}]},
+            _para("After"),
+        ],
+    }
+    lines, more = note_content.card_lines(doc)
+    assert more == 0
+    assert [(line["kind"], line["text"], line["depth"]) for line in lines] == [
+        ("text", "Intro", 0),
+        ("check", "Parent", 0),
+        ("check", "Child", 1),
+        ("check", "Second", 0),
+        ("bullet", "Step", 0),
+        ("text", "After", 0),
+    ]
+    # Each checkbox carries the index and text that ticking it needs.
+    checks = [
+        (line["index"], line["text"], line["checked"]) for line in lines if line["kind"] == "check"
+    ]
+    assert sorted(checks) == note_content.checklist(doc)
+    assert lines[4]["marker"] == "1."
+
+
+def test_long_notes_say_how_much_is_left_out() -> None:
+    doc = {"type": "doc", "content": [_para(f"line {i}") for i in range(250)]}
+    lines, more = note_content.card_lines(doc)
+    assert (len(lines), more) == (note_content.CARD_LINES, 50)

@@ -5,12 +5,13 @@ import { Dialog, Heading, Modal } from 'react-aria-components'
 import { api, ApiError } from '../api.ts'
 import { notePreview } from '../preview.ts'
 import { navigate, setNavigationGuard } from '../router.ts'
+import { CheckIcon, CopyIcon, PencilIcon } from '../icons.tsx'
 import { Button, Card, ErrorText, Link } from '../ui.tsx'
 
 const NoteEditor = lazy(() => import('./NoteEditor.tsx'))
 
-type ChecklistItem = { index: number; text: string; checked: boolean }
-type NoteChecklist = { note_id: string; title: string; items: ChecklistItem[] }
+type CardLine = { kind: 'text' | 'heading' | 'bullet' | 'check'; text: string; depth: number; marker: string | null; index: number | null; checked: boolean | null }
+type NoteCard = { note_id: string; lines: CardLine[]; more: number }
 
 type Note = {
   id: string
@@ -31,45 +32,48 @@ export function ProjectNotes({ projectId, canEdit }: { projectId: string; canEdi
     mutationFn: () => api<Note>('POST', `/api/v1/projects/${projectId}/notes`, { title: 'Untitled note' }),
     onSuccess: async (note) => { await client.invalidateQueries({ queryKey: ['notes', projectId] }); navigate(`/notes/${note.id}`) },
   })
-  // Checkboxes inside notes can be ticked right here, without opening the note.
-  // Keyed by the versions of the notes shown, so the checkboxes are never older than the cards.
+  // What each card shows: the note's lines in order, with checkboxes that can be ticked here.
+  // Keyed by the versions of the notes shown, so the cards are never older than the list.
   const shown = notes.data?.map((n) => `${n.id}:${n.version}`).join(',')
-  const checklists = useQuery({
-    queryKey: ['note-checklists', projectId, shown],
-    queryFn: () => api<NoteChecklist[]>('GET', `/api/v1/projects/${projectId}/note-checklists`),
+  const cards = useQuery({
+    queryKey: ['note-cards', projectId, shown],
+    queryFn: () => api<NoteCard[]>('GET', `/api/v1/projects/${projectId}/note-cards`),
     enabled: shown !== undefined,
     placeholderData: keepPreviousData,
     staleTime: 0, // notes change in the editor; always refetch when the page opens
   })
   const tick = useMutation({
-    mutationFn: ({ noteId, item }: { noteId: string; item: ChecklistItem }) =>
-      api('POST', `/api/v1/notes/${noteId}/checklist`, { index: item.index, text: item.text, checked: !item.checked }),
-    onSettled: () => Promise.all([
-      client.invalidateQueries({ queryKey: ['note-checklists', projectId] }),
+    mutationFn: ({ noteId, line }: { noteId: string; line: CardLine }) =>
+      api('POST', `/api/v1/notes/${noteId}/checklist`, { index: line.index, text: line.text, checked: !line.checked }),
+    onSettled: (_data, _error, { noteId }) => Promise.all([
       client.invalidateQueries({ queryKey: ['notes', projectId] }),
+      client.removeQueries({ queryKey: ['note', noteId] }),
     ]),
   })
-  const itemsOf = (noteId: string) => checklists.data?.find((c) => c.note_id === noteId)?.items ?? []
+  const cardOf = (noteId: string) => cards.data?.find((c) => c.note_id === noteId)
   return (
     <section aria-label="Notes" className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">Notes</h2>
         {canEdit && <Button variant="secondary" onPress={() => create.mutate()} isDisabled={create.isPending}>New note</Button>}
       </div>
-      {/* Two stacked columns: short cards don't leave gaps next to tall ones. */}
+      {/* Two stacked columns: short cards don't leave gaps next to tall ones. Newest note first;
+          the order doesn't change when a note is edited or ticked. */}
       <ul className="gap-2 sm:columns-2">
         {(notes.data ?? []).map((n) => (
           <li key={n.id} className="mb-2 break-inside-avoid">
             <Card>
-              <Link to={`/notes/${n.id}`} className="block font-semibold">{n.title}</Link>
-              {itemsOf(n.id).length > 0 ? (
-                <>
-                  {notePreview(n.text_content, true) && <p className="line-clamp-1 text-sm text-stone-500">{notePreview(n.text_content, true)}</p>}
-                  <NoteChecklistItems items={itemsOf(n.id)} canEdit={canEdit} noteId={n.id} onTick={(item) => tick.mutate({ noteId: n.id, item })} />
-                </>
-              ) : (
-                <p className="line-clamp-2 text-sm text-stone-500">{notePreview(n.text_content, false) || 'Empty note'}</p>
-              )}
+              <div className="flex items-start gap-1">
+                <Link to={`/notes/${n.id}`} className="block min-w-0 flex-1 py-2 font-semibold">{n.title}</Link>
+                <CopyNote noteId={n.id} />
+                {canEdit && (
+                  <Link to={`/notes/${n.id}`} aria-label="Edit note"
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800">
+                    <PencilIcon />
+                  </Link>
+                )}
+              </div>
+              <NoteCardBody card={cardOf(n.id)} note={n} canEdit={canEdit} onTick={(line) => tick.mutate({ noteId: n.id, line })} />
             </Card>
           </li>
         ))}
@@ -80,12 +84,92 @@ export function ProjectNotes({ projectId, canEdit }: { projectId: string; canEdi
   )
 }
 
-/** A note's plain text (for "Copy my text" after a conflict). */
-function plainText(node: JSONContent): string {
-  if (node.type === 'text') return node.text ?? ''
-  if (node.type === 'hardBreak') return '\n'
-  const inner = (node.content ?? []).map(plainText)
-  return node.type === 'doc' || node.type?.endsWith('List') ? inner.join('\n') : inner.join('')
+/** Copies the whole note as plain text (checkboxes as ☐ / ☑). */
+function CopyNote({ noteId }: { noteId: string }) {
+  const [copied, setCopied] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const copy = async () => {
+    try {
+      const note = await api<Note>('GET', `/api/v1/notes/${noteId}`)
+      await navigator.clipboard.writeText(noteText(note.content ?? EMPTY_DOC))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setFailed(true)
+      setTimeout(() => setFailed(false), 3000)
+    }
+  }
+  return (
+    <Button variant="ghost" aria-label={copied ? 'Copied' : failed ? "Couldn't copy" : 'Copy note text'} onPress={() => void copy()}
+      className="min-w-11 px-2 text-stone-600 dark:text-stone-400">
+      {copied ? <CheckIcon /> : <CopyIcon />}
+    </Button>
+  )
+}
+
+const COLLAPSED_LINES = 8
+const INDENT = ['', 'pl-6', 'pl-12', 'pl-16', 'pl-20', 'pl-24', 'pl-28']
+
+/** The note on its card, in its own order; long notes open up with "Show all". */
+function NoteCardBody({ card, note, canEdit, onTick }: {
+  card: NoteCard | undefined; note: Note; canEdit: boolean; onTick: (line: CardLine) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  // Beyond the first 50 notes (or while loading), a short text preview.
+  if (!card) return <p className="line-clamp-2 text-stone-600 dark:text-stone-400">{notePreview(note.text_content, false) || 'Empty note'}</p>
+  if (card.lines.length === 0) return <p className="text-stone-500">Empty note</p>
+  const lines = expanded ? card.lines : card.lines.slice(0, COLLAPSED_LINES)
+  const hidden = card.lines.length - COLLAPSED_LINES
+  return (
+    <div>
+      <ul>
+        {lines.map((line, i) => (
+          <li key={`${i}-${line.kind}-${line.checked}-${line.text}`} className={INDENT[line.depth] ?? ''}>
+            {line.kind === 'check' ? (
+              <TickRow line={line} canEdit={canEdit} onTick={onTick} />
+            ) : line.kind === 'bullet' ? (
+              <p className="flex gap-2 py-0.5"><span aria-hidden="true" className="text-stone-500">{line.marker}</span><span className="min-w-0 whitespace-pre-line">{line.text}</span></p>
+            ) : (
+              <p className={`whitespace-pre-line py-0.5 ${line.kind === 'heading' ? 'font-semibold' : ''}`}>{line.text}</p>
+            )}
+          </li>
+        ))}
+      </ul>
+      {hidden > 0 && (
+        <Button variant="ghost" onPress={() => setExpanded(!expanded)} className="-ml-2 px-2 text-sm text-brand-700 dark:text-brand-100">
+          {expanded ? 'Show less' : `Show all (${hidden} more)`}
+        </Button>
+      )}
+      {expanded && card.more > 0 && <Link to={`/notes/${note.id}`} className="block text-sm text-brand-700 dark:text-brand-100">+{card.more} more lines in the note</Link>}
+    </div>
+  )
+}
+
+/** The whole note as plain text, for copying (checkboxes as ☐ / ☑, lists as • or 1.). */
+function noteText(doc: JSONContent): string {
+  const inline = (n: JSONContent): string =>
+    n.type === 'text' ? n.text ?? '' : n.type === 'hardBreak' ? '\n' : (n.content ?? []).map(inline).join('')
+  const out: string[] = []
+  const walk = (blocks: JSONContent[], indent: string) => {
+    for (const block of blocks) {
+      if (block.type === 'bulletList' || block.type === 'orderedList' || block.type === 'taskList') {
+        (block.content ?? []).forEach((item, i) => {
+          const marker = block.type === 'taskList' ? (item.attrs?.checked ? '☑ ' : '☐ ') : block.type === 'orderedList' ? `${i + 1}. ` : '• '
+          const [first, ...rest] = item.content ?? []
+          out.push(indent + marker + (first ? inline(first) : ''))
+          walk(rest, `${indent}    `)
+        })
+      } else if (block.type === 'blockquote') {
+        walk(block.content ?? [], `${indent}> `)
+      } else if (block.type === 'horizontalRule') {
+        out.push(`${indent}---`)
+      } else {
+        out.push(indent + inline(block))
+      }
+    }
+  }
+  walk(doc.content ?? [], '')
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim()
 }
 
 const EMPTY_DOC: JSONContent = { type: 'doc', content: [{ type: 'paragraph' }] }
@@ -98,6 +182,9 @@ export function NoteScreen({ id }: { id: string }) {
     queryFn: () => api<Note>('GET', `/api/v1/notes/${id}`),
     // The page holds its own copy while editing; don't swap it underneath the person.
     staleTime: Infinity,
+    // ...but always open the latest version: a copy kept from an earlier visit could be older
+    // than a tick made since on the project page, and Done would then be refused as a conflict.
+    gcTime: 0,
     refetchOnWindowFocus: false,
   })
   if (note.isPending) return <p className="text-stone-500">Loading…</p>
@@ -119,7 +206,7 @@ function NoteForm({ note }: { note: Note }) {
 
   const refresh = () => Promise.all([
     client.invalidateQueries({ queryKey: ['notes'] }),
-    client.invalidateQueries({ queryKey: ['note-checklists'] }),
+    client.invalidateQueries({ queryKey: ['note-cards'] }),
   ])
   const save = useMutation({
     mutationFn: () => api<Note>('PUT', `/api/v1/notes/${note.id}`,
@@ -179,7 +266,7 @@ function NoteForm({ note }: { note: Note }) {
         <div role="alert" className="space-y-2 rounded-xl bg-red-50 p-3 text-sm text-red-900 dark:bg-red-950 dark:text-red-200">
           <p className="font-medium">Someone else saved this note since you opened it, so your changes weren't saved.</p>
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onPress={() => void navigator.clipboard.writeText(plainText(doc))}>Copy my text</Button>
+            <Button variant="secondary" onPress={() => void navigator.clipboard.writeText(noteText(doc))}>Copy my text</Button>
             <Button variant="danger-ghost" onPress={() => void client.invalidateQueries({ queryKey: ['note', note.id] })}>
               Load their version (discard mine)
             </Button>
@@ -218,34 +305,14 @@ function NoteForm({ note }: { note: Note }) {
   )
 }
 
-const SHOWN_ITEMS = 8
-
-function NoteChecklistItems({ items, canEdit, noteId, onTick }: {
-  items: ChecklistItem[]; canEdit: boolean; noteId: string; onTick: (item: ChecklistItem) => void
-}) {
-  return (
-    <div className="mt-1">
-      <ul>
-        {items.slice(0, SHOWN_ITEMS).map((item) => (
-          // key: start over whenever the saved state changes.
-          <TickRow key={`${item.index}-${item.checked}-${item.text}`} item={item} canEdit={canEdit} onTick={onTick} />
-        ))}
-      </ul>
-      {items.length > SHOWN_ITEMS && <Link to={`/notes/${noteId}`} className="text-sm text-brand-700 dark:text-brand-100">+{items.length - SHOWN_ITEMS} more in the note</Link>}
-    </div>
-  )
-}
-
 /** One checkbox; it shows the new state in the same tap, then the save catches up. */
-function TickRow({ item, canEdit, onTick }: { item: ChecklistItem; canEdit: boolean; onTick: (item: ChecklistItem) => void }) {
-  const [checked, setChecked] = useState(item.checked)
+function TickRow({ line, canEdit, onTick }: { line: CardLine; canEdit: boolean; onTick: (line: CardLine) => void }) {
+  const [checked, setChecked] = useState(Boolean(line.checked))
   return (
-    <li>
-      <label className="flex min-h-11 items-center gap-3">
-        <input type="checkbox" checked={checked} disabled={!canEdit} className="size-5 shrink-0 accent-brand-600"
-          onChange={() => { setChecked(!checked); onTick(item) }} />
-        <span className={`min-w-0 whitespace-pre-line ${checked ? 'text-stone-500 line-through' : ''}`}>{item.text || '(empty)'}</span>
-      </label>
-    </li>
+    <label className="flex min-h-11 items-start gap-3 py-2.5">
+      <input type="checkbox" checked={checked} disabled={!canEdit} className="mt-0.5 size-5 shrink-0 accent-brand-600"
+        onChange={() => { setChecked(!checked); onTick(line) }} />
+      <span className={`min-w-0 whitespace-pre-line ${checked ? 'text-stone-500 line-through' : ''}`}>{line.text || '(empty)'}</span>
+    </label>
   )
 }
