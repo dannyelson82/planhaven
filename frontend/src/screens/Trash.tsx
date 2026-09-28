@@ -54,7 +54,7 @@ export function TrashScreen() {
                   {KIND_LABEL[i.kind]}{i.project_title && ` in ${i.project_title}`} · {daysLeft(i)} days left
                 </span>
               </span>
-              <Button variant="secondary" onPress={() => restore.mutate(i)} isDisabled={restore.isPending}>Restore</Button>
+              <Button variant="secondary" aria-label={`Restore ${i.title}`} onPress={() => restore.mutate(i)} isDisabled={restore.isPending}>Restore</Button>
             </Card>
           </li>
         ))}

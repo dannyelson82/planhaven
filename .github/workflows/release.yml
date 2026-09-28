@@ -53,6 +53,7 @@ jobs:
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           provenance: false
           sbom: false
+          build-args: PLANHAVEN_VERSION=${{ github.ref_name }}
       - id: out
         env:
           DIGEST: ${{ steps.build.outputs.digest }}

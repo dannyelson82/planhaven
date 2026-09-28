@@ -50,6 +50,8 @@ class Settings:
     plugin_dirs: tuple[str, ...] = ("/app/plugins", "/config/plugins")
     # Uploaded files (content-addressed blobs). Overridable (PLANHAVEN_DATA_DIR) for tests.
     data_dir: str = "/data"
+    # Release version baked into the image (Dockerfile); "dev" when run from source.
+    version: str = "dev"
 
     @property
     def base_scheme(self) -> str:
@@ -146,6 +148,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         log_dir=env.get("PLANHAVEN_LOG_DIR", "/config/logs"),
         frontend_dir=env.get("PLANHAVEN_FRONTEND_DIR", "/app/frontend"),
         data_dir=env.get("PLANHAVEN_DATA_DIR", "/data"),
+        version=env.get("PLANHAVEN_VERSION", "dev")[:40],
         plugin_dirs=tuple(
             d
             for d in env.get("PLANHAVEN_PLUGIN_DIRS", "/app/plugins:/config/plugins").split(":")

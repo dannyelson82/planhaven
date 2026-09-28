@@ -7,6 +7,7 @@ import { SignOutButton } from './Auth.tsx'
 type SessionInfo = { id: string; last_seen_at: string; ip: string | null; user_agent: string | null; current: boolean }
 
 export function AccountScreen({ session }: { session: Session }) {
+  const about = useQuery({ queryKey: ['about'], queryFn: () => api<{ version: string }>('GET', '/api/v1/about') })
   const sessions = useQuery({ queryKey: ['sessions'], queryFn: () => api<SessionInfo[]>('GET', '/api/v1/auth/sessions') })
   return (
     <div className="space-y-4">
@@ -32,6 +33,7 @@ export function AccountScreen({ session }: { session: Session }) {
         </ul>
       </Card>
       <SignOutButton />
+      {about.data && <p className="text-center text-xs text-stone-500">Planhaven {about.data.version}</p>}
     </div>
   )
 }
