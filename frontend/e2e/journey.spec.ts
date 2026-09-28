@@ -65,6 +65,16 @@ test('first boot to first project', async ({ page }) => {
   await page.getByRole('button', { name: 'Add', exact: true }).click()
   await page.locator('label', { hasText: 'Antifreeze' }).click()
   await expect(page.getByText('In the cart (1)')).toBeVisible()
+  // Edit mode: change a quantity; delete, then undo. No delete buttons outside edit mode.
+  await expect(page.getByRole('button', { name: 'Delete Hose clamps' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Edit' }).click()
+  await page.getByLabel('Quantity of Hose clamps').fill('4')
+  await page.getByLabel('Quantity of Hose clamps').press('Enter')
+  await page.getByRole('button', { name: 'Delete Hose clamps' }).click()
+  await expect(page.getByText('Deleted “Hose clamps”')).toBeVisible()
+  await page.getByRole('button', { name: 'Undo' }).click()
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(page.locator('label', { hasText: 'Hose clamps' })).toContainText('4')
   await page.getByRole('link', { name: '← Back to project' }).click()
   await expect(page.getByText('Shopping · 1 to get of 2')).toBeVisible()
 
