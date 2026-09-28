@@ -292,7 +292,7 @@ contracts in CI.
 | **Project** | The central unit of work, from idea to done. Has a stage, owner, optional asset, optional recurrence, and a `local_ai_only` flag. |
 | **ProjectMember** | Grants a user a role on a project: `owner`, `editor`, or `viewer`. |
 | **Asset** | A durable thing projects relate to: vehicle, boat, house, dock, home lab, tool. Has a kind and free-form metadata (e.g. VIN, engine, mileage). Shareable like projects. |
-| **Task** | Actionable item: title, description, due date/time, assignee, done state, optional dependency on another task. |
+| **Task** | Actionable item: title, description, due date/time, assignee, done state, optional dependency on another task, and the list items it needs (from its project's lists). |
 | **List** / **ListItem** | Shopping lists, parts lists, checklists. A list can be mapped to a named iPhone Reminders list. |
 | **Note** | Rich-text (Markdown) note. `source` records origin: `user`, `mcp:<client>`, or `local_ai`. |
 | **Attachment** | A file linked to a project; references a content-addressed blob. Tracks extraction status. |

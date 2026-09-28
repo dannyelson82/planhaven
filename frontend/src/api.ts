@@ -82,6 +82,8 @@ export type Task = {
   done: boolean
   version: number
 }
+/** A list item a task needs (from the project's lists). */
+export type Need = { task_id: string; list_item_id: string; text: string; quantity: string | null; unit: string | null; checked: boolean; list_id: string; list_title: string }
 export type Stage = 'idea' | 'planning' | 'ready' | 'in_progress' | 'done' | 'archived'
 
 export const STAGES: { id: Stage; label: string }[] = [
