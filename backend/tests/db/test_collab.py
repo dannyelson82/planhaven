@@ -373,3 +373,15 @@ def test_checklists_can_be_ticked_from_the_project_page(team: tuple[U, U, U, str
         .json()["text_content"]
         .startswith("Before launch\n\n- [x] Check oil")
     )
+
+
+def test_open_project_pages_hear_about_note_edits(team: tuple[U, U, U, str, str]) -> None:
+    owner, viewer, _, pid, nid = team
+    with (
+        viewer.ws(f"/api/v1/live/projects/{pid}") as live_ws,
+        owner.ws(f"/api/v1/collab/notes/{nid}") as ws,
+    ):
+        doc: pycrdt.Doc[Any] = pycrdt.Doc()
+        _sync(ws, doc)
+        ws.send_bytes(_edit(doc, "Buy 12V cable"))
+        assert live_ws.receive_json() == {"kind": "notes"}
