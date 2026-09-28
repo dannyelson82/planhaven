@@ -133,3 +133,40 @@ test('lists work offline and catch up when back online', async ({ page, context 
   expect(after.items.find((i: { text: string }) => i.text === 'Hose clamps').checked).toBe(!clamps.checked)
   expect(problems.filter((p) => !p.includes('Failed to load resource') && !p.includes('ERR_INTERNET_DISCONNECTED'))).toEqual([])
 })
+
+// Fast typing in a note (long, wrapping checklist items), then back and forth between the
+// note and the project page: every character is kept and the connection is never cut.
+test('fast typing in a note keeps every character', async ({ page }, info) => {
+  const problems = watchForProblems(page)
+  const closedWhileTyping: string[] = []
+  let typing = false
+  page.on('websocket', (ws) => ws.on('close', () => { if (typing && ws.url().includes('/collab/')) closedWhileTyping.push(ws.url()) }))
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Winterize boat' }).click()
+  await page.getByRole('button', { name: 'New note' }).click()
+  const editor = page.getByRole('textbox', { name: 'Note', exact: true })
+  await expect(page.getByText('Saved automatically')).toBeVisible()
+  const first = `Need a way to edit list item quantities from the list page (${info.project.name})`
+  const second = 'Confirm deletes or a remove items mode in lists so nothing goes by accident'
+  typing = true
+  await editor.click()
+  await page.getByRole('button', { name: 'Checklist' }).click()
+  await editor.pressSequentially(first, { delay: 2 })
+  await editor.press('Enter')
+  await editor.pressSequentially(second, { delay: 2 })
+  typing = false
+  const noteUrl = page.url()
+  for (let round = 0; round < 2; round++) {
+    await page.getByRole('link', { name: '← Back to project' }).click()
+    await expect(page.getByRole('region', { name: 'Notes' }).getByRole('checkbox', { name: first })).toBeVisible()
+    await page.goto(noteUrl)
+    await expect(page.getByText('Saved automatically')).toBeVisible()
+    await expect(page.getByRole('textbox', { name: 'Note', exact: true })).toContainText(first)
+    await expect(page.getByRole('textbox', { name: 'Note', exact: true })).toContainText(second)
+  }
+  // Exactly two checklist rows, each with its own text once (nothing duplicated).
+  const rows = page.getByRole('textbox', { name: 'Note', exact: true }).locator('li p')
+  await expect(rows).toHaveText([first, second])
+  expect(closedWhileTyping).toEqual([])
+  expect(problems).toEqual([])
+})

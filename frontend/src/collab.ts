@@ -5,10 +5,12 @@ import * as decoding from 'lib0/decoding'
 import * as encoding from 'lib0/encoding'
 import * as awarenessProtocol from 'y-protocols/awareness'
 import * as syncProtocol from 'y-protocols/sync'
-import type * as Y from 'yjs'
+import * as Y from 'yjs'
 
 const SYNC = 0
 const AWARENESS = 1
+const UPDATE_EVERY_MS = 100
+const AWARENESS_EVERY_MS = 250
 
 export type Status = 'connecting' | 'connected' | 'offline' | 'denied'
 
@@ -124,12 +126,39 @@ export class NoteConnection {
     this.send(encoding.toUint8Array(encoder))
   }
 
-  private onDocUpdate = (update: Uint8Array, origin: unknown): void => {
-    if (origin === this || this.readOnly) return
+  // Typing makes a change per keystroke (and a cursor move). They're bundled so a fast
+  // typist, a held key or autocorrect stays well under the server's message limit (S§7.15):
+  // at most one edit message per UPDATE_EVERY_MS and one cursor message per AWARENESS_EVERY_MS.
+  private pending: Uint8Array[] = []
+  private updateTimer: ReturnType<typeof setTimeout> | undefined
+  private awarenessPending = new Set<number>()
+  private awarenessTimer: ReturnType<typeof setTimeout> | undefined
+
+  private flushUpdates = (): void => {
+    this.updateTimer = undefined
+    if (this.pending.length === 0) return
+    const update = this.pending.length === 1 ? this.pending[0] : Y.mergeUpdates(this.pending)
+    this.pending = []
     const encoder = encoding.createEncoder()
     encoding.writeVarUint(encoder, SYNC)
     syncProtocol.writeUpdate(encoder, update)
+    // If the connection is down, nothing is lost: the reply to the server's state on
+    // reconnect carries every local change.
     this.send(encoding.toUint8Array(encoder))
+  }
+
+  private onDocUpdate = (update: Uint8Array, origin: unknown): void => {
+    if (origin === this || this.readOnly) return
+    this.pending.push(update)
+    this.updateTimer ??= setTimeout(this.flushUpdates, UPDATE_EVERY_MS)
+  }
+
+  private flushAwareness = (): void => {
+    this.awarenessTimer = undefined
+    if (this.awarenessPending.size === 0) return
+    const clients = [...this.awarenessPending]
+    this.awarenessPending.clear()
+    this.sendAwareness(clients)
   }
 
   private onAwarenessUpdate = (
@@ -137,14 +166,20 @@ export class NoteConnection {
     origin: unknown,
   ): void => {
     if (origin === this) return
-    this.sendAwareness([...added, ...updated, ...removed])
+    for (const id of [...added, ...updated, ...removed]) this.awarenessPending.add(id)
+    this.awarenessTimer ??= setTimeout(this.flushAwareness, AWARENESS_EVERY_MS)
   }
 
   destroy(): void {
+    // Send what's still waiting (and the cursor's removal) before closing.
+    clearTimeout(this.updateTimer)
+    this.flushUpdates()
     this.destroyed = true
     clearTimeout(this.timer)
     window.removeEventListener('online', this.reconnectNow)
     awarenessProtocol.removeAwarenessStates(this.awareness, [this.doc.clientID], 'local')
+    clearTimeout(this.awarenessTimer)
+    this.flushAwareness() // others' view of this cursor goes away now, not after a timeout
     this.doc.off('update', this.onDocUpdate)
     this.awareness.off('update', this.onAwarenessUpdate)
     this.awareness.destroy()

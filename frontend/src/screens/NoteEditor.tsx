@@ -52,7 +52,12 @@ export default function NoteEditor(props: { noteId: string; canEdit: boolean; me
   // The document and connection live exactly as long as this screen is open.
   useEffect(() => {
     const doc = new Y.Doc()
-    const connection = new NoteConnection(noteId, doc, !canEdit, (c) => { setStatus(c.status); setSynced(c.synced) })
+    const connection = new NoteConnection(noteId, doc, !canEdit, (c) => {
+      setStatus(c.status)
+      // Once loaded, the editor stays on screen through reconnects: typing continues and
+      // catches up when the connection is back.
+      setSynced((loaded) => loaded || c.synced)
+    })
     // Creating the connection is the external side effect; the editor needs it to render.
     // oxlint-disable-next-line react/set-state-in-effect
     setLive({ doc, connection })

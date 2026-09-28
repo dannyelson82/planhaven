@@ -34,7 +34,9 @@ NoteRow = store.NoteRow
 MAX_MESSAGE_BYTES = 256 * 1024
 MAX_DOCUMENT_BYTES = 5 * 1024 * 1024
 MAX_AWARENESS_BYTES = 16 * 1024
-MESSAGES_PER_WINDOW = 200
+# Browsers bundle edits (10/s) and cursor moves (4/s); this leaves room for several open
+# tabs per person while still cutting off a flood.
+MESSAGES_PER_WINDOW = 600
 WINDOW_SECONDS = 10.0
 RECHECK_SECONDS = 15.0
 MAX_TEXT_CONTENT = 200_000
@@ -198,6 +200,22 @@ class Room:
     size: int
     peers: set[Peer] = field(default_factory=set)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    # Open project pages are told "notes changed" at most every PUBLISH_EVERY seconds while
+    # someone types, and once more when the last person leaves (so the page shows the end).
+    last_published: float = 0.0
+    unpublished: bool = False
+
+
+PUBLISH_EVERY = 2.0
+
+
+def _changed(room: Room) -> None:
+    now = time.monotonic()
+    if now - room.last_published >= PUBLISH_EVERY:
+        room.last_published, room.unpublished = now, False
+        live.publish(room.project_id, "notes")
+    else:
+        room.unpublished = True
 
 
 class Rooms:
@@ -224,6 +242,9 @@ class Rooms:
 
     def leave(self, room: Room, peer: Peer) -> None:
         room.peers.discard(peer)
+        if room.unpublished:
+            room.unpublished = False
+            live.publish(room.project_id, "notes")
         if not room.peers:
             self._rooms.pop(room.note_id, None)
 
@@ -319,6 +340,7 @@ async def handle_message(db: Database, room: Room, peer: Peer, message: bytes) -
                 update=update,
             )
         room.size += len(update)
+        _changed(room)
     await _broadcast(room, pycrdt.create_update_message(update), exclude=peer)
     log.info("note updated", extra={"note_id": str(room.note_id), "bytes": len(update)})
 
