@@ -6,6 +6,7 @@ import { flushOutbox } from './offline.ts'
 import { match, navigate, usePath } from './router.ts'
 import { AccountScreen } from './screens/Account.tsx'
 import { AssetScreen, AssetsScreen } from './screens/Assets.tsx'
+import { ContactScreen, ContactsScreen } from './screens/Contacts.tsx'
 import { InviteScreen, LoginScreen, SecondFactorScreen, SetupScreen } from './screens/Auth.tsx'
 import { ListScreen } from './screens/Lists.tsx'
 import { NoteScreen } from './screens/Notes.tsx'
@@ -108,6 +109,10 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
       return <AssetsScreen />
     case 'asset':
       return <AssetScreen id={route.id} myId={session.user.id} />
+    case 'contacts':
+      return <ContactsScreen />
+    case 'contact':
+      return <ContactScreen id={route.id} myId={session.user.id} />
     case 'trash':
       return <TrashScreen />
     case 'account':
@@ -136,6 +141,7 @@ function Unreachable({ retry }: { retry: () => void }) {
 const NAV = [
   { to: '/projects', label: 'Projects' },
   { to: '/assets', label: 'Assets' },
+  { to: '/contacts', label: 'Contacts' },
   { to: '/account', label: 'Account' },
 ]
 

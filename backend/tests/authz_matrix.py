@@ -97,6 +97,23 @@ MATRIX: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/assets/{asset_id}/members"): "verified",
     ("PATCH", "/api/v1/assets/{asset_id}/members/{user_id}"): "verified",
     ("DELETE", "/api/v1/assets/{asset_id}/members/{user_id}"): "verified",
+    # Contacts, quotes, costs: verified, then contact or project role (tests/db/test_contacts.py)
+    ("GET", "/api/v1/contacts"): "verified",
+    ("POST", "/api/v1/contacts"): "verified",
+    ("GET", "/api/v1/contacts/{contact_id}"): "verified",
+    ("PUT", "/api/v1/contacts/{contact_id}"): "verified",
+    ("DELETE", "/api/v1/contacts/{contact_id}"): "verified",
+    ("GET", "/api/v1/contacts/{contact_id}/members"): "verified",
+    ("POST", "/api/v1/contacts/{contact_id}/members"): "verified",
+    ("PATCH", "/api/v1/contacts/{contact_id}/members/{user_id}"): "verified",
+    ("DELETE", "/api/v1/contacts/{contact_id}/members/{user_id}"): "verified",
+    ("GET", "/api/v1/projects/{project_id}/quotes"): "verified",
+    ("POST", "/api/v1/projects/{project_id}/quotes"): "verified",
+    ("PATCH", "/api/v1/quotes/{quote_id}"): "verified",
+    ("DELETE", "/api/v1/quotes/{quote_id}"): "verified",
+    ("GET", "/api/v1/projects/{project_id}/costs"): "verified",
+    ("POST", "/api/v1/projects/{project_id}/costs"): "verified",
+    ("DELETE", "/api/v1/costs/{cost_id}"): "verified",
     # Trash: verified, then the item's own role rules (tests/db/test_trash.py)
     ("GET", "/api/v1/trash"): "verified",
     ("POST", "/api/v1/trash/{kind}/{item_id}/restore"): "verified",
@@ -134,6 +151,11 @@ BODIES: dict[tuple[str, str], object] = {
     ("POST", "/api/v1/assets"): {"name": "Matrix boat", "kind": "boat"},
     ("PUT", "/api/v1/assets/{asset_id}"): {"name": "Matrix boat", "kind": "boat"},
     ("PUT", "/api/v1/projects/{project_id}/asset"): {"asset_id": None},
+    ("POST", "/api/v1/contacts"): {"name": "Matrix plumber"},
+    ("PUT", "/api/v1/contacts/{contact_id}"): {"name": "Matrix plumber"},
+    ("POST", "/api/v1/projects/{project_id}/quotes"): {"title": "Matrix quote"},
+    ("PATCH", "/api/v1/quotes/{quote_id}"): {"status": "received"},
+    ("POST", "/api/v1/projects/{project_id}/costs"): {"description": "Paint", "amount_cents": 100},
 }
 
 # Expected outcome per principal: "ok" means authorization passed (any status except

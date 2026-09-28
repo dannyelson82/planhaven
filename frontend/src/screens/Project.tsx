@@ -8,6 +8,7 @@ import { useLiveProject } from '../live.ts'
 import { ProjectAssetPicker } from './Assets.tsx'
 import { ProjectAttachments } from './Attachments.tsx'
 import { ProjectLists } from './Lists.tsx'
+import { ProjectMoney } from './Money.tsx'
 import { ProjectNotes } from './Notes.tsx'
 import { ShareButton } from './Sharing.tsx'
 import { TaskEditor } from './TaskEditor.tsx'
@@ -110,6 +111,7 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
       <ProjectLists projectId={id} canEdit={canEdit} />
       <ProjectNotes projectId={id} canEdit={canEdit} />
       <ProjectAttachments projectId={id} canEdit={canEdit} />
+      <ProjectMoney projectId={id} canEdit={canEdit} />
       {p.role === 'owner' && (
         <Button variant="danger-ghost" onPress={() => { if (window.confirm('Delete this project?')) deleteProject.mutate() }}>
           Delete project

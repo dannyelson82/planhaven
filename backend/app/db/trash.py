@@ -43,6 +43,18 @@ async def trash(conn: AsyncConnection) -> list[TrashRow]:
             FROM attachments a JOIN projects p ON p.id = a.project_id AND p.deleted_at IS NULL
             WHERE a.deleted_at > now() - interval '30 days' AND app.can_write(a.project_id)
             UNION ALL
+            SELECT 'quote', q.id, q.title, q.project_id, p.title, q.deleted_at
+            FROM quotes q JOIN projects p ON p.id = q.project_id AND p.deleted_at IS NULL
+            WHERE q.deleted_at > now() - interval '30 days' AND app.can_write(q.project_id)
+            UNION ALL
+            SELECT 'cost', c.id, c.description, c.project_id, p.title, c.deleted_at
+            FROM cost_entries c JOIN projects p ON p.id = c.project_id AND p.deleted_at IS NULL
+            WHERE c.deleted_at > now() - interval '30 days' AND app.can_write(c.project_id)
+            UNION ALL
+            SELECT 'contact', k.id, k.name, NULL::uuid, NULL::text, k.deleted_at
+            FROM contacts k
+            WHERE k.deleted_at > now() - interval '30 days' AND app.contact_role(k.id) = 'owner'
+            UNION ALL
             SELECT 'asset', s.id, s.name, NULL::uuid, NULL::text, s.deleted_at
             FROM assets s
             WHERE s.deleted_at > now() - interval '30 days' AND app.asset_role(s.id) = 'owner'
@@ -58,6 +70,8 @@ _PARENT = {
     "list": "SELECT project_id FROM lists WHERE id = :id AND deleted_at IS NOT NULL",
     "note": "SELECT project_id FROM notes WHERE id = :id AND deleted_at IS NOT NULL",
     "attachment": "SELECT project_id FROM attachments WHERE id = :id AND deleted_at IS NOT NULL",
+    "quote": "SELECT project_id FROM quotes WHERE id = :id AND deleted_at IS NOT NULL",
+    "cost": "SELECT project_id FROM cost_entries WHERE id = :id AND deleted_at IS NOT NULL",
 }
 
 _RESTORE = {
@@ -70,6 +84,12 @@ _RESTORE = {
     "note": "UPDATE notes SET deleted_at = NULL, updated_at = now(), version = version + 1 "
     "WHERE id = :id AND deleted_at > now() - interval '30 days'",
     "attachment": "UPDATE attachments SET deleted_at = NULL "
+    "WHERE id = :id AND deleted_at > now() - interval '30 days'",
+    "quote": "UPDATE quotes SET deleted_at = NULL, updated_at = now(), version = version + 1 "
+    "WHERE id = :id AND deleted_at > now() - interval '30 days'",
+    "cost": "UPDATE cost_entries SET deleted_at = NULL, updated_at = now(), "
+    "version = version + 1 WHERE id = :id AND deleted_at > now() - interval '30 days'",
+    "contact": "UPDATE contacts SET deleted_at = NULL, updated_at = now(), version = version + 1 "
     "WHERE id = :id AND deleted_at > now() - interval '30 days'",
     "asset": "UPDATE assets SET deleted_at = NULL, updated_at = now(), version = version + 1 "
     "WHERE id = :id AND deleted_at > now() - interval '30 days'",

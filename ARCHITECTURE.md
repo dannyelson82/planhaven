@@ -297,9 +297,9 @@ contracts in CI.
 | **Note** | Rich-text (Markdown) note. `source` records origin: `user`, `mcp:<client>`, or `local_ai`. |
 | **Attachment** | A file linked to a project; references a content-addressed blob. Tracks extraction status. |
 | **Chunk** | A text segment extracted from a note or attachment, with a vector embedding, used for retrieval. |
-| **Contact** | A person or business (contractor, supplier). Shareable. |
+| **Contact** | A person or business (contractor, supplier). Shared one by one, like assets (own members and roles). |
 | **Quote** | A quote from a contact on a project: amount, status (`requested`, `received`, `accepted`, `declined`), attached document. |
-| **CostEntry** | Money spent on a project (optional link to a list item or quote). |
+| **CostEntry** | Money spent on a project (optional link to a list item or quote). Amounts are stored in cents; Canadian dollars by default. |
 | **PluginData** | Namespaced JSON documents owned by a plugin, scoped to a project or user. |
 | **AuditEvent** | Append-only record of security-relevant and AI-made changes. |
 

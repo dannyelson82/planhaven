@@ -128,6 +128,27 @@ test('first boot to first project', async ({ page }) => {
   await expect(page.getByRole('region', { name: 'Service history' }).getByRole('link', { name: 'Winterize boat' })).toBeVisible()
   await page.goto(projectUrl)
 
+  // A contractor, their quote, and what was paid (CAD).
+  await page.goto('/contacts')
+  await page.getByLabel('New contact').fill('Dave Pipes')
+  await page.getByRole('button', { name: 'Add contact' }).click()
+  await expect(page.getByRole('heading', { name: 'Dave Pipes' })).toBeVisible()
+  await page.getByLabel('Phone').fill('555-0100')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('link', { name: 'Call' })).toHaveAttribute('href', 'tel:5550100')
+  await page.goto(projectUrl)
+  await page.getByRole('button', { name: 'Add a quote' }).click()
+  await page.getByLabel('What for').fill('Rebuild water pump')
+  await page.getByLabel('Contact', { exact: true }).selectOption({ label: 'Dave Pipes' })
+  await page.getByLabel('Amount (CAD)').first().fill('1,850')
+  await page.getByRole('button', { name: 'Add quote' }).click()
+  await page.getByLabel('Status of Rebuild water pump').selectOption('accepted')
+  await page.getByLabel('Money spent on').fill('Water pump kit')
+  await page.getByLabel('Amount (CAD)').fill('1850')
+  await page.getByLabel('Paid for quote').selectOption({ label: 'Rebuild water pump' })
+  await page.getByRole('button', { name: 'Add cost' }).click()
+  await expect(page.getByLabel('Total spent')).toHaveText(/1,850\.00/)
+
   // Sharing dialog lists the owner.
   await page.getByRole('button', { name: 'Share' }).click()
   await expect(page.getByRole('heading', { name: 'Share this project' })).toBeVisible()

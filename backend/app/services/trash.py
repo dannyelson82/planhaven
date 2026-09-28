@@ -1,7 +1,8 @@
 """Trash: restore deleted things for 30 days; after that a system job removes them for good.
 
-Who may restore mirrors who may delete: projects and assets by their owners; tasks, lists,
-notes and files by the project's owners and editors (while the project itself exists).
+Who may restore mirrors who may delete: projects, assets and contacts by their owners;
+tasks, lists, notes, files, quotes and costs by the project's owners and editors (while the
+project itself exists).
 """
 
 import uuid
@@ -10,16 +11,24 @@ from typing import Literal
 from app import authz
 from app.db import assets as asset_store
 from app.db import auth as audit
+from app.db import contacts as contact_store
 from app.db import projects as project_store
 from app.db import trash as store
 from app.db.database import Database
 from app.services import live
 from app.services.auth import CurrentSession
 
-Kind = Literal["project", "task", "list", "note", "attachment", "asset"]
+Kind = Literal["project", "task", "list", "note", "attachment", "quote", "cost", "asset", "contact"]
 TrashRow = store.TrashRow
 
-_LIVE_KIND = {"task": "tasks", "list": "lists", "note": "notes", "attachment": "attachments"}
+_LIVE_KIND = {
+    "task": "tasks",
+    "list": "lists",
+    "note": "notes",
+    "attachment": "attachments",
+    "quote": "quotes",
+    "cost": "costs",
+}
 
 
 async def list_trash(db: Database, session: CurrentSession) -> list[TrashRow]:
@@ -40,6 +49,9 @@ async def restore(
         elif kind == "asset":
             access = authz.ProjectAccess(await asset_store.role(conn, item_id))
             authz.require(session.principal, authz.Action.ASSET_MANAGE, access)
+        elif kind == "contact":
+            access = authz.ProjectAccess(await contact_store.role(conn, item_id))
+            authz.require(session.principal, authz.Action.CONTACT_MANAGE, access)
         else:
             project_id = await store.parent_project(conn, kind, item_id)
             if project_id is None or await store.project_deleted(conn, project_id):
