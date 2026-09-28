@@ -527,6 +527,9 @@ work without external identity infrastructure:
 - Scopes: `projects:read`, `projects:write`. Tokens are audience-bound to `/mcp`.
 - Access tokens: 1 hour. Refresh tokens: rotated on use, reuse detection revokes the family.
 - Users can list and revoke connected AI clients in settings.
+- **Per person** (owner request, 2026-09-28): each user connects their own assistant, e.g.
+  Claude for one person and ChatGPT for another. A connection belongs to that user and that
+  client, sees only what that user can see, and is invisible to other users and to admins.
 
 ### 12.3 Tools (v1)
 
@@ -798,7 +801,7 @@ Every phase ships meeting `SECURITY.md` §11.
 | **0.5 — Local AI** | Extraction sandbox, OCR, embeddings, hybrid retrieval, Q&A with citations, `local_ai_only`. Experimental-features framework; local AI project assistant (experimental, ADR 0012). Unraid CA submission. |
 | **0.6 — MCP connector** | OAuth authorization server, `/mcp` tools, consent UI, connected-clients management, undo for AI changes. Assistant write tools for commercial AI (experimental, ADR 0012). |
 | **0.7 — Cut list plugin** | Reference plugin end-to-end; plugin API v1 frozen; `docs/plugin-api.md`. |
-| **Later** | Voice chat with a local speech server (experimental, ADR 0012), recurrence by asset meter, plugin process isolation, backup encryption, separate files origin, more plugins (vehicle log, Home Assistant bridge, electronics BOM). |
+| **Later** | Native iPhone and Android apps (owner request, 2026-09-28; see §19.2). Voice chat with a local speech server (experimental, ADR 0012), recurrence by asset meter, plugin process isolation, backup encryption, separate files origin, more plugins (vehicle log, Home Assistant bridge, electronics BOM). |
 
 ---
 
@@ -822,12 +825,18 @@ Every phase ships meeting `SECURITY.md` §11.
 | 0012 | AI project assistant (local and commercial) behind experimental feature flags |
 | 0013 | Household chores with proof of completion; personal time planner; cut-list plugin moved to 0.7 |
 | 0014 | UI toolkit: React Aria Components with Tailwind CSS |
+| 0015 | External share links with per-component permissions (**proposed**) |
 
 ### 19.2 Open questions
 
 - ~~Final project name~~ — decided: Planhaven (pending trademark and domain checks).
 - ~~License~~ — decided: Apache-2.0, with a dependency license policy (ADR 0010).
 - ~~UI component library~~ — decided: React Aria Components + Tailwind CSS (ADR 0014).
+- **Native apps (later).** The PWA stays the first mobile app (ADR 0006). Native iPhone and
+  Android apps would use the same API; sign in with OAuth 2.1 + PKCE (§12.2) and passkeys;
+  push through APNs/FCM (new outbound destinations, S§7.8); an offline store like the PWA's.
+  Approach (wrapping this app with Capacitor, or React Native) to be decided in an ADR when
+  scheduled.
 - PDF extraction library: PyMuPDF is excluded by ADR 0010; pypdfium2 is the leading
   candidate, final choice in phase 0.5.
 - Rich-text editor for notes (Markdown-first vs. block editor); must bind to Yjs and work

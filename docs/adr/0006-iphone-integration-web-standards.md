@@ -3,6 +3,9 @@
 - **Status:** Accepted
 - **Date:** 2026-09-26
 
+> **Update 2026-09-28:** native iPhone and Android apps are now planned for later
+> (ARCHITECTURE.md §18, §19.2). This decision still holds for phase 0.3.
+
 ## Context
 
 Shopping lists and tasks must reach the iPhone: Reminders, Calendar and notifications (A§1.1).
