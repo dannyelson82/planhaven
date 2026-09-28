@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Checkbox, ListBox, ListBoxItem, Popover, Select, SelectValue, Button as AriaButton, Label } from 'react-aria-components'
-import { api, type Project, STAGES, type Stage, type Task } from '../api.ts'
+import { api, type Project, STAGES, type Stage, type Need, type Task } from '../api.ts'
 import { navigate } from '../router.ts'
 import { Button, Card, ErrorText, Field, Form } from '../ui.tsx'
 import { useLiveProject } from '../live.ts'
@@ -18,6 +18,8 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
   const client = useQueryClient()
   const project = useQuery({ queryKey: ['project', id], queryFn: () => cachedGet<Project>(`/api/v1/projects/${id}`) })
   useLiveProject(id)
+  const needs = useQuery({ queryKey: ['task-needs', id], queryFn: () => cachedGet<Need[]>(`/api/v1/projects/${id}/task-needs`) })
+  const needsOf = (taskId: string) => (needs.data ?? []).filter((n) => n.task_id === taskId)
   const tasks = useQuery({ queryKey: ['tasks', id], queryFn: () => cachedGet<Task[]>(`/api/v1/projects/${id}/tasks`) })
   const refresh = () => Promise.all([
     client.invalidateQueries({ queryKey: ['project', id] }),
@@ -99,13 +101,13 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
         {open.length > 0 && (
           <p className="text-sm font-medium text-brand-700 dark:text-brand-100">Next small step: {open[0].title}</p>
         )}
-        <TaskList tasks={open} canEdit={canEdit} onToggle={(t) => toggle.mutate(t)} onDelete={(t) => remove.mutate(t)} />
+        <TaskList tasks={open} canEdit={canEdit} onToggle={(t) => toggle.mutate(t)} onDelete={(t) => remove.mutate(t)} needsOf={needsOf} />
         {tasks.isSuccess && open.length === 0 && <p className="text-stone-500">Nothing open. Nice!</p>}
       </section>
       {done.length > 0 && (
         <details className="rounded-2xl">
           <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-stone-500">Done ({done.length})</summary>
-          <TaskList tasks={done} canEdit={canEdit} onToggle={(t) => toggle.mutate(t)} onDelete={(t) => remove.mutate(t)} />
+          <TaskList tasks={done} canEdit={canEdit} onToggle={(t) => toggle.mutate(t)} onDelete={(t) => remove.mutate(t)} needsOf={needsOf} />
         </details>
       )}
       <ProjectLists projectId={id} canEdit={canEdit} />
@@ -121,8 +123,9 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
   )
 }
 
-function TaskList({ tasks, canEdit, onToggle, onDelete }: {
+function TaskList({ tasks, canEdit, onToggle, onDelete, needsOf }: {
   tasks: Task[]
+  needsOf: (taskId: string) => Need[]
   canEdit: boolean
   onToggle: (t: Task) => void
   onDelete: (t: Task) => void
@@ -142,6 +145,7 @@ function TaskList({ tasks, canEdit, onToggle, onDelete }: {
             </span>
             <span className="min-w-0 flex-1 py-2">
               <span className={`block ${t.done ? 'text-stone-500 line-through' : ''}`}>{t.title}</span>
+              <NeedsLine needs={needsOf(t.id)} done={t.done} />
               {(t.due_at || t.notes) && (
                 <span className="block text-xs text-stone-500">
                   {t.due_at && `Due ${new Date(t.due_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(t.due_all_day ? { timeZone: 'UTC' } : {}) })}`}
@@ -151,12 +155,26 @@ function TaskList({ tasks, canEdit, onToggle, onDelete }: {
               )}
             </span>
           </Checkbox>
-          {canEdit && <TaskEditor task={t} />}
+          {canEdit && <TaskEditor task={t} needs={needsOf(t.id)} />}
           {canEdit && (
             <Button variant="ghost" aria-label={`Delete ${t.title}`} onPress={() => onDelete(t)}>✕</Button>
           )}
         </li>
       ))}
     </ul>
+  )
+}
+
+/** "Needs 1 of 3 items" until everything is checked off on its lists. */
+function NeedsLine({ needs, done }: { needs: Need[]; done: boolean }) {
+  if (needs.length === 0 || done) return null
+  const toGet = needs.filter((n) => !n.checked)
+  return (
+    <span className={`block text-xs ${toGet.length ? 'text-amber-700 dark:text-amber-400' : 'text-brand-700 dark:text-brand-100'}`}
+      title={needs.map((n) => `${n.checked ? '✓' : '•'} ${n.text} (${n.list_title})`).join('\n')}>
+      {toGet.length
+        ? `Needs ${toGet.length} of ${needs.length} item${needs.length === 1 ? '' : 's'}: ${toGet.map((n) => n.text).join(', ')}`
+        : `All ${needs.length} item${needs.length === 1 ? '' : 's'} ready ✓`}
+    </span>
   )
 }

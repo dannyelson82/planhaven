@@ -5,8 +5,8 @@ import { useEffect } from 'react'
 
 const KINDS: Record<string, (id: string) => unknown[][]> = {
   project: (id) => [['project', id], ['projects']],
-  tasks: (id) => [['tasks', id], ['project', id], ['projects']],
-  lists: (id) => [['lists', id], ['list']],
+  tasks: (id) => [['tasks', id], ['task-needs', id], ['project', id], ['projects']],
+  lists: (id) => [['lists', id], ['list'], ['task-needs', id]],
   notes: (id) => [['notes', id]],
   attachments: (id) => [['attachments', id]],
   quotes: (id) => [['quotes', id]],

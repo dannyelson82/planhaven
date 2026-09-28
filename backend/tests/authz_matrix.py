@@ -114,6 +114,9 @@ MATRIX: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/projects/{project_id}/costs"): "verified",
     ("POST", "/api/v1/projects/{project_id}/costs"): "verified",
     ("DELETE", "/api/v1/costs/{cost_id}"): "verified",
+    # Task needs (items from the project's lists): verified, then project role
+    ("GET", "/api/v1/projects/{project_id}/task-needs"): "verified",
+    ("PUT", "/api/v1/tasks/{task_id}/needs"): "verified",
     # Trash: verified, then the item's own role rules (tests/db/test_trash.py)
     ("GET", "/api/v1/trash"): "verified",
     ("POST", "/api/v1/trash/{kind}/{item_id}/restore"): "verified",
@@ -152,6 +155,7 @@ BODIES: dict[tuple[str, str], object] = {
     ("PUT", "/api/v1/assets/{asset_id}"): {"name": "Matrix boat", "kind": "boat"},
     ("PUT", "/api/v1/projects/{project_id}/asset"): {"asset_id": None},
     ("POST", "/api/v1/contacts"): {"name": "Matrix plumber"},
+    ("PUT", "/api/v1/tasks/{task_id}/needs"): {"item_ids": []},
     ("PUT", "/api/v1/contacts/{contact_id}"): {"name": "Matrix plumber"},
     ("POST", "/api/v1/projects/{project_id}/quotes"): {"title": "Matrix quote"},
     ("PATCH", "/api/v1/quotes/{quote_id}"): {"status": "received"},

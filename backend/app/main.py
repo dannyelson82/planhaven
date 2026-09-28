@@ -22,6 +22,7 @@ from app.api import (
     projects,
     sharing,
     spa,
+    task_needs,
     trash,
 )
 from app.api.errors import install_error_handlers
@@ -60,6 +61,7 @@ ROUTERS = (
     attachments.router,
     assets.router,
     contacts.router,
+    task_needs.router,
     trash.router,
     spa.router,  # last: catches every path the API didn't
 )

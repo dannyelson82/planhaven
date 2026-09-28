@@ -78,6 +78,12 @@ test('first boot to first project', async ({ page }) => {
   await page.getByRole('link', { name: '← Back to project' }).click()
   await expect(page.getByText('Shopping · 1 to get of 2')).toBeVisible()
 
+  // The oil change needs the hose clamps from the list; the task says so until they're got.
+  await page.getByRole('button', { name: 'Edit Change oil' }).click()
+  await page.getByRole('group', { name: 'Items needed' }).getByLabel('Hose clamps').check()
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByText('Needs 1 of 1 item: Hose clamps')).toBeVisible()
+
   // A note, edited in two tabs at once: typing in one appears live in the other.
   await page.getByRole('button', { name: 'New note' }).click()
   const title = page.getByLabel('Note title')
