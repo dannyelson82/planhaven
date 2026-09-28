@@ -7,6 +7,7 @@ import { navigate } from '../router.ts'
 import { useLiveProject } from '../live.ts'
 import { Button, Card, ErrorText, Field, Form, Link } from '../ui.tsx'
 import { cachedGet, sendOrQueue, updateOfflineCopy } from '../offline.ts'
+import { Movable } from './Movable.tsx'
 
 export type ListSummary = {
   id: string; project_id: string; title: string; kind: Kind; open_items: number; total_items: number; version: number
@@ -19,34 +20,18 @@ type ListDetail = ListSummary & { items: Item[] }
 const KIND_LABEL: Record<Kind, string> = { shopping: 'Shopping', parts: 'Parts', checklist: 'Checklist' }
 
 /** Lists group on a project page (lists given their own tile are left out). */
-export function ProjectLists({ projectId, canEdit, exclude = [] }: { projectId: string; canEdit: boolean; exclude?: string[] }) {
-  const client = useQueryClient()
+export function ProjectLists({ projectId, exclude = [] }: { projectId: string; exclude?: string[] }) {
   const lists = useQuery({ queryKey: ['lists', projectId], queryFn: () => cachedGet<ListSummary[]>(`/api/v1/projects/${projectId}/lists`) })
-  const [title, setTitle] = useState('')
-  const [kind, setKind] = useState<Kind>('shopping')
-  const create = useMutation({
-    mutationFn: () => api('POST', `/api/v1/projects/${projectId}/lists`, { title, kind }),
-    onSuccess: async () => { setTitle(''); await client.invalidateQueries({ queryKey: ['lists', projectId] }) },
-  })
   return (
     <section aria-label="Lists" className="space-y-3">
       <h2 className="text-lg font-semibold">Lists</h2>
       <ul className="grid gap-2 @xl:grid-cols-2">
         {(lists.data ?? []).filter((l) => !exclude.includes(l.id)).map((l) => (
-          <li key={l.id}><ListCard list={l} /></li>
+          <li key={l.id}><Movable dragKey={`list:${l.id}`} label={`List: ${l.title}`}><ListCard list={l} /></Movable></li>
         ))}
       </ul>
-      {canEdit && (
-        <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); if (title.trim()) create.mutate() }}>
-          <div className="min-w-0 flex-1"><Field label="New list" maxLength={200} value={title} onChange={setTitle} /></div>
-          <select aria-label="List type" value={kind} onChange={(e) => setKind(e.target.value as Kind)}
-            className="min-h-11 rounded-xl border border-stone-300 bg-white px-2 dark:border-stone-700 dark:bg-stone-900">
-            {(Object.keys(KIND_LABEL) as Kind[]).map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
-          </select>
-          <Button type="submit" variant="secondary" isDisabled={create.isPending}>Add list</Button>
-        </form>
-      )}
-      <ErrorText error={create.error ?? lists.error} />
+      {lists.data?.length === 0 && <p className="text-sm text-stone-500">No lists yet.</p>}
+      <ErrorText error={lists.error} />
     </section>
   )
 }
@@ -63,6 +48,30 @@ function ListCard({ list: l, children }: { list: ListSummary; children?: ReactNo
       <p className="text-sm text-stone-500">{KIND_LABEL[l.kind]} · {l.open_items} to get of {l.total_items}{l.remaining_cents !== null && ` · about ${formatCents(l.remaining_cents)} to go`}</p>
       {children}
     </Card>
+  )
+}
+
+/** New list (in the project's add bar). */
+export function NewListForm({ projectId }: { projectId: string }) {
+  const client = useQueryClient()
+  const [title, setTitle] = useState('')
+  const [kind, setKind] = useState<Kind>('shopping')
+  const create = useMutation({
+    mutationFn: () => api('POST', `/api/v1/projects/${projectId}/lists`, { title, kind }),
+    onSuccess: async () => { setTitle(''); await client.invalidateQueries({ queryKey: ['lists', projectId] }) },
+  })
+  return (
+    <>
+      <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); if (title.trim()) create.mutate() }}>
+        <div className="min-w-0 flex-1"><Field label="New list" maxLength={200} value={title} onChange={setTitle} /></div>
+        <select aria-label="List type" value={kind} onChange={(e) => setKind(e.target.value as Kind)}
+          className="min-h-11 rounded-xl border border-stone-300 bg-white px-2 dark:border-stone-700 dark:bg-stone-900">
+          {(Object.keys(KIND_LABEL) as Kind[]).map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
+        </select>
+        <Button type="submit" variant="secondary" isDisabled={create.isPending}>Add list</Button>
+      </form>
+      <ErrorText error={create.error} />
+    </>
   )
 }
 

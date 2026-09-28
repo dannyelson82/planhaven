@@ -4,7 +4,7 @@ import { api, uploadFile } from '../api.ts'
 import { formatCents, type QuoteStatus, STATUS_LABEL } from '../money.ts'
 import { navigate } from '../router.ts'
 import { Button, Card, ErrorText, Field, Link } from '../ui.tsx'
-import { MailIcon, PhoneIcon } from '../icons.tsx'
+import { MailIcon, PhoneIcon, SearchIcon } from '../icons.tsx'
 import { ShareButton } from './Sharing.tsx'
 
 // A website may be typed without https:// (www.example.com); it's added when saving. Only
@@ -13,6 +13,13 @@ const WEBSITE = /^(https?:\/\/)?[^\s/:]+\.[^\s]+$/i
 function withScheme(website: string): string {
   const w = website.trim()
   return !w || /^https?:\/\//i.test(w) ? w : `https://${w}`
+}
+/** Search: every word must appear in the name, company, email, notes or phone (digits). */
+function matches(c: Contact, query: string): boolean {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+  const text = [c.name, c.company, c.email, c.notes, KIND_LABEL[c.kind]].join(' ').toLowerCase()
+  const digits = c.phone.replace(/\D/g, '')
+  return words.every((w) => text.includes(w) || (/\d/.test(w) && digits.includes(w.replace(/\D/g, ''))))
 }
 const telHref = (phone: string) => `tel:${phone.replace(/[^\d+]/g, '')}`
 const iconLink = 'inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-brand-700 hover:bg-stone-100 dark:text-brand-100 dark:hover:bg-stone-800'
@@ -60,12 +67,22 @@ export function ContactsScreen() {
     mutationFn: () => api<Contact>('POST', '/api/v1/contacts', { name, kind }),
     onSuccess: (c) => navigate(`/contacts/${c.id}`),
   })
+  const [query, setQuery] = useState('')
+  const shown = (contacts.data ?? []).filter((c) => matches(c, query))
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Contacts</h1>
       <p className="text-stone-600 dark:text-stone-400">Contractors and suppliers. Each contact is private to you until you share it.</p>
+      {(contacts.data ?? []).length > 0 && (
+        <div className="relative">
+          <span className="pointer-events-none absolute left-3 top-3 text-stone-500"><SearchIcon /></span>
+          <input type="search" aria-label="Search contacts" placeholder="Search by name, company, phone, email or notes"
+            value={query} onChange={(e) => setQuery(e.target.value)} maxLength={100}
+            className="min-h-11 w-full rounded-xl border border-stone-300 bg-white py-2.5 pl-10 pr-3 dark:border-stone-700 dark:bg-stone-900" />
+        </div>
+      )}
       <ul className="grid gap-2 sm:grid-cols-2">
-        {(contacts.data ?? []).map((c) => (
+        {shown.map((c) => (
           <li key={c.id}>
             <Card>
               <div className="flex items-start gap-1">
@@ -85,6 +102,7 @@ export function ContactsScreen() {
         ))}
       </ul>
       {contacts.data?.length === 0 && <p className="text-sm text-stone-500">No contacts yet.</p>}
+      {(contacts.data ?? []).length > 0 && shown.length === 0 && <p className="text-sm text-stone-500">No contacts match “{query.trim()}”.</p>}
       <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); if (name.trim()) create.mutate() }}>
         <div className="min-w-0 flex-1"><Field label="New contact" maxLength={200} value={name} onChange={setName} /></div>
         <select aria-label="Type" value={kind} onChange={(e) => setKind(e.target.value as Kind)} className={select}>

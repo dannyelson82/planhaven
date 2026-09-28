@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { api, uploadFile } from '../api.ts'
 import { Button, Card, ErrorText } from '../ui.tsx'
+import { Movable } from './Movable.tsx'
 
 type Attachment = {
   id: string
@@ -19,12 +20,10 @@ function sizeText(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-/** Photos and files on a project page (those given their own tile are left out). On a phone,
- * "Take photo" opens the camera. */
-export function ProjectAttachments({ projectId, canEdit, exclude = [] }: { projectId: string; canEdit: boolean; exclude?: string[] }) {
+/** Add photos or files (in the project's add bar). On a phone, "Take photo" opens the camera. */
+export function UploadFiles({ projectId }: { projectId: string }) {
   const client = useQueryClient()
   const key = ['attachments', projectId]
-  const files = useQuery({ queryKey: key, queryFn: () => api<Attachment[]>('GET', `/api/v1/projects/${projectId}/attachments`) })
   const [progress, setProgress] = useState<string | null>(null)
   const [keepLocation, setKeepLocation] = useState(false)
   const pick = useRef<HTMLInputElement>(null)
@@ -39,15 +38,38 @@ export function ProjectAttachments({ projectId, canEdit, exclude = [] }: { proje
     },
     onSettled: async () => { setProgress(null); await client.invalidateQueries({ queryKey: key }) },
   })
-  const remove = useMutation({
-    mutationFn: (a: Attachment) => api('DELETE', `/api/v1/attachments/${a.id}`),
-    onSettled: () => client.invalidateQueries({ queryKey: key }),
-  })
   const onFiles = (input: HTMLInputElement) => {
     const list = [...(input.files ?? [])]
     input.value = ''
     if (list.length) upload.mutate(list)
   }
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        <Button variant="secondary" onPress={() => camera.current?.click()} isDisabled={upload.isPending} className="md:hidden">Take photo</Button>
+        <Button variant="secondary" onPress={() => pick.current?.click()} isDisabled={upload.isPending}>Add photos or files</Button>
+      </div>
+      <input ref={camera} type="file" accept="image/*" capture="environment" hidden aria-hidden="true" tabIndex={-1} onChange={(e) => onFiles(e.currentTarget)} />
+      <input ref={pick} type="file" multiple hidden aria-label="Choose files" onChange={(e) => onFiles(e.currentTarget)} data-testid="file-input" />
+      <label className="flex min-h-11 items-center gap-2 text-sm text-stone-600 dark:text-stone-400">
+        <input type="checkbox" checked={keepLocation} onChange={(e) => setKeepLocation(e.target.checked)} className="size-4 accent-brand-600" />
+        Keep photo location and camera details (removed by default)
+      </label>
+      {progress && <p role="status" className="text-sm text-stone-500">{progress}</p>}
+      <ErrorText error={upload.error} />
+    </div>
+  )
+}
+
+/** Photos and files on a project page (those given their own tile are left out). */
+export function ProjectAttachments({ projectId, canEdit, exclude = [] }: { projectId: string; canEdit: boolean; exclude?: string[] }) {
+  const client = useQueryClient()
+  const key = ['attachments', projectId]
+  const files = useQuery({ queryKey: key, queryFn: () => api<Attachment[]>('GET', `/api/v1/projects/${projectId}/attachments`) })
+  const remove = useMutation({
+    mutationFn: (a: Attachment) => api('DELETE', `/api/v1/attachments/${a.id}`),
+    onSettled: () => client.invalidateQueries({ queryKey: key }),
+  })
   const listed = (files.data ?? []).filter((a) => !exclude.includes(a.id))
   const photos = listed.filter((a) => a.has_thumbnail)
   const others = listed.filter((a) => !a.has_thumbnail)
@@ -57,15 +79,19 @@ export function ProjectAttachments({ projectId, canEdit, exclude = [] }: { proje
       {photos.length > 0 && (
         <ul className="grid grid-cols-3 gap-2 @xl:grid-cols-4 @3xl:grid-cols-6">
           {photos.map((a) => (
-            <li key={a.id} className="relative">
-              <a href={a.metadata_kept ? `/api/v1/attachments/${a.id}/download` : `/api/v1/attachments/${a.id}/view`} target="_blank" rel="noopener noreferrer">
-                <img src={`/api/v1/attachments/${a.id}/thumbnail`} alt={a.filename} loading="lazy"
-                  className="aspect-square w-full rounded-xl bg-stone-200 object-cover dark:bg-stone-800" />
-              </a>
-              {canEdit && (
-                <Button variant="secondary" aria-label={`Delete ${a.filename}`} onPress={() => remove.mutate(a)}
-                  className="absolute right-1 top-1 min-h-8 min-w-8 rounded-full px-0 text-sm opacity-90">✕</Button>
-              )}
+            <li key={a.id}>
+              <Movable dragKey={`file:${a.id}`} label={`File: ${a.filename}`}>
+                <div className="relative">
+                  <a href={a.metadata_kept ? `/api/v1/attachments/${a.id}/download` : `/api/v1/attachments/${a.id}/view`} target="_blank" rel="noopener noreferrer">
+                    <img src={`/api/v1/attachments/${a.id}/thumbnail`} alt={a.filename} loading="lazy"
+                      className="aspect-square w-full rounded-xl bg-stone-200 object-cover dark:bg-stone-800" />
+                  </a>
+                  {canEdit && (
+                    <Button variant="secondary" aria-label={`Delete ${a.filename}`} onPress={() => remove.mutate(a)}
+                      className="absolute right-1 top-1 min-h-8 min-w-8 rounded-full px-0 text-sm opacity-90">✕</Button>
+                  )}
+                </div>
+              </Movable>
             </li>
           ))}
         </ul>
@@ -74,34 +100,21 @@ export function ProjectAttachments({ projectId, canEdit, exclude = [] }: { proje
         <ul className="space-y-2">
           {others.map((a) => (
             <li key={a.id}>
-              <Card className="flex items-center gap-2 py-2">
-                <a href={`/api/v1/attachments/${a.id}/download`} download className="min-w-0 flex-1 truncate font-medium text-brand-700 underline-offset-2 hover:underline dark:text-brand-100">
-                  {a.filename}
-                </a>
-                <span className="text-sm text-stone-500">{sizeText(a.size)}</span>
-                {canEdit && <Button variant="ghost" aria-label={`Delete ${a.filename}`} onPress={() => remove.mutate(a)}>✕</Button>}
-              </Card>
+              <Movable dragKey={`file:${a.id}`} label={`File: ${a.filename}`}>
+                <Card className="flex items-center gap-2 py-2">
+                  <a href={`/api/v1/attachments/${a.id}/download`} download className="min-w-0 flex-1 truncate font-medium text-brand-700 underline-offset-2 hover:underline dark:text-brand-100">
+                    {a.filename}
+                  </a>
+                  <span className="text-sm text-stone-500">{sizeText(a.size)}</span>
+                  {canEdit && <Button variant="ghost" aria-label={`Delete ${a.filename}`} onPress={() => remove.mutate(a)}>✕</Button>}
+                </Card>
+              </Movable>
             </li>
           ))}
         </ul>
       )}
       {files.data?.length === 0 && <p className="text-sm text-stone-500">No photos or files yet.</p>}
-      {canEdit && (
-        <div className="space-y-2">
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onPress={() => camera.current?.click()} isDisabled={upload.isPending} className="md:hidden">Take photo</Button>
-            <Button variant="secondary" onPress={() => pick.current?.click()} isDisabled={upload.isPending}>Add photos or files</Button>
-          </div>
-          <input ref={camera} type="file" accept="image/*" capture="environment" hidden aria-hidden="true" tabIndex={-1} onChange={(e) => onFiles(e.currentTarget)} />
-          <input ref={pick} type="file" multiple hidden aria-label="Choose files" onChange={(e) => onFiles(e.currentTarget)} data-testid="file-input" />
-          <label className="flex min-h-11 items-center gap-2 text-sm text-stone-600 dark:text-stone-400">
-            <input type="checkbox" checked={keepLocation} onChange={(e) => setKeepLocation(e.target.checked)} className="size-4 accent-brand-600" />
-            Keep photo location and camera details (removed by default)
-          </label>
-          {progress && <p role="status" className="text-sm text-stone-500">{progress}</p>}
-        </div>
-      )}
-      <ErrorText error={upload.error ?? remove.error ?? files.error} />
+      <ErrorText error={remove.error ?? files.error} />
     </section>
   )
 }

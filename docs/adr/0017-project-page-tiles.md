@@ -24,6 +24,14 @@ and people a project is shared with start from the arrangement of the person who
 
 Option 2.
 
+Updated in v0.2.11 (maintainer): quotes and costs are separate tiles (an arrangement
+saved with the combined "money" tile is split in place); in Arrange mode, tiles and the note,
+list and file cards inside groups can be dragged straight around the page (drop on the top
+half of a tile to go before it, the bottom half to go after it, or on its own group to go
+back into it). The Arrange list stays as the keyboard-friendly way to do the same.
+
+- Groups: tasks, lists, notes, files, quotes, costs. Tasks, quotes and costs, and a list's
+  items always stay grouped.
 - Stored per project and person in `project_layouts` (migration 0022): an ordered list of
   tiles, each `{kind, id?, width}`. The API allows only known kinds and widths, requires an
   id exactly for single items, and at most 100 tiles; the server drops repeats and adds any

@@ -34,6 +34,8 @@ test('first boot to first project', async ({ page }) => {
   await page.getByLabel('New project').fill('Winterize boat')
   await page.getByRole('button', { name: 'Add project' }).click()
   await expect(page.getByRole('heading', { name: 'Winterize boat' })).toBeVisible()
+  // Everything is added from the bar under the title; each opens a drawer.
+  await page.getByRole('toolbar', { name: 'Add to this project' }).getByRole('button', { name: 'Task', exact: true }).click()
   for (const task of ['Drain water lines', 'Change oil', 'Cover the boat']) {
     await page.getByLabel('Add a task').fill(task)
     await page.getByRole('button', { name: 'Add', exact: true }).click()
@@ -56,6 +58,7 @@ test('first boot to first project', async ({ page }) => {
   await expect(page.locator('label', { hasText: 'Change oil' })).toContainText('has notes')
 
   // A shopping list, used like in a store.
+  await page.getByRole('toolbar', { name: 'Add to this project' }).getByRole('button', { name: 'List', exact: true }).click()
   await page.getByLabel('New list').fill('Hardware store')
   await page.getByRole('button', { name: 'Add list' }).click()
   await page.getByRole('link', { name: 'Hardware store' }).click()
@@ -84,6 +87,7 @@ test('first boot to first project', async ({ page }) => {
   await page.getByRole('link', { name: '← Back to project' }).click()
   await expect(page.getByText('Shopping · 1 to get of 2')).toBeVisible()
   // A whole list can be deleted from its edit mode (it goes to the trash).
+  await page.getByRole('toolbar', { name: 'Add to this project' }).getByRole('button', { name: 'List', exact: true }).click()
   await page.getByLabel('New list').fill('Scrap list')
   await page.getByRole('button', { name: 'Add list' }).click()
   await page.getByRole('link', { name: 'Scrap list' }).click()
@@ -99,7 +103,7 @@ test('first boot to first project', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Winterize boat' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Scrap pile' })).toHaveCount(0)
   // It's in this project's own trash.
-  await page.getByRole('link', { name: "This project's trash" }).click()
+  await page.getByRole('link', { name: "This project's trash can" }).click()
   await expect(page.getByRole('heading', { name: 'Trash: Winterize boat' })).toBeVisible()
   await expect(page.getByText('Scrap pile')).toBeVisible()
   await page.getByRole('link', { name: '← Back to project' }).click()
@@ -112,7 +116,8 @@ test('first boot to first project', async ({ page }) => {
   await expect(page.getByText('Needs 1 of 1 item: Hose clamps')).toBeVisible()
 
   // A note: edit, leave without Done (asked first), then Done saves and goes back.
-  await page.getByRole('button', { name: 'New note' }).click()
+  await page.getByRole('toolbar', { name: 'Add to this project' }).getByRole('button', { name: 'Note', exact: true }).click()
+  await page.getByRole('button', { name: 'Create and write' }).click()
   const title = page.getByLabel('Note title')
   await expect(title).toHaveValue('Untitled note')
   await title.fill('Engine notes')
@@ -150,6 +155,7 @@ test('first boot to first project', async ({ page }) => {
 
   // A photo and a file: the photo gets a thumbnail, the file a download link.
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8z8DAwMDAxMDAwMDAAAANHQEDasKb6QAAAABJRU5ErkJggg==', 'base64')
+  await page.getByRole('toolbar', { name: 'Add to this project' }).getByRole('button', { name: 'Photo or file', exact: true }).click()
   await page.getByTestId('file-input').setInputFiles([
     { name: 'hull.png', mimeType: 'image/png', buffer: png },
     { name: 'parts.csv', mimeType: 'text/csv', buffer: Buffer.from('part,qty\nimpeller,1\n') },
@@ -216,7 +222,7 @@ test('first boot to first project', async ({ page }) => {
   await page.goto('/contacts')
   await expect(page.getByRole('link', { name: 'Call 555-0100' })).toHaveAttribute('href', 'tel:5550100')
   await page.goto(projectUrl)
-  await page.getByRole('button', { name: 'Add a quote' }).click()
+  await page.getByRole('toolbar', { name: 'Add to this project' }).getByRole('button', { name: 'Quote', exact: true }).click()
   await page.getByLabel('What for').fill('Rebuild water pump')
   await page.getByLabel('Contact', { exact: true }).selectOption({ label: 'Dave Pipes' })
   await page.getByLabel('Amount (CAD)').first().fill('1,850')
@@ -225,8 +231,9 @@ test('first boot to first project', async ({ page }) => {
   await page.getByLabel('Choose the estimate for Rebuild water pump').setInputFiles({
     name: 'estimate.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF\n'),
   })
-  await expect(page.getByRole('region', { name: 'Quotes and costs' }).getByRole('link', { name: 'estimate.pdf' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Quotes', exact: true }).getByRole('link', { name: 'estimate.pdf' })).toBeVisible()
   await page.getByLabel('Status of Rebuild water pump').selectOption('accepted')
+  await page.getByRole('toolbar', { name: 'Add to this project' }).getByRole('button', { name: 'Cost', exact: true }).click()
   await page.getByLabel('Money spent on').fill('Water pump kit')
   await page.getByLabel('Amount (CAD)').fill('1850')
   await page.getByLabel('Paid for quote').selectOption({ label: 'Rebuild water pump' })

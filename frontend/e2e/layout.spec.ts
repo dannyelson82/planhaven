@@ -142,7 +142,8 @@ test('a note keeps exactly what was typed, saved on Done', async ({ page }, info
   const problems = watchForProblems(page, { allowBrowserEditingStyles: true })
   await page.goto('/projects')
   await page.getByRole('link', { name: 'Winterize boat' }).click()
-  await page.getByRole('button', { name: 'New note' }).click()
+  await page.getByRole('toolbar', { name: 'Add to this project' }).getByRole('button', { name: 'Note', exact: true }).click()
+  await page.getByRole('button', { name: 'Create and write' }).click()
   const ed = () => page.getByRole('textbox', { name: 'Note', exact: true })
   await page.getByLabel('Note title').fill(`Wrapped (${info.project.name})`)
   const lines = [
@@ -178,7 +179,8 @@ test('a note keeps exactly what was typed, saved on Done', async ({ page }, info
 test('leaving without saving keeps the note as it was', async ({ page }, info) => {
   await page.goto('/projects')
   await page.getByRole('link', { name: 'Winterize boat' }).click()
-  await page.getByRole('button', { name: 'New note' }).click()
+  await page.getByRole('toolbar', { name: 'Add to this project' }).getByRole('button', { name: 'Note', exact: true }).click()
+  await page.getByRole('button', { name: 'Create and write' }).click()
   await page.getByLabel('Note title').fill(`Keep me (${info.project.name})`)
   await page.getByRole('textbox', { name: 'Note', exact: true }).click()
   await page.keyboard.type('saved words')
@@ -204,7 +206,8 @@ test('ticking on the card, then editing the note, saves without a conflict', asy
   const item = `Drain the block ${info.project.name}`
   await page.goto('/projects')
   await page.getByRole('link', { name: 'Winterize boat' }).click()
-  await page.getByRole('button', { name: 'New note' }).click()
+  await page.getByRole('toolbar', { name: 'Add to this project' }).getByRole('button', { name: 'Note', exact: true }).click()
+  await page.getByRole('button', { name: 'Create and write' }).click()
   await page.getByLabel('Note title').fill(title)
   const editor = page.getByRole('textbox', { name: 'Note', exact: true })
   await editor.click()
@@ -250,7 +253,8 @@ test('arranging the project page: a note at the top with a file beside it', asyn
   const title = `Pinned (${info.project.name})`
   await page.goto('/projects')
   await page.getByRole('link', { name: 'Winterize boat' }).click()
-  await page.getByRole('button', { name: 'New note' }).click()
+  await page.getByRole('toolbar', { name: 'Add to this project' }).getByRole('button', { name: 'Note', exact: true }).click()
+  await page.getByRole('button', { name: 'Create and write' }).click()
   await page.getByLabel('Note title').fill(title)
   await page.getByRole('textbox', { name: 'Note', exact: true }).click()
   await page.keyboard.type('Keep this at the top')
@@ -261,7 +265,7 @@ test('arranging the project page: a note at the top with a file beside it', asyn
   const back = page.getByRole('button', { name: 'Go back to the shared arrangement' })
   if (await back.isVisible()) await back.click() // start from the default
   const tiles = page.getByRole('grid', { name: 'Tiles on this page' })
-  await expect(tiles.getByRole('row')).toHaveCount(5)
+  await expect(tiles.getByRole('row')).toHaveCount(6)
   const pick = page.getByLabel('Give its own tile')
   const fileLabel = (await pick.locator('option').allTextContents()).find((o) => o.startsWith('File: '))!
   await pick.selectOption({ label: fileLabel })
@@ -297,12 +301,27 @@ test('arranging the project page: a note at the top with a file beside it', asyn
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
   expect(overflow).toBeLessThanOrEqual(0)
 
+  // Straight on the page, while arranging: drag the list card out of its group to just above
+  // the tasks, then drop it back on the Lists group.
+  await page.getByRole('button', { name: 'Arrange' }).click()
+  const listCard = page.locator('[data-movable^="list:"]').filter({ hasText: 'Hardware store' })
+  const tasksTile = page.getByRole('group', { name: 'Tile: Tasks' })
+  await listCard.dragTo(tasksTile, { targetPosition: { x: 40, y: 10 } })
+  const listTile = page.getByRole('region', { name: 'List: Hardware store' })
+  await expect(listTile).toBeVisible()
+  expect((await listTile.boundingBox())!.y).toBeLessThan((await tasksTile.boundingBox())!.y)
+  await expect(tiles.getByRole('row').filter({ hasText: 'List: Hardware store' })).toHaveCount(1)
+  await page.getByRole('group', { name: 'Tile: List: Hardware store' }).dragTo(page.getByRole('group', { name: 'Tile: Lists' }), { targetPosition: { x: 40, y: 10 } })
+  await expect(listTile).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Lists' }).getByRole('link', { name: 'Hardware store' })).toBeVisible()
+  await page.getByRole('button', { name: 'Done' }).click()
+
   // Put the note back in its group, then back to the shared arrangement.
   await page.getByRole('button', { name: 'Arrange' }).click()
   await tiles.getByRole('button', { name: `Put Note: ${title} back in its group` }).click()
   await expect(note).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Notes' }).getByText(title)).toBeVisible()
   await page.getByRole('button', { name: 'Go back to the shared arrangement' }).click()
-  await expect(tiles.getByRole('row')).toHaveCount(5)
+  await expect(tiles.getByRole('row')).toHaveCount(6)
   expect(problems).toEqual([])
 })

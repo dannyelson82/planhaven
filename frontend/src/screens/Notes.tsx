@@ -6,7 +6,8 @@ import { api, ApiError } from '../api.ts'
 import { notePreview } from '../preview.ts'
 import { navigate, setNavigationGuard } from '../router.ts'
 import { CheckIcon, CopyIcon, PencilIcon } from '../icons.tsx'
-import { Button, Card, ErrorText, Link } from '../ui.tsx'
+import { Movable } from './Movable.tsx'
+import { Button, Card, ErrorText, Field, Link } from '../ui.tsx'
 
 const NoteEditor = lazy(() => import('./NoteEditor.tsx'))
 
@@ -52,31 +53,42 @@ function useNoteCards(projectId: string) {
 
 /** Notes group on a project page (notes given their own tile are left out). */
 export function ProjectNotes({ projectId, canEdit, exclude = [] }: { projectId: string; canEdit: boolean; exclude?: string[] }) {
-  const client = useQueryClient()
   const { notes, tick, cardOf } = useNoteCards(projectId)
-  const create = useMutation({
-    mutationFn: () => api<Note>('POST', `/api/v1/projects/${projectId}/notes`, { title: 'Untitled note' }),
-    onSuccess: async (note) => { await client.invalidateQueries({ queryKey: ['notes', projectId] }); navigate(`/notes/${note.id}`) },
-  })
   const listed = (notes.data ?? []).filter((n) => !exclude.includes(n.id))
   return (
     <section aria-label="Notes" className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">Notes</h2>
-        {canEdit && <Button variant="secondary" onPress={() => create.mutate()} isDisabled={create.isPending}>New note</Button>}
-      </div>
+      <h2 className="text-lg font-semibold">Notes</h2>
       {/* Two stacked columns (on a wide tile): short cards don't leave gaps next to tall ones.
           Newest note first; the order doesn't change when a note is edited or ticked. */}
       <ul className="gap-2 @xl:columns-2">
         {listed.map((n) => (
           <li key={n.id} className="mb-2 break-inside-avoid">
-            <NoteCardView note={n} card={cardOf(n.id)} canEdit={canEdit} onTick={(line) => tick.mutate({ noteId: n.id, line })} />
+            <Movable dragKey={`note:${n.id}`} label={`Note: ${n.title}`}>
+              <NoteCardView note={n} card={cardOf(n.id)} canEdit={canEdit} onTick={(line) => tick.mutate({ noteId: n.id, line })} />
+            </Movable>
           </li>
         ))}
       </ul>
       {notes.data?.length === 0 && <p className="text-sm text-stone-500">No notes yet.</p>}
-      <ErrorText error={create.error ?? tick.error ?? notes.error} />
+      <ErrorText error={tick.error ?? notes.error} />
     </section>
+  )
+}
+
+/** New note (in the project's add bar): give it a title, then write it in the editor. */
+export function NewNoteForm({ projectId }: { projectId: string }) {
+  const client = useQueryClient()
+  const [title, setTitle] = useState('')
+  const create = useMutation({
+    mutationFn: () => api<Note>('POST', `/api/v1/projects/${projectId}/notes`, { title: title.trim() || 'Untitled note' }),
+    onSuccess: async (note) => { await client.invalidateQueries({ queryKey: ['notes', projectId] }); navigate(`/notes/${note.id}`) },
+  })
+  return (
+    <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); create.mutate() }}>
+      <div className="min-w-0 flex-1"><Field label="Name of the new note" maxLength={200} value={title} onChange={setTitle} description="Leave empty for “Untitled note”" /></div>
+      <Button type="submit" isDisabled={create.isPending}>Create and write</Button>
+      <ErrorText error={create.error} />
+    </form>
   )
 }
 
