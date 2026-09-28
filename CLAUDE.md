@@ -23,8 +23,8 @@ and/or adds an ADR in the same PR.
 - **Discuss design before writing code.** Plan a phase or feature with the maintainer first,
   and ask before big decisions: new dependencies, schema changes, security trade-offs, or
   anything that changes ARCHITECTURE.md or SECURITY.md.
-- **Keep the user guide current.** A change people will notice updates its page in
-  `docs/user-guide/` in the same PR: plain words, numbered steps, button names exactly as on
+- **Keep the user guide current.** Every feature added, changed or removed updates
+  `docs/user-guide/` in the same PR (removed features are taken out of it): plain words, numbered steps, button names exactly as on
   screen. The guide is meant to be shown in the app later.
 - **Keep changes small**: one logical change per commit and per PR. Write clear
   Conventional Commit messages that say what changed and why.

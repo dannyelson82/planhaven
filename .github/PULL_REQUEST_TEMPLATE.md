@@ -6,7 +6,7 @@
 
 - [ ] Consistent with ARCHITECTURE.md (or this PR updates it)
 - [ ] New significant decision recorded as an ADR in `docs/adr/`
-- [ ] User guide (`docs/user-guide/`) updated for changes people will notice
+- [ ] User guide (`docs/user-guide/`) updated: features added, changed or removed
 
 ## Security checklist
 
