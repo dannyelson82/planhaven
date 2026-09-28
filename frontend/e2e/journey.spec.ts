@@ -6,6 +6,7 @@ import { ADMIN, totp, watchForProblems } from './helpers.ts'
 // factor, projects and tasks, signing out and back in. Saves the signed-in state for the
 // layout tests.
 test('first boot to first project', async ({ page }) => {
+  test.setTimeout(90_000) // the whole journey, start to finish; it grows with each feature
   const problems = watchForProblems(page)
   const setupToken = process.env.SETUP_TOKEN
   test.skip(!setupToken, 'SETUP_TOKEN not provided')
@@ -224,7 +225,7 @@ test('first boot to first project', async ({ page }) => {
   await page.getByLabel('Choose the estimate for Rebuild water pump').setInputFiles({
     name: 'estimate.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF\n'),
   })
-  await expect(page.getByRole('link', { name: 'estimate.pdf' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Quotes and costs' }).getByRole('link', { name: 'estimate.pdf' })).toBeVisible()
   await page.getByLabel('Status of Rebuild water pump').selectOption('accepted')
   await page.getByLabel('Money spent on').fill('Water pump kit')
   await page.getByLabel('Amount (CAD)').fill('1850')
