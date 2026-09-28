@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Checkbox, ListBox, ListBoxItem, Popover, Select, SelectValue, Button as AriaButton, Label } from 'react-aria-components'
 import { api, type Project, STAGES, type Stage, type Need, type Task } from '../api.ts'
 import { navigate } from '../router.ts'
-import { Button, Card, ErrorText, Field, Form } from '../ui.tsx'
+import { Button, Card, ErrorText, Field, Form, Link } from '../ui.tsx'
 import { useLiveProject } from '../live.ts'
 import { ProjectAssetPicker } from './Assets.tsx'
 import { ProjectAttachments } from './Attachments.tsx'
@@ -114,6 +114,7 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
       <ProjectNotes projectId={id} canEdit={canEdit} />
       <ProjectAttachments projectId={id} canEdit={canEdit} />
       <ProjectMoney projectId={id} canEdit={canEdit} />
+      {canEdit && <p><Link to={`/projects/${id}/trash`} className="text-sm text-brand-700 dark:text-brand-100">This project's trash</Link></p>}
       {p.role === 'owner' && (
         <Button variant="danger-ghost" onPress={() => { if (window.confirm('Delete this project?')) deleteProject.mutate() }}>
           Delete project

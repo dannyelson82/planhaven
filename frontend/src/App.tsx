@@ -120,6 +120,8 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
       return session.user.is_admin ? <AdminScreen myId={session.user.id} /> : <p>Page not found.</p>
     case 'trash':
       return <TrashScreen />
+    case 'project-trash':
+      return <TrashScreen projectId={route.id} />
     case 'account':
       return <AccountScreen session={session} />
     default:

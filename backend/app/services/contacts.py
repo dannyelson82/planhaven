@@ -5,6 +5,7 @@ quotes on projects the viewer can see.
 """
 
 import uuid
+from collections.abc import AsyncIterator
 from typing import Any
 
 from app import authz
@@ -12,6 +13,7 @@ from app.db import auth as audit
 from app.db import contacts as store
 from app.db import costs as cost_store
 from app.db.database import Database
+from app.services import attachments as attachment_service
 from app.services.auth import CurrentSession
 from app.services.projects import ConflictError
 
@@ -95,3 +97,54 @@ async def delete_contact(
             resource_type="contact",
             resource_id=contact_id,
         )
+
+
+# ---------------------------------------------------------------- photo
+
+
+async def set_photo(
+    db: Database,
+    blobs: attachment_service.BlobStore,
+    session: CurrentSession,
+    contact_id: uuid.UUID,
+    *,
+    chunks: AsyncIterator[bytes],
+    max_bytes: int,
+    ip: str | None,
+) -> ContactRow:
+    """Replace the contact's photo (editors). Cleaned like any photo: no location."""
+    async with db.user_transaction(session.user.id) as conn:
+        _, access = await _access(conn, contact_id)
+        authz.require(session.principal, authz.Action.CONTACT_EDIT, access)
+    photo, thumb, content_type = await attachment_service.receive_photo(
+        db, blobs, session, chunks=chunks, max_bytes=max_bytes, ip=ip
+    )
+    async with db.user_transaction(session.user.id) as conn:
+        _, access = await _access(conn, contact_id)
+        authz.require(session.principal, authz.Action.CONTACT_EDIT, access)
+        await store.set_photo(conn, contact_id, photo, thumb, content_type)
+        contact = await store.get_contact(conn, contact_id)
+    if contact is None:
+        raise authz.NotFoundError("Not found.")
+    return contact
+
+
+async def remove_photo(db: Database, session: CurrentSession, contact_id: uuid.UUID) -> None:
+    async with db.user_transaction(session.user.id) as conn:
+        _, access = await _access(conn, contact_id)
+        authz.require(session.principal, authz.Action.CONTACT_EDIT, access)
+        await store.set_photo(conn, contact_id, None, None, None)
+
+
+async def photo(
+    db: Database, session: CurrentSession, contact_id: uuid.UUID, *, thumbnail: bool
+) -> tuple[str, str]:
+    """(blob, content type) of the contact's photo or thumbnail, for people who can see it."""
+    async with db.user_transaction(session.user.id) as conn:
+        contact, access = await _access(conn, contact_id)
+        authz.require(session.principal, authz.Action.CONTACT_VIEW, access)
+    if contact.photo_sha256 is None or contact.photo_thumb_sha256 is None:
+        raise authz.NotFoundError("No photo.")
+    if thumbnail:
+        return contact.photo_thumb_sha256, "image/webp"
+    return contact.photo_sha256, contact.photo_type or "image/jpeg"

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
-import { api } from '../api.ts'
+import { useRef, useState } from 'react'
+import { api, uploadFile } from '../api.ts'
 import { formatCents, type QuoteStatus, STATUS_LABEL } from '../money.ts'
 import { navigate } from '../router.ts'
 import { Button, Card, ErrorText, Field, Link } from '../ui.tsx'
@@ -44,6 +44,7 @@ export type Contact = {
   notes: string
   role: 'owner' | 'editor' | 'viewer' | null
   version: number
+  has_photo: boolean
   quotes?: Quote[] | null
 }
 
@@ -68,6 +69,10 @@ export function ContactsScreen() {
           <li key={c.id}>
             <Card>
               <div className="flex items-start gap-1">
+                {c.has_photo && (
+                  <img src={`/api/v1/contacts/${c.id}/photo/thumbnail?v=${c.version}`} alt="" loading="lazy"
+                    className="mr-2 size-12 shrink-0 rounded-full bg-stone-200 object-cover dark:bg-stone-800" />
+                )}
                 <div className="min-w-0 flex-1">
                   <Link to={`/contacts/${c.id}`} className="block font-semibold">{c.name}</Link>
                   <p className="text-sm text-stone-500">{[KIND_LABEL[c.kind], c.company, c.phone].filter(Boolean).join(' · ')}</p>
@@ -95,12 +100,59 @@ export function ContactsScreen() {
 /** One contact: details, sharing, and their quotes on projects you can see. */
 export function ContactScreen({ id, myId }: { id: string; myId: string }) {
   const contact = useQuery({ queryKey: ['contact', id], queryFn: () => api<Contact>('GET', `/api/v1/contacts/${id}`) })
+  // The photo upload lives out here, not in the (re-keyed) form, so a photo picked while the
+  // form refreshes isn't lost.
+  const client = useQueryClient()
+  const input = useRef<HTMLInputElement>(null)
+  const refresh = () => Promise.all([
+    client.invalidateQueries({ queryKey: ['contact', id] }),
+    client.invalidateQueries({ queryKey: ['contacts'] }),
+  ])
+  const upload = useMutation({ mutationFn: (file: File) => uploadFile(`/api/v1/contacts/${id}/photo`, file, 'PUT'), onSettled: refresh })
+  const removePhoto = useMutation({ mutationFn: () => api('DELETE', `/api/v1/contacts/${id}/photo`), onSettled: refresh })
   if (contact.error) return <ErrorText error={contact.error} />
   if (!contact.data) return <p className="text-stone-500">Loading…</p>
-  return <ContactDetail key={contact.data.version} contact={contact.data} myId={myId} />
+  const photo: PhotoControls = {
+    pick: () => input.current?.click(),
+    remove: () => removePhoto.mutate(),
+    busy: upload.isPending || removePhoto.isPending,
+    uploading: upload.isPending,
+    error: upload.error ?? removePhoto.error,
+  }
+  return (
+    <>
+      <ContactDetail key={contact.data.version} contact={contact.data} myId={myId} photo={photo} />
+      <input ref={input} type="file" accept="image/*,.heic,.heif" hidden aria-label="Choose a photo" data-testid="contact-photo-input"
+        onChange={(e) => { const f = e.currentTarget.files?.[0]; e.currentTarget.value = ''; if (f) upload.mutate(f) }} />
+    </>
+  )
 }
 
-function ContactDetail({ contact, myId }: { contact: Contact; myId: string }) {
+type PhotoControls = { pick: () => void; remove: () => void; busy: boolean; uploading: boolean; error: unknown }
+
+/** The contact's photo on its page, with Add / Change / Remove for editors. No photo, no box. */
+function ContactPhoto({ contact, canEdit, photo }: { contact: Contact; canEdit: boolean; photo: PhotoControls }) {
+  if (!contact.has_photo && !canEdit) return null
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      {contact.has_photo && (
+        <img src={`/api/v1/contacts/${contact.id}/photo?v=${contact.version}`} alt={contact.name}
+          className="size-28 rounded-2xl bg-stone-200 object-cover dark:bg-stone-800" />
+      )}
+      {canEdit && (
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onPress={photo.pick} isDisabled={photo.busy}>
+            {photo.uploading ? 'Uploading…' : contact.has_photo ? 'Change photo' : 'Add a photo'}
+          </Button>
+          {contact.has_photo && <Button variant="danger-ghost" onPress={photo.remove} isDisabled={photo.busy}>Remove photo</Button>}
+        </div>
+      )}
+      <ErrorText error={photo.error} />
+    </div>
+  )
+}
+
+function ContactDetail({ contact, myId, photo }: { contact: Contact; myId: string; photo: PhotoControls }) {
   const client = useQueryClient()
   const canEdit = contact.role === 'owner' || contact.role === 'editor'
   const [form, setForm] = useState({
@@ -127,6 +179,7 @@ function ContactDetail({ contact, myId }: { contact: Contact; myId: string }) {
         <h1 className="text-2xl font-bold">{contact.name}</h1>
         <ShareButton kind="contact" id={contact.id} isOwner={contact.role === 'owner'} myId={myId} />
       </div>
+      <ContactPhoto contact={contact} canEdit={canEdit} photo={photo} />
       <Card className="space-y-3">
         {canEdit ? (
           <>

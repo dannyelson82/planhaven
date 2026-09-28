@@ -4,6 +4,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
@@ -19,6 +20,8 @@ class ListRow:
     total_items: int
     updated_at: datetime
     version: int
+    estimated_cents: int | None  # price x quantity (1 if none) of priced items; None if none
+    remaining_cents: int | None  # the same for items not checked off yet
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,12 +39,27 @@ class ItemRow:
     version: int
 
 
+MAX_TOTAL_CENTS = 10**15
+
+
+def _list_row(values: Any) -> ListRow:
+    """Totals are computed as numeric (price x quantity can be large); capped for display."""
+    totals = {
+        key: None if values[key] is None else min(int(values[key]), MAX_TOTAL_CENTS)
+        for key in ("estimated_cents", "remaining_cents")
+    }
+    return ListRow(**{**values, **totals})
+
+
 async def lists_for_project(conn: AsyncConnection, project_id: uuid.UUID) -> list[ListRow]:
     rows = await conn.execute(
         text("""
             SELECT l.id, l.project_id, l.title, l.kind, l.updated_at, l.version,
                    count(i.id) FILTER (WHERE i.checked_at IS NULL) AS open_items,
-                   count(i.id) AS total_items
+                   count(i.id) AS total_items,
+                   round(sum(i.price_cents * coalesce(i.quantity, 1))) AS estimated_cents,
+                   round(sum(i.price_cents * coalesce(i.quantity, 1))
+                         FILTER (WHERE i.checked_at IS NULL)) AS remaining_cents
             FROM lists l
             LEFT JOIN list_items i ON i.list_id = l.id AND i.deleted_at IS NULL
             WHERE l.project_id = :p AND l.deleted_at IS NULL
@@ -49,7 +67,7 @@ async def lists_for_project(conn: AsyncConnection, project_id: uuid.UUID) -> lis
         """),
         {"p": project_id},
     )
-    return [ListRow(**r._mapping) for r in rows]
+    return [_list_row(r._mapping) for r in rows]
 
 
 async def get_list(conn: AsyncConnection, list_id: uuid.UUID) -> ListRow | None:
@@ -58,7 +76,10 @@ async def get_list(conn: AsyncConnection, list_id: uuid.UUID) -> ListRow | None:
             text("""
                 SELECT l.id, l.project_id, l.title, l.kind, l.updated_at, l.version,
                        count(i.id) FILTER (WHERE i.checked_at IS NULL) AS open_items,
-                       count(i.id) AS total_items
+                       count(i.id) AS total_items,
+                       round(sum(i.price_cents * coalesce(i.quantity, 1))) AS estimated_cents,
+                       round(sum(i.price_cents * coalesce(i.quantity, 1))
+                             FILTER (WHERE i.checked_at IS NULL)) AS remaining_cents
                 FROM lists l
                 LEFT JOIN list_items i ON i.list_id = l.id AND i.deleted_at IS NULL
                 WHERE l.id = :id AND l.deleted_at IS NULL
@@ -67,7 +88,7 @@ async def get_list(conn: AsyncConnection, list_id: uuid.UUID) -> ListRow | None:
             {"id": list_id},
         )
     ).first()
-    return ListRow(**row._mapping) if row else None
+    return _list_row(row._mapping) if row else None
 
 
 async def create_list(

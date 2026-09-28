@@ -89,10 +89,10 @@ as they're found rather than hunted now.
 - [x] Unraid template icon
 
 **Batch 2 (v0.2.9): small additions**
-- [ ] Estimated prices on shopping and parts list items, with list and project totals
-- [ ] Trash per project (the main Trash still shows everything)
-- [ ] Contact photo
-- [ ] Quotes and estimates: upload the estimate file from the quote; an accepted quote goes
+- [x] Estimated prices on shopping and parts list items, with list and project totals
+- [x] Trash per project (the main Trash still shows everything)
+- [x] Contact photo
+- [x] Quotes and estimates: upload the estimate file from the quote; an accepted quote goes
       into the project budget, shown as budget vs. spent
 
 **Batch 3 (plan first)**
