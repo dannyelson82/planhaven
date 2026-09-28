@@ -99,5 +99,6 @@ as they're found rather than hunted now.
 - [ ] Purchases: a spent entry is one trip to one store, with item lines, a receipt photo,
       and "add checked items from a list" with actual prices. Reading receipts with AI
       comes with the AI phase (ADR 0012); receipts are entered by hand until then.
-- [ ] Arrange the project page: each person orders its sections (to decide: per person or
-      shared; up/down buttons or drag and drop)
+- [x] Arrange the project page as tiles (ADR 0017): groups and single notes, lists or files,
+      narrow / wide / full, drag and drop; per project and person, following the owner's
+      arrangement until you make your own

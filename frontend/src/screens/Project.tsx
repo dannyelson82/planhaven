@@ -6,10 +6,12 @@ import { navigate } from '../router.ts'
 import { Button, Card, ErrorText, Field, Form, Link } from '../ui.tsx'
 import { useLiveProject } from '../live.ts'
 import { ProjectAssetPicker } from './Assets.tsx'
-import { ProjectAttachments } from './Attachments.tsx'
-import { ProjectLists } from './Lists.tsx'
+import { SPAN, tileKey, useLayout } from '../layout.ts'
+import { ArrangePanel } from './Arrange.tsx'
+import { FileTile, ProjectAttachments } from './Attachments.tsx'
+import { ListTile, ProjectLists } from './Lists.tsx'
 import { ProjectMoney } from './Money.tsx'
-import { ProjectNotes } from './Notes.tsx'
+import { NoteTile, ProjectNotes } from './Notes.tsx'
 import { ShareButton } from './Sharing.tsx'
 import { TaskEditor } from './TaskEditor.tsx'
 import { cachedGet } from '../offline.ts'
@@ -27,6 +29,9 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
     client.invalidateQueries({ queryKey: ['projects'] }),
   ])
   const [title, setTitle] = useState('')
+  const [arranging, setArranging] = useState(false)
+  const { layout } = useLayout(id)
+  const pulled = (kind: 'note' | 'list' | 'file') => layout.tiles.filter((t) => t.kind === kind && t.id).map((t) => t.id as string)
   const addTask = useMutation({
     mutationFn: () => api('POST', `/api/v1/projects/${id}/tasks`, { title }),
     onSuccess: async () => { setTitle(''); await refresh() },
@@ -55,11 +60,40 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
   const open = (tasks.data ?? []).filter((t) => !t.done)
   const done = (tasks.data ?? []).filter((t) => t.done)
 
+  const tasksTile = (
+    <div className="space-y-4">
+      {canEdit && (
+        <Card>
+          <Form onSubmit={(e) => { e.preventDefault(); addTask.mutate() }}>
+            <Field label="Add a task" isRequired maxLength={300} value={title} onChange={setTitle} />
+            <ErrorText error={addTask.error} />
+            <Button type="submit" isDisabled={addTask.isPending}>Add</Button>
+          </Form>
+        </Card>
+      )}
+
+      <section aria-label="Open tasks" className="space-y-2">
+        {open.length > 0 && (
+          <p className="text-sm font-medium text-brand-700 dark:text-brand-100">Next small step: {open[0].title}</p>
+        )}
+        <TaskList tasks={open} canEdit={canEdit} onToggle={(t) => toggle.mutate(t)} onDelete={(t) => remove.mutate(t)} needsOf={needsOf} />
+        {tasks.isSuccess && open.length === 0 && <p className="text-stone-500">Nothing open. Nice!</p>}
+      </section>
+      {done.length > 0 && (
+        <details className="rounded-2xl">
+          <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-stone-500">Done ({done.length})</summary>
+          <TaskList tasks={done} canEdit={canEdit} onToggle={(t) => toggle.mutate(t)} onDelete={(t) => remove.mutate(t)} needsOf={needsOf} />
+        </details>
+      )}
+    </div>
+  )
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{p.title}</h1>
         <div className="flex flex-wrap items-center gap-2">
+        <Button variant="secondary" onPress={() => setArranging(!arranging)} aria-pressed={arranging}>Arrange</Button>
         <ShareButton kind="project" id={id} isOwner={p.role === 'owner'} myId={myId} />
         <Select
           aria-label="Stage"
@@ -87,33 +121,24 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
       {p.description && <p className="whitespace-pre-wrap text-stone-700 dark:text-stone-300">{p.description}</p>}
       <ErrorText error={setStage.error ?? toggle.error ?? remove.error ?? tasks.error} />
 
-      {canEdit && (
-        <Card>
-          <Form onSubmit={(e) => { e.preventDefault(); addTask.mutate() }}>
-            <Field label="Add a task" isRequired maxLength={300} value={title} onChange={setTitle} />
-            <ErrorText error={addTask.error} />
-            <Button type="submit" isDisabled={addTask.isPending}>Add</Button>
-          </Form>
-        </Card>
-      )}
-
-      <section aria-label="Open tasks" className="space-y-2">
-        {open.length > 0 && (
-          <p className="text-sm font-medium text-brand-700 dark:text-brand-100">Next small step: {open[0].title}</p>
-        )}
-        <TaskList tasks={open} canEdit={canEdit} onToggle={(t) => toggle.mutate(t)} onDelete={(t) => remove.mutate(t)} needsOf={needsOf} />
-        {tasks.isSuccess && open.length === 0 && <p className="text-stone-500">Nothing open. Nice!</p>}
-      </section>
-      {done.length > 0 && (
-        <details className="rounded-2xl">
-          <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-stone-500">Done ({done.length})</summary>
-          <TaskList tasks={done} canEdit={canEdit} onToggle={(t) => toggle.mutate(t)} onDelete={(t) => remove.mutate(t)} needsOf={needsOf} />
-        </details>
-      )}
-      <ProjectLists projectId={id} canEdit={canEdit} />
-      <ProjectNotes projectId={id} canEdit={canEdit} />
-      <ProjectAttachments projectId={id} canEdit={canEdit} />
-      <ProjectMoney projectId={id} canEdit={canEdit} />
+      {arranging && <ArrangePanel projectId={id} onDone={() => setArranging(false)} />}
+      {/* The page as a grid of tiles, in this person's arrangement (Arrange.tsx). On a phone
+          tiles stack; on a computer they sit beside or below each other by width. */}
+      <div className="grid gap-6 md:grid-flow-row-dense md:grid-cols-6">
+        {layout.tiles.map((t) => (
+          <div key={tileKey(t)} className={`@container min-w-0 empty:hidden ${SPAN[t.width]}`}>
+            {t.kind === 'tasks' ? tasksTile
+              : t.kind === 'lists' ? <ProjectLists projectId={id} canEdit={canEdit} exclude={pulled('list')} />
+              : t.kind === 'notes' ? <ProjectNotes projectId={id} canEdit={canEdit} exclude={pulled('note')} />
+              : t.kind === 'files' ? <ProjectAttachments projectId={id} canEdit={canEdit} exclude={pulled('file')} />
+              : t.kind === 'money' ? <ProjectMoney projectId={id} canEdit={canEdit} />
+              : t.kind === 'note' && t.id ? <NoteTile projectId={id} noteId={t.id} canEdit={canEdit} />
+              : t.kind === 'list' && t.id ? <ListTile projectId={id} listId={t.id} />
+              : t.kind === 'file' && t.id ? <FileTile projectId={id} fileId={t.id} />
+              : null}
+          </div>
+        ))}
+      </div>
       {canEdit && <p><Link to={`/projects/${id}/trash`} className="text-sm text-brand-700 dark:text-brand-100">This project's trash</Link></p>}
       {p.role === 'owner' && (
         <Button variant="danger-ghost" onPress={() => { if (window.confirm('Delete this project?')) deleteProject.mutate() }}>
