@@ -122,6 +122,10 @@ test('first boot to first project', async ({ page }) => {
   await expect(page.getByRole('region', { name: 'Notes' }).getByText(/Oil: 10W-30/).first()).toBeVisible()
   // The note's checkbox can be ticked from the project page; the note itself shows it.
   const impeller = page.getByRole('region', { name: 'Notes' }).getByRole('checkbox', { name: /Change impeller/ })
+  await page.waitForTimeout(3000)
+  console.log('DIAG region', await page.getByRole('region', { name: 'Notes' }).innerHTML())
+  console.log('DIAG api', await (await page.request.get(page.url().replace('/projects/', '/api/v1/projects/') + '/note-checklists')).text())
+  console.log('DIAG notes', await (await page.request.get(page.url().replace('/projects/', '/api/v1/projects/') + '/notes')).text())
   await expect(impeller).not.toBeChecked()
   await impeller.check() // tick it from the project page
   await expect(impeller).toBeChecked()
