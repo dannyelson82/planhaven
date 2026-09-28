@@ -116,22 +116,12 @@ test('first boot to first project', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Save your changes?' })).toBeVisible()
   await page.getByRole('button', { name: 'Keep editing' }).click()
   await expect(page.getByLabel('Note title')).toHaveValue('Engine notes')
-  const diag: string[] = []
-  const t1 = Date.now()
-  page.on('request', (r) => { if (r.url().includes('/api/')) diag.push(`${Date.now() - t1} REQ ${r.method()} ${r.url().replace(/.*\/api\/v1/, '')} ${r.postData() ?? ''}`) })
-  page.on('response', async (r) => { if (r.url().includes('note')) diag.push(`${Date.now() - t1} RES ${r.status()} ${r.url().replace(/.*\/api\/v1/, '')} ${(await r.text().catch(() => '')).slice(0, 150)}`) })
-  page.on('framenavigated', () => diag.push(`${Date.now() - t1} NAV ${page.url()}`))
-  diag.push('EDITOR ' + await editor.innerHTML())
   await page.getByRole('button', { name: 'Done' }).click()
   await expect(page.getByRole('heading', { name: 'Winterize boat' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Engine notes' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Notes' }).getByText(/Oil: 10W-30/).first()).toBeVisible()
   // The note's checkbox can be ticked from the project page; the note itself shows it.
   const impeller = page.getByRole('region', { name: 'Notes' }).getByRole('checkbox', { name: /Change impeller/ })
-  const t0 = Date.now()
-  for (let i = 0; i < 40 && !(await impeller.count()); i++) await page.waitForTimeout(250)
-  console.log('DIAG appeared after ms', Date.now() - t0, 'count', await impeller.count())
-  for (const d of diag) console.log('DIAG', d.slice(0, 1500))
   await expect(impeller).not.toBeChecked()
   await impeller.check() // tick it from the project page
   await expect(impeller).toBeChecked()
