@@ -825,7 +825,7 @@ Every phase ships meeting `SECURITY.md` §11.
 | 0012 | AI project assistant (local and commercial) behind experimental feature flags |
 | 0013 | Household chores with proof of completion; personal time planner; cut-list plugin moved to 0.7 |
 | 0014 | UI toolkit: React Aria Components with Tailwind CSS |
-| 0015 | External share links with per-component permissions (**proposed**) |
+| 0015 | External share links with per-component permissions |
 
 ### 19.2 Open questions
 

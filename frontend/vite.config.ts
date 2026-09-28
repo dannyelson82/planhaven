@@ -36,6 +36,10 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//, /^\/healthz$/, /^\/readyz$/],
         runtimeCaching: [],
         inlineWorkboxRuntime: true,
+        // A new version takes over open pages at once (main.tsx then reloads them), instead
+        // of waiting until every tab and the home-screen app are closed.
+        skipWaiting: true,
+        clientsClaim: true,
         cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 1_000_000,
       },

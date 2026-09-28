@@ -236,21 +236,18 @@ export function InviteScreen() {
   )
 }
 
-export function SignOutButton() {
+/** Sign out: end the session on the server and remove this device's offline copies. */
+function useSignOut(): () => void {
   const refresh = useRefreshSession()
-  return (
-    <Button
-      variant="ghost"
-      className="w-full"
-      onPress={() =>
-        void api('POST', '/api/v1/auth/logout').finally(async () => {
-          await wipeOfflineData()
-          navigate('/')
-          void refresh()
-        })
-      }
-    >
-      Sign out
-    </Button>
-  )
+  return () =>
+    void api('POST', '/api/v1/auth/logout').finally(async () => {
+      await wipeOfflineData()
+      navigate('/')
+      void refresh()
+    })
+}
+
+export function SignOutButton({ className = 'w-full' }: { className?: string }) {
+  const signOut = useSignOut()
+  return <Button variant="ghost" className={className} onPress={signOut}>Sign out</Button>
 }
