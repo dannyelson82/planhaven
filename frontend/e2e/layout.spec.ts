@@ -224,7 +224,11 @@ test('ticking on the card, then editing the note, saves without a conflict', asy
   await expect(notes.getByRole('checkbox', { name: item })).toBeVisible()
   const order = await notes.locator('li.break-inside-avoid').allInnerTexts()
   const box = notes.getByRole('checkbox', { name: item })
-  await box.check()
+  // Wait for the tick to be saved (the checkbox shows it at once).
+  await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/checklist') && r.request().method() === 'POST'),
+    box.check(),
+  ])
   await expect(box).toBeChecked()
   // The text before the list shows in order, as normal text, above the checkbox.
   const card = notes.locator('li.break-inside-avoid', { hasText: title })
