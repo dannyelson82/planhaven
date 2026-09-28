@@ -17,20 +17,28 @@ export function totp(secretBase32: string, offsetSteps = 0): string {
   return code.toString().padStart(6, '0')
 }
 
-/** Collects Content-Security-Policy violations and console errors on a page. */
-export function watchForProblems(page: Page): string[] {
+/** Collects Content-Security-Policy violations and console errors on a page.
+ *
+ * allowBrowserEditingStyles: ignore inline-style violations raised by the browser itself (no
+ * script behind them), which Chrome's contenteditable editing can cause. Any violation caused
+ * by a script still counts. */
+export function watchForProblems(page: Page, options: { allowBrowserEditingStyles?: boolean } = {}): string[] {
   const problems: string[] = []
   page.on('console', (msg) => {
+    const text = msg.text()
     // Failed API calls are expected in some flows (e.g. "am I signed in?" answers 401) and are
     // shown in the UI; everything else logged as an error counts, including CSP violations.
-    if (msg.type() === 'error' && !msg.text().startsWith('Failed to load resource')) {
-      problems.push(`console: ${msg.text()}`)
-    }
+    if (msg.type() !== 'error' || text.startsWith('Failed to load resource')) return
+    // Chrome's own message for every inline-style violation; the listener below reports each
+    // violation with where it came from, and decides.
+    if (options.allowBrowserEditingStyles && text.startsWith('Applying inline style violates')) return
+    if (options.allowBrowserEditingStyles && text === 'CSP violation: style-src-attr inline (browser)') return
+    problems.push(`console: ${text}`)
   })
   page.on('pageerror', (err) => problems.push(`pageerror: ${err.message}`))
   void page.addInitScript(() => {
     document.addEventListener('securitypolicyviolation', (e) => {
-      console.error(`CSP violation: ${e.violatedDirective} ${e.blockedURI}`)
+      console.error(`CSP violation: ${e.violatedDirective} ${e.blockedURI} ${e.sourceFile || '(browser)'}`)
     })
   })
   return problems
