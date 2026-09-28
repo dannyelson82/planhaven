@@ -34,11 +34,6 @@ class NoteIn(BaseModel):
     title: Title
 
 
-class TextIn(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    text: Annotated[str, Field(max_length=service.MAX_TEXT_CONTENT)]
-
-
 class NoteOut(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID
@@ -48,6 +43,8 @@ class NoteOut(BaseModel):
     updated_at: datetime
     version: int
     can_edit: bool = False
+    # Other people who have the note open for editing right now ("being edited by").
+    editing: list[str] = []
 
 
 def _note(n: service.NoteRow, can_edit: bool = False) -> NoteOut:
@@ -66,7 +63,8 @@ def _note(n: service.NoteRow, can_edit: bool = False) -> NoteOut:
 @router.get("/projects/{project_id}/notes")
 async def list_notes(project_id: uuid.UUID, session: SessionDep, request: Request) -> list[NoteOut]:
     rows = await service.notes_for_project(deps.database(request), session, project_id)
-    return [_note(n) for n in rows]
+    editing = rooms.editing(project_id, exclude=session.user.id)
+    return [_note(n).model_copy(update={"editing": editing.get(n.id, [])}) for n in rows]
 
 
 @router.post("/projects/{project_id}/notes", status_code=201)
@@ -111,13 +109,6 @@ async def rename_note(
         raise HTTPException(409, str(exc)) from None
     _etag(response, note.version)
     return _note(note, can_edit=True)
-
-
-@router.put("/notes/{note_id}/text", status_code=204)
-async def set_note_text(
-    note_id: uuid.UUID, body: TextIn, session: SessionDep, request: Request
-) -> None:
-    await service.set_text(deps.database(request), session, note_id, body.text)
 
 
 class ChecklistItemOut(BaseModel):
@@ -205,6 +196,7 @@ async def _collaborate(
         user_id=session.user.id,
         can_write=can_write,
         close=lambda code, reason: _safe_close(websocket, code, reason),
+        name=session.user.display_name,
     )
     room = await rooms.join(db, session.user.id, note, peer)
     last_check = time.monotonic()

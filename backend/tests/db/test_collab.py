@@ -253,22 +253,40 @@ def test_open_sockets_per_user_are_capped(
 
 
 def test_note_rest_roles(team: tuple[U, U, U, str, str]) -> None:
-    owner, viewer, stranger, pid, nid = team
+    owner, viewer, stranger, _, nid = team
     assert viewer.get(f"/api/v1/notes/{nid}").json()["can_edit"] is False
     assert owner.get(f"/api/v1/notes/{nid}").json()["can_edit"] is True
-    assert (
-        viewer.put(f"/api/v1/notes/{nid}/text", headers=viewer.h, json={"text": "x"}).status_code
-        == 403
-    )
     assert stranger.get(f"/api/v1/notes/{nid}").status_code == 404
-    assert (
-        owner.put(
-            f"/api/v1/notes/{nid}/text", headers=owner.h, json={"text": "Run 12V to the dock"}
-        ).status_code
-        == 204
+    # Browsers no longer write the text copy; the server does.
+    assert owner.put(
+        f"/api/v1/notes/{nid}/text", headers=owner.h, json={"text": "x"}
+    ).status_code in (
+        404,
+        405,
     )
-    listed = owner.get(f"/api/v1/projects/{pid}/notes").json()
-    assert listed[0]["text_content"] == "Run 12V to the dock"
+
+
+def _wait_for(check: Any, seconds: float = 5.0) -> None:
+    deadline = time.monotonic() + seconds
+    while not check():
+        assert time.monotonic() < deadline, "timed out"
+        time.sleep(0.05)
+
+
+def test_server_writes_the_text_copy_and_shows_who_is_editing(
+    team: tuple[U, U, U, str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    owner, viewer, _, pid, nid = team
+    monkeypatch.setattr(note_service, "TEXT_DELAY", 0.0)
+    with owner.ws(f"/api/v1/collab/notes/{nid}") as ws:
+        _sync(ws, pycrdt.Doc())
+        # Viewers see who has the note open for editing (not themselves).
+        assert viewer.get(f"/api/v1/projects/{pid}/notes").json()[0]["editing"] == ["Ann"]
+        assert owner.get(f"/api/v1/projects/{pid}/notes").json()[0]["editing"] == []
+        ws.send_bytes(pycrdt.create_update_message(TIPTAP_NOTE))
+        expected = "Before launch\n\n- [ ] Check oil\n- [x] Charge **battery**"
+        _wait_for(lambda: viewer.get(f"/api/v1/notes/{nid}").json()["text_content"] == expected)
+    _wait_for(lambda: viewer.get(f"/api/v1/projects/{pid}/notes").json()[0]["editing"] == [])
 
 
 def test_message_rate_limit_closes_the_connection(
@@ -329,11 +347,6 @@ def test_checklists_can_be_ticked_from_the_project_page(team: tuple[U, U, U, str
         ws.send_bytes(pycrdt.create_update_message(TIPTAP_NOTE))
         ws.send_bytes(pycrdt.create_sync_message(pycrdt.Doc()))  # answered once the edit is in
         ws.receive_bytes()
-    owner.put(
-        f"/api/v1/notes/{nid}/text",
-        headers=owner.h,
-        json={"text": "Before launch\n\n- [ ] Check oil\n- [x] Charge **battery**"},
-    )
 
     lists = viewer.get(f"/api/v1/projects/{pid}/note-checklists").json()
     assert lists == [
@@ -369,9 +382,8 @@ def test_checklists_can_be_ticked_from_the_project_page(team: tuple[U, U, U, str
     items = owner.get(f"/api/v1/projects/{pid}/note-checklists").json()[0]["items"]
     assert [i["checked"] for i in items] == [True, True]
     assert (
-        owner.get(f"/api/v1/notes/{nid}")
-        .json()["text_content"]
-        .startswith("Before launch\n\n- [x] Check oil")
+        owner.get(f"/api/v1/notes/{nid}").json()["text_content"]
+        == "Before launch\n\n- [x] Check oil\n- [x] Charge **battery**"
     )
 
 

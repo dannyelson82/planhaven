@@ -4,12 +4,9 @@ import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import * as Y from 'yjs'
-import { api } from '../api.ts'
 import { NoteConnection, type Status } from '../collab.ts'
-import { toMarkdown } from '../markdown.ts'
 import { Button, Card } from '../ui.tsx'
 const STATUS_TEXT: Record<Status, string> = {
   connecting: 'Connecting…',
@@ -67,10 +64,9 @@ export default function NoteEditor(props: { noteId: string; canEdit: boolean; me
   return <LiveEditor {...props} {...live} status={status} synced={synced} />
 }
 
-function LiveEditor({ noteId, canEdit, me, doc, connection, status, synced }: {
+function LiveEditor({ canEdit, me, doc, connection, status, synced }: {
   noteId: string; canEdit: boolean; me: { id: string; name: string }; status: Status; synced: boolean
 } & Live) {
-  const client = useQueryClient()
   const editor = useEditor({
     injectCSS: false,
     editable: canEdit,
@@ -90,31 +86,8 @@ function LiveEditor({ noteId, canEdit, me, doc, connection, status, synced }: {
     ],
   }, [connection])
 
-  // Keep the plain-text copy (used for previews and search) current: a few seconds after
-  // this person's own edits, and when they leave the note.
-  useEffect(() => {
-    if (!canEdit || !editor) return
-    let timer: ReturnType<typeof setTimeout> | undefined
-    let dirty = false
-    const save = () => {
-      if (!dirty) return
-      dirty = false
-      void api('PUT', `/api/v1/notes/${noteId}/text`, { text: toMarkdown(editor.getJSON()).slice(0, 200_000) })
-        .then(() => Promise.all([
-          client.invalidateQueries({ queryKey: ['notes'] }),
-          client.invalidateQueries({ queryKey: ['note-checklists'] }),
-        ]))
-        .catch(() => { dirty = true })
-    }
-    const onUpdate = (_update: Uint8Array, origin: unknown) => {
-      if (origin === connection) return // someone else's edit: their browser saves it
-      dirty = true
-      clearTimeout(timer)
-      timer = setTimeout(save, 3000)
-    }
-    doc.on('update', onUpdate)
-    return () => { doc.off('update', onUpdate); clearTimeout(timer); save() }
-  }, [canEdit, editor, doc, connection, noteId, client])
+  // The note's text copy (previews, search) is written by the server from the saved
+  // document, so it can't be out of date or out of order.
 
   return (
     <div className="space-y-2">
