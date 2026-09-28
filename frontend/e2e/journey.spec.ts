@@ -106,7 +106,17 @@ test('first boot to first project', async ({ page }) => {
   await other.close()
   await page.getByRole('link', { name: '← Back to project' }).click()
   await expect(page.getByRole('link', { name: 'Engine notes' })).toBeVisible()
-  await expect(page.getByText(/Oil: 10W-30/)).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Notes' }).getByText(/Oil: 10W-30/).first()).toBeVisible()
+  // The note's checkbox can be ticked from the project page; the note itself shows it.
+  const impeller = page.getByRole('region', { name: 'Notes' }).getByRole('checkbox', { name: /Change impeller/ })
+  await expect(impeller).not.toBeChecked()
+  await impeller.check() // tick it from the project page
+  await expect(impeller).toBeChecked()
+  await page.reload()
+  await expect(page.getByRole('region', { name: 'Notes' }).getByRole('checkbox', { name: /Change impeller/ })).toBeChecked()
+  await page.getByRole('link', { name: 'Engine notes' }).click()
+  await expect(page.getByRole('textbox', { name: 'Note', exact: true }).getByRole('checkbox')).toBeChecked()
+  await page.getByRole('link', { name: '← Back to project' }).click()
 
   // A photo and a file: the photo gets a thumbnail, the file a download link.
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8z8DAwMDAxMDAwMDAAAANHQEDasKb6QAAAABJRU5ErkJggg==', 'base64')

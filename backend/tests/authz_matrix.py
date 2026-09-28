@@ -78,6 +78,8 @@ MATRIX: dict[tuple[str, str], str] = {
     ("PATCH", "/api/v1/notes/{note_id}"): "verified",
     ("PUT", "/api/v1/notes/{note_id}/text"): "verified",
     ("DELETE", "/api/v1/notes/{note_id}"): "verified",
+    ("GET", "/api/v1/projects/{project_id}/note-checklists"): "verified",
+    ("POST", "/api/v1/notes/{note_id}/checklist"): "verified",
     # Attachments: verified, then project role (tests/db/test_attachments.py)
     ("GET", "/api/v1/projects/{project_id}/attachments"): "verified",
     ("POST", "/api/v1/projects/{project_id}/attachments"): "verified",
@@ -151,6 +153,7 @@ BODIES: dict[tuple[str, str], object] = {
     ("POST", "/api/v1/projects/{project_id}/notes"): {"title": "Matrix note"},
     ("PATCH", "/api/v1/notes/{note_id}"): {"title": "Matrix note"},
     ("PUT", "/api/v1/notes/{note_id}/text"): {"text": "x"},
+    ("POST", "/api/v1/notes/{note_id}/checklist"): {"index": 0, "text": "x", "checked": True},
     ("POST", "/api/v1/assets"): {"name": "Matrix boat", "kind": "boat"},
     ("PUT", "/api/v1/assets/{asset_id}"): {"name": "Matrix boat", "kind": "boat"},
     ("PUT", "/api/v1/projects/{project_id}/asset"): {"asset_id": None},

@@ -8,6 +8,7 @@ connection. Edit contents are never logged.
 
 import asyncio
 import logging
+import re
 import time
 import uuid
 from collections.abc import Awaitable, Callable
@@ -322,7 +323,7 @@ async def handle_message(db: Database, room: Room, peer: Peer, message: bytes) -
     log.info("note updated", extra={"note_id": str(room.note_id), "bytes": len(update)})
 
 
-async def _broadcast(room: Room, message: bytes, exclude: Peer) -> None:
+async def _broadcast(room: Room, message: bytes, exclude: Peer | None) -> None:
     for other in list(room.peers):
         if other is not exclude:
             try:
@@ -365,3 +366,155 @@ async def compact_notes(db: Database) -> int:
             await store.compact(conn, note_id, doc.get_update(), last)
         done += 1
     return done
+
+
+# ---------------------------------------------------------------- checklists outside the editor
+# The project page shows each note's checkboxes and can tick them without opening the note.
+# The change is made to the note's CRDT document on the server, exactly like an edit from a
+# browser: stored with attribution, sent live to anyone with the note open.
+
+MAX_CHECKLIST_NOTES = 50
+_TASK_MARKER = re.compile(r"^(\s*- \[)([ x])(\] )", re.MULTILINE)
+
+
+class ChecklistChangedError(Exception):
+    """The checklist changed since the page was loaded (message is safe to show)."""
+
+
+@dataclass(frozen=True, slots=True)
+class ChecklistItem:
+    index: int
+    text: str
+    checked: bool
+
+
+def _task_items(node: Any) -> list[Any]:
+    """Every checklist item in the document, in reading order (nested ones included)."""
+    found: list[Any] = []
+    for child in node.children:
+        if isinstance(child, pycrdt.XmlElement):
+            if child.tag == "taskItem":
+                found.append(child)
+            found.extend(_task_items(child))
+    return found
+
+
+def _item_text(item: Any) -> str:
+    """The item's own words (formatting and nested lists left out)."""
+    parts: list[str] = []
+
+    def collect(node: Any) -> None:
+        for child in node.children:
+            if isinstance(child, pycrdt.XmlText):
+                parts.extend(segment for segment, _ in child.diff())
+            elif isinstance(child, pycrdt.XmlElement) and child.tag != "taskList":
+                collect(child)
+
+    collect(item)
+    return "".join(parts).strip()
+
+
+def checklist(doc: pycrdt.Doc[Any]) -> list[ChecklistItem]:
+    fragment = doc.get("default", type=pycrdt.XmlFragment)
+    return [
+        ChecklistItem(i, _item_text(item)[:300], item.attributes.get("checked") is True)
+        for i, item in enumerate(_task_items(fragment))
+    ]
+
+
+def _tick_in_text(text_content: str, index: int, checked: bool) -> str:
+    """Keep the Markdown copy in step (task items appear there in the same order)."""
+    count = -1
+
+    def swap(match: re.Match[str]) -> str:
+        nonlocal count
+        count += 1
+        if count != index:
+            return match.group(0)
+        return f"{match.group(1)}{'x' if checked else ' '}{match.group(3)}"
+
+    return _TASK_MARKER.sub(swap, text_content)
+
+
+async def _load_doc(db: Database, user_id: uuid.UUID, note_id: uuid.UUID) -> pycrdt.Doc[Any]:
+    async with db.user_transaction(user_id) as conn:
+        snapshot, updates = await store.load_state(conn, note_id)
+    doc: pycrdt.Doc[Any] = pycrdt.Doc()
+    for blob in ([snapshot] if snapshot else []) + updates:
+        doc.apply_update(blob)
+    return doc
+
+
+async def project_checklists(
+    db: Database, session: CurrentSession, project_id: uuid.UUID
+) -> list[tuple[NoteRow, list[ChecklistItem]]]:
+    """Notes in the project that have checkboxes, with their items."""
+    notes = await notes_for_project(db, session, project_id)
+    result = []
+    for note in notes[:MAX_CHECKLIST_NOTES]:
+        room = rooms._rooms.get(note.id)
+        doc = room.doc if room else await _load_doc(db, session.user.id, note.id)
+        items = checklist(doc)
+        if items:
+            result.append((note, items))
+    return result
+
+
+async def set_checked(
+    db: Database,
+    session: CurrentSession,
+    note_id: uuid.UUID,
+    index: int,
+    text: str,
+    checked: bool,
+) -> None:
+    """Tick or untick one checkbox. `text` must match the item at `index`, so a stale page
+    can't tick the wrong line."""
+    async with db.user_transaction(session.user.id) as conn:
+        note, access = await _note_access(conn, note_id)
+        _require(session, access, write=True)
+
+    async def change(doc: pycrdt.Doc[Any]) -> bytes | None:
+        items = _task_items(doc.get("default", type=pycrdt.XmlFragment))
+        if index >= len(items) or _item_text(items[index])[:300] != text:
+            raise ChecklistChangedError("This checklist changed. Reload and try again.")
+        if (items[index].attributes.get("checked") is True) == checked:
+            return None
+        before = doc.get_state()
+        items[index].attributes["checked"] = checked
+        return doc.get_update(before)
+
+    async def persist(update: bytes) -> None:
+        async with db.user_transaction(session.user.id) as conn:
+            await store.append_update(
+                conn,
+                note_id=note.id,
+                project_id=note.project_id,
+                user_id=session.user.id,
+                update=update,
+            )
+            current = await store.get_note(conn, note.id)
+            if current is not None:
+                await store.set_text(
+                    conn, note.id, _tick_in_text(current.text_content, index, checked)
+                )
+
+    # Hold the loader (so nobody can open the note halfway) and, if it's open, its room.
+    async with rooms._loading:
+        room = rooms._rooms.get(note_id)
+        if room is not None:
+            async with room.lock:
+                update = await change(room.doc)
+                if update is not None:
+                    await persist(update)
+                    room.size += len(update)
+        else:
+            update = await change(await _load_doc(db, session.user.id, note_id))
+            if update is not None:
+                await persist(update)
+    if update is None:
+        return
+    if room is not None:
+        await _broadcast(room, pycrdt.create_update_message(update), exclude=None)
+    log.info("note checklist ticked", extra={"note_id": str(note.id), "bytes": len(update)})
+    live.publish(note.project_id, "notes")

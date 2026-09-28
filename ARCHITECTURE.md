@@ -294,7 +294,7 @@ contracts in CI.
 | **Asset** | A durable thing projects relate to: vehicle, boat, house, dock, home lab, tool. Has a kind and free-form metadata (e.g. VIN, engine, mileage). Shareable like projects. |
 | **Task** | Actionable item: title, description, due date/time, assignee, done state, optional dependency on another task, and the list items it needs (from its project's lists). |
 | **List** / **ListItem** | Shopping lists, parts lists, checklists. A list can be mapped to a named iPhone Reminders list. |
-| **Note** | Rich-text (Markdown) note. `source` records origin: `user`, `mcp:<client>`, or `local_ai`. |
+| **Note** | Rich-text (Markdown) note. `source` records origin: `user`, `mcp:<client>`, or `local_ai`. Its checkboxes can also be ticked from the project page. |
 | **Attachment** | A file linked to a project; references a content-addressed blob. Tracks extraction status. |
 | **Chunk** | A text segment extracted from a note or attachment, with a vector embedding, used for retrieval. |
 | **Contact** | A person or business (contractor, supplier). Shared one by one, like assets (own members and roles). |

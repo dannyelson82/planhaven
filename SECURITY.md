@@ -430,6 +430,9 @@ Cross-Origin-Resource-Policy: same-origin
 - Awareness data (display name, cursor) is relayed only within the document and not stored.
 - Update contents are never logged; logs hold document ID, user, byte counts and outcomes.
 - Every accepted update is attributed (user or MCP client) so history and undo work.
+- Ticking a note's checkbox from the project page is made by the server as a normal CRDT
+  update: editor role required, attributed to the user, checked against the item's text so a
+  stale page can't tick the wrong line, and sent live to anyone with the note open.
 
 ---
 
