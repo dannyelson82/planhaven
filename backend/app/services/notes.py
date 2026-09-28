@@ -7,6 +7,7 @@ overwriting their work. The document is cleaned by the server before it's stored
 """
 
 import uuid
+from dataclasses import replace
 from typing import Any
 
 from app import authz
@@ -65,7 +66,16 @@ async def notes_for_project(
 ) -> list[NoteRow]:
     async with db.user_transaction(session.user.id) as conn:
         _require(session, await _access(conn, project_id), write=False)
-        return await store.notes_for_project(conn, project_id)
+        notes = await store.notes_for_project(conn, project_id)
+        # Notes from the earlier live editor: their stored preview text may hold leftovers of
+        # the old garbled-text bug, so it's rebuilt from the document until the note is saved.
+        legacy = await store.unconverted(conn, project_id)
+        return [
+            replace(n, text_content=content.to_markdown(await _document(conn, n.id))[:300])
+            if n.id in legacy
+            else n
+            for n in notes
+        ]
 
 
 async def create_note(

@@ -29,5 +29,7 @@ describe('note preview', async () => {
     expect(notePreview(md, true)).toBe('Deck · Use cedar')
     expect(notePreview('- [x] test 1\n- [ ] test2', true)).toBe('')
     expect(notePreview('- a\n- b', false)).toBe('a · b')
+    // A checkbox holding two paragraphs: its second line isn't repeated under the title.
+    expect(notePreview('Intro\n\n- [ ] one\ncontinued\n- [ ] two\n\nAfter', true)).toBe('Intro · After')
   })
 })

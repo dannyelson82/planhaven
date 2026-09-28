@@ -4,7 +4,7 @@
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { EditorContent, type JSONContent, useEditor, useEditorState, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import { Button, Card } from '../ui.tsx'
+import { Card } from '../ui.tsx'
 
 export default function NoteEditor({ initial, canEdit, onChange }: {
   initial: JSONContent
@@ -62,13 +62,17 @@ function Toolbar({ editor }: { editor: Editor }) {
     { label: 'Bulleted list', text: '•', active: state.bullets, run: () => editor.chain().focus().toggleBulletList().run() },
     { label: 'Checklist', text: '☑', active: state.tasks, run: () => editor.chain().focus().toggleTaskList().run() },
   ]
+  // Plain buttons that don't take focus when pressed: the caret stays where it was in the note
+  // (a toolbar button taking focus let fast typing land on the wrong line, and on a phone it
+  // closes the keyboard). Keyboard users can still Tab to them.
   return (
     <div role="toolbar" aria-label="Formatting" className="flex flex-wrap gap-1">
       {tools.map((t) => (
-        <Button key={t.label} variant="ghost" aria-label={t.label} aria-pressed={t.active} onPress={t.run}
-          className={`min-w-11 px-2 ${t.active ? 'bg-brand-100 text-brand-700 dark:bg-stone-800 dark:text-brand-100' : ''}`}>
+        <button key={t.label} type="button" aria-label={t.label} aria-pressed={t.active}
+          onMouseDown={(e) => e.preventDefault()} onClick={t.run}
+          className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl px-2 font-medium transition focus-visible:outline-2 focus-visible:outline-brand-600 ${t.active ? 'bg-brand-100 text-brand-700 dark:bg-stone-800 dark:text-brand-100' : 'text-stone-700 hover:bg-stone-200 dark:text-stone-300 dark:hover:bg-stone-800'}`}>
           {t.text}
-        </Button>
+        </button>
       ))}
     </div>
   )

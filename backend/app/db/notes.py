@@ -35,6 +35,17 @@ async def notes_for_project(conn: AsyncConnection, project_id: uuid.UUID) -> lis
     return [NoteRow(**r._mapping) for r in rows]
 
 
+async def unconverted(conn: AsyncConnection, project_id: uuid.UUID) -> set[uuid.UUID]:
+    """Notes in the project still stored only by the earlier live editor (no `content` yet)."""
+    rows = await conn.execute(
+        text(
+            "SELECT id FROM notes WHERE project_id = :p AND deleted_at IS NULL AND content IS NULL"
+        ),
+        {"p": project_id},
+    )
+    return {r.id for r in rows}
+
+
 async def get_note(conn: AsyncConnection, note_id: uuid.UUID) -> NoteRow | None:
     row = (
         await conn.execute(

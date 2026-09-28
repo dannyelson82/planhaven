@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { JSONContent } from '@tiptap/react'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Dialog, Heading, Modal } from 'react-aria-components'
@@ -32,9 +32,13 @@ export function ProjectNotes({ projectId, canEdit }: { projectId: string; canEdi
     onSuccess: async (note) => { await client.invalidateQueries({ queryKey: ['notes', projectId] }); navigate(`/notes/${note.id}`) },
   })
   // Checkboxes inside notes can be ticked right here, without opening the note.
+  // Keyed by the versions of the notes shown, so the checkboxes are never older than the cards.
+  const shown = notes.data?.map((n) => `${n.id}:${n.version}`).join(',')
   const checklists = useQuery({
-    queryKey: ['note-checklists', projectId],
+    queryKey: ['note-checklists', projectId, shown],
     queryFn: () => api<NoteChecklist[]>('GET', `/api/v1/projects/${projectId}/note-checklists`),
+    enabled: shown !== undefined,
+    placeholderData: keepPreviousData,
     staleTime: 0, // notes change in the editor; always refetch when the page opens
   })
   const tick = useMutation({
@@ -240,7 +244,7 @@ function TickRow({ item, canEdit, onTick }: { item: ChecklistItem; canEdit: bool
       <label className="flex min-h-11 items-center gap-3">
         <input type="checkbox" checked={checked} disabled={!canEdit} className="size-5 shrink-0 accent-brand-600"
           onChange={() => { setChecked(!checked); onTick(item) }} />
-        <span className={`min-w-0 ${checked ? 'text-stone-500 line-through' : ''}`}>{item.text || '(empty)'}</span>
+        <span className={`min-w-0 whitespace-pre-line ${checked ? 'text-stone-500 line-through' : ''}`}>{item.text || '(empty)'}</span>
       </label>
     </li>
   )

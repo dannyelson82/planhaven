@@ -137,7 +137,9 @@ test('lists work offline and catch up when back online', async ({ page, context 
 // Notes are saved on Done (docs/adr/0016). Typing fast, long wrapping lines, edits in the
 // middle of wrapped text: every character is kept exactly once, and the card matches.
 test('a note keeps exactly what was typed, saved on Done', async ({ page }, info) => {
-  const problems = watchForProblems(page)
+  // Chrome's own editing sometimes tries to add a style while merging text; the CSP blocks
+  // it and the editor redraws from its model. Only that browser-internal case is allowed.
+  const problems = watchForProblems(page, { allowBrowserEditingStyles: true })
   await page.goto('/projects')
   await page.getByRole('link', { name: 'Winterize boat' }).click()
   await page.getByRole('button', { name: 'New note' }).click()
