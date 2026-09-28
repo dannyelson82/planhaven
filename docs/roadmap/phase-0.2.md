@@ -69,3 +69,35 @@ events, browser tests at phone and desktop widths, threat-model check.
 - [x] Trash: soft-deleted items restorable for 30 days, then purged by a worker job
 - [x] Phase security review against S§11 (`docs/releases/v0.2.0-security-review.md`);
       release v0.2.0 once the maintainer approves
+
+## Milestone 7: Feedback from real use (v0.2.1 – v0.2.x)
+
+Shipped: sharing polish, list editing, task needs, admin screens, password reset links,
+notes saved on Done (ADR 0016), version shown on every page.
+
+Maintainer's testing notes, 2026-09-28. Notes are usable; remaining note bugs are patched
+as they're found rather than hunted now.
+
+**Batch 1 (v0.2.8): fixes**
+- [x] Note cards show the note in its own order (text, headings, bullets, checkboxes
+      beside their first line), with Show all / Show less, Edit and Copy buttons
+- [x] Note cards keep their order (newest first) when edited or ticked
+- [x] "Saved by someone else" after ticking on the card: the note always opens fresh
+- [x] Rename a list in its edit mode
+- [x] Contacts: a website without https:// is accepted; Call and Email on each card
+- [x] No placeholder where a card has no photo
+- [x] Unraid template icon
+
+**Batch 2 (v0.2.9): small additions**
+- [ ] Estimated prices on shopping and parts list items, with list and project totals
+- [ ] Trash per project (the main Trash still shows everything)
+- [ ] Contact photo
+- [ ] Quotes and estimates: upload the estimate file from the quote; an accepted quote goes
+      into the project budget, shown as budget vs. spent
+
+**Batch 3 (plan first)**
+- [ ] Purchases: a spent entry is one trip to one store, with item lines, a receipt photo,
+      and "add checked items from a list" with actual prices. Reading receipts with AI
+      comes with the AI phase (ADR 0012); receipts are entered by hand until then.
+- [ ] Arrange the project page: each person orders its sections (to decide: per person or
+      shared; up/down buttons or drag and drop)

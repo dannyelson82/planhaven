@@ -167,7 +167,7 @@ test('a note keeps exactly what was typed, saved on Done', async ({ page }, info
     await page.getByRole('button', { name: 'Done' }).click()
     await expect(page.getByRole('heading', { name: 'Winterize boat' })).toBeVisible()
     const card = page.getByRole('region', { name: 'Notes' }).locator('li', { hasText: `Wrapped (${info.project.name})` })
-    await expect.poll(async () => (await card.innerText()).replace(/\s+/g, ' ')).toContain(paragraphs.join(' · '))
+    await expect.poll(async () => (await card.innerText()).replace(/\s+/g, ' ')).toContain(paragraphs.join(' '))
     await page.goto(noteUrl)
     await expect(ed().locator('p')).toHaveText(paragraphs)
     await ed().click()
@@ -193,4 +193,52 @@ test('leaving without saving keeps the note as it was', async ({ page }, info) =
   await page.getByRole('link', { name: 'Winterize boat' }).click()
   await page.getByRole('link', { name: `Keep me (${info.project.name})` }).click()
   await expect(page.getByRole('textbox', { name: 'Note', exact: true })).toHaveText('saved words')
+})
+
+// Ticking a checkbox on the project page, then editing the note: Done saves (it used to be
+// refused as "saved by someone else"). Cards keep their order; Copy gives the note as text.
+test('ticking on the card, then editing the note, saves without a conflict', async ({ page, context }, info) => {
+  const problems = watchForProblems(page)
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  const title = `Ticks (${info.project.name})`
+  const item = `Drain the block ${info.project.name}`
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Winterize boat' }).click()
+  await page.getByRole('button', { name: 'New note' }).click()
+  await page.getByLabel('Note title').fill(title)
+  const editor = page.getByRole('textbox', { name: 'Note', exact: true })
+  await editor.click()
+  await page.keyboard.type('Before the list')
+  await page.keyboard.press('Enter')
+  await page.getByRole('button', { name: 'Checklist' }).click()
+  await page.keyboard.type(item)
+  await page.getByRole('button', { name: 'Done' }).click()
+  // Open it once (kept in this tab), come back, tick on the card.
+  await page.getByRole('link', { name: title }).click()
+  await expect(editor).toContainText(item)
+  await page.getByRole('button', { name: 'Done' }).click()
+  const notes = page.getByRole('region', { name: 'Notes' })
+  await expect(notes.getByRole('checkbox', { name: item })).toBeVisible()
+  const order = await notes.locator('li.break-inside-avoid').allInnerTexts()
+  const box = notes.getByRole('checkbox', { name: item })
+  await box.check()
+  await expect(box).toBeChecked()
+  // The text before the list shows in order, as normal text, above the checkbox.
+  const card = notes.locator('li.break-inside-avoid', { hasText: title })
+  await expect(card.getByText('Before the list')).toBeVisible()
+  // Cards don't move when a checkbox is ticked.
+  await expect.poll(async () => (await notes.locator('li.break-inside-avoid').allInnerTexts()).map((t) => t.split('\n')[0])).toEqual(order.map((t) => t.split('\n')[0]))
+  // Copy puts the whole note on the clipboard.
+  await card.getByRole('button', { name: 'Copy note text' }).click()
+  await expect(card.getByRole('button', { name: 'Copied' })).toBeVisible()
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`Before the list\n☑ ${item}`)
+  // Edit (pencil) opens the note; a change saves on Done.
+  await card.getByRole('link', { name: 'Edit note' }).click()
+  await editor.locator('p', { hasText: item }).click()
+  await page.keyboard.press('End')
+  await page.keyboard.type(' now')
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(page.getByRole('heading', { name: 'Winterize boat' })).toBeVisible()
+  await expect(notes.getByRole('checkbox', { name: `${item} now` })).toBeChecked()
+  expect(problems).toEqual([])
 })

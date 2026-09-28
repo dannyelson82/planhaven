@@ -54,7 +54,7 @@ export function Field({
   onChange?: (v: string) => void
   isRequired?: boolean
   autoComplete?: string
-  inputMode?: 'numeric' | 'text' | 'email'
+  inputMode?: 'numeric' | 'text' | 'email' | 'url'
   autoFocus?: boolean
   maxLength?: number
   minLength?: number
@@ -93,10 +93,13 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
   )
 }
 
-export function Link({ to, children, className = '' }: { to: string; children: ReactNode; className?: string }) {
+export function Link({ to, children, className = '', 'aria-label': label }: {
+  to: string; children: ReactNode; className?: string; 'aria-label'?: string
+}) {
   return (
     <AriaLink
       href={to}
+      aria-label={label}
       className={`underline-offset-2 hover:underline ${className}`}
     >
       {children}

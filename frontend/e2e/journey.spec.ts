@@ -83,10 +83,16 @@ test('first boot to first project', async ({ page }) => {
   await page.getByRole('button', { name: 'Add list' }).click()
   await page.getByRole('link', { name: 'Scrap list' }).click()
   await page.getByRole('button', { name: 'Edit' }).click()
+  // Its name can be changed in edit mode (saved when leaving the box).
+  await page.getByLabel('List name').fill('Scrap pile')
+  await page.getByLabel('List name').blur()
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(page.getByRole('heading', { name: 'Scrap pile' })).toBeVisible()
+  await page.getByRole('button', { name: 'Edit' }).click()
   await page.getByRole('button', { name: 'Delete this list' }).click()
   await page.getByRole('button', { name: 'Tap again to delete this list' }).click()
   await expect(page.getByRole('heading', { name: 'Winterize boat' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Scrap list' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Scrap pile' })).toHaveCount(0)
 
   // The oil change needs the hose clamps from the list; the task says so until they're got.
   await page.getByRole('button', { name: 'Edit Change oil' }).click()
@@ -184,8 +190,14 @@ test('first boot to first project', async ({ page }) => {
   await page.getByRole('button', { name: 'Add contact' }).click()
   await expect(page.getByRole('heading', { name: 'Dave Pipes' })).toBeVisible()
   await page.getByLabel('Phone').fill('555-0100')
+  // A plain web address is fine; https:// is added.
+  await page.getByLabel('Website').fill('www.davepipes.example')
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByRole('link', { name: 'Call' })).toHaveAttribute('href', 'tel:5550100')
+  await expect(page.getByLabel('Website')).toHaveValue('https://www.davepipes.example')
+  // The contact's card has Call too.
+  await page.goto('/contacts')
+  await expect(page.getByRole('link', { name: 'Call 555-0100' })).toHaveAttribute('href', 'tel:5550100')
   await page.goto(projectUrl)
   await page.getByRole('button', { name: 'Add a quote' }).click()
   await page.getByLabel('What for').fill('Rebuild water pump')

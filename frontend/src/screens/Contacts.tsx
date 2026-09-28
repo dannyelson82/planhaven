@@ -4,7 +4,18 @@ import { api } from '../api.ts'
 import { formatCents, type QuoteStatus, STATUS_LABEL } from '../money.ts'
 import { navigate } from '../router.ts'
 import { Button, Card, ErrorText, Field, Link } from '../ui.tsx'
+import { MailIcon, PhoneIcon } from '../icons.tsx'
 import { ShareButton } from './Sharing.tsx'
+
+// A website may be typed without https:// (www.example.com); it's added when saving. Only
+// web addresses are accepted (the server allows only http:// and https:// links).
+const WEBSITE = /^(https?:\/\/)?[^\s/:]+\.[^\s]+$/i
+function withScheme(website: string): string {
+  const w = website.trim()
+  return !w || /^https?:\/\//i.test(w) ? w : `https://${w}`
+}
+const telHref = (phone: string) => `tel:${phone.replace(/[^\d+]/g, '')}`
+const iconLink = 'inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-brand-700 hover:bg-stone-100 dark:text-brand-100 dark:hover:bg-stone-800'
 
 type Kind = 'contractor' | 'supplier' | 'other'
 export type Quote = {
@@ -56,8 +67,14 @@ export function ContactsScreen() {
         {(contacts.data ?? []).map((c) => (
           <li key={c.id}>
             <Card>
-              <Link to={`/contacts/${c.id}`} className="block font-semibold">{c.name}</Link>
-              <p className="text-sm text-stone-500">{[KIND_LABEL[c.kind], c.company, c.phone].filter(Boolean).join(' · ')}</p>
+              <div className="flex items-start gap-1">
+                <div className="min-w-0 flex-1">
+                  <Link to={`/contacts/${c.id}`} className="block font-semibold">{c.name}</Link>
+                  <p className="text-sm text-stone-500">{[KIND_LABEL[c.kind], c.company, c.phone].filter(Boolean).join(' · ')}</p>
+                </div>
+                {c.phone && <a href={telHref(c.phone)} aria-label={`Call ${c.phone}`} className={iconLink}><PhoneIcon /></a>}
+                {c.email && <a href={`mailto:${c.email}`} aria-label={`Email ${c.email}`} className={iconLink}><MailIcon /></a>}
+              </div>
             </Card>
           </li>
         ))}
@@ -94,14 +111,14 @@ function ContactDetail({ contact, myId }: { contact: Contact; myId: string }) {
   const set = (part: Partial<typeof form>) => setForm({ ...form, ...part })
   const dirty = (Object.keys(form) as (keyof typeof form)[]).some((k) => form[k] !== contact[k])
   const save = useMutation({
-    mutationFn: () => api('PUT', `/api/v1/contacts/${contact.id}`, form, { 'If-Match': `"${contact.version}"` }),
+    mutationFn: () => api('PUT', `/api/v1/contacts/${contact.id}`, { ...form, website: withScheme(form.website) }, { 'If-Match': `"${contact.version}"` }),
     onSettled: () => Promise.all([client.invalidateQueries({ queryKey: ['contact', contact.id] }), client.invalidateQueries({ queryKey: ['contacts'] })]),
   })
   const remove = useMutation({
     mutationFn: () => api('DELETE', `/api/v1/contacts/${contact.id}`),
     onSuccess: async () => { await client.invalidateQueries({ queryKey: ['contacts'] }); navigate('/contacts') },
   })
-  const websiteOk = !form.website || /^https?:\/\/\S+$/.test(form.website)
+  const websiteOk = !form.website.trim() || WEBSITE.test(form.website.trim())
 
   return (
     <div className="space-y-4">
@@ -124,8 +141,8 @@ function ContactDetail({ contact, myId }: { contact: Contact; myId: string }) {
               <Field label="Phone" type="tel" maxLength={50} value={form.phone} onChange={(v) => set({ phone: v })} />
               <Field label="Email" type="email" maxLength={254} value={form.email} onChange={(v) => set({ email: v })} />
             </div>
-            <Field label="Website" type="url" maxLength={500} value={form.website} onChange={(v) => set({ website: v })}
-              description={websiteOk ? undefined : 'Start with https://'} />
+            <Field label="Website" inputMode="url" maxLength={492} value={form.website} onChange={(v) => set({ website: v })}
+              description={websiteOk ? undefined : 'Enter a web address, like www.example.com'} />
             <Field label="Notes" multiline maxLength={20000} value={form.notes} onChange={(v) => set({ notes: v })} />
             <div className="flex flex-wrap gap-2">
               <Button onPress={() => save.mutate()} isDisabled={!dirty || !form.name.trim() || !websiteOk || save.isPending}>Save</Button>
@@ -147,7 +164,7 @@ function ContactDetail({ contact, myId }: { contact: Contact; myId: string }) {
         )}
         {(contact.phone || contact.email) && (
           <div className="flex flex-wrap gap-2">
-            {contact.phone && <a href={`tel:${contact.phone.replace(/[^\d+]/g, '')}`} className="inline-flex min-h-11 items-center rounded-xl px-4 font-medium text-brand-700 ring-1 ring-stone-300 dark:text-brand-100 dark:ring-stone-700">Call</a>}
+            {contact.phone && <a href={telHref(contact.phone)} className="inline-flex min-h-11 items-center rounded-xl px-4 font-medium text-brand-700 ring-1 ring-stone-300 dark:text-brand-100 dark:ring-stone-700">Call</a>}
             {contact.email && <a href={`mailto:${contact.email}`} className="inline-flex min-h-11 items-center rounded-xl px-4 font-medium text-brand-700 ring-1 ring-stone-300 dark:text-brand-100 dark:ring-stone-700">Email</a>}
           </div>
         )}
