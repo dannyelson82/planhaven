@@ -149,9 +149,12 @@ Organized by STRIDE category. Details for each control are in §7.
 | Repudiation of changes (esp. by AI) | Repudiation | Append-only audit log with actor, client, IP (§7.12) |
 | Resource exhaustion | DoS | Rate limits, body and upload limits, job concurrency limits, query limits (§7.11) |
 | Cross-site WebSocket hijacking of the collaboration channel | Spoofing | Session or token required at handshake, `Origin` must equal `BASE_URL` (§7.15) |
-| Stale access on a live connection after removal from a project | Elevation / Info disclosure | Membership re-checked on change; revoked members' connections closed (§7.15) |
+| Stale access on a live connection after removal from a project | Elevation / Info disclosure | Sharing changes applied to open note connections at once (closed, or switched to read-only); every connection also re-checked every 15 s (§7.15) |
 | Viewer or malicious client pushing edits or oversized/malformed updates | Tampering / DoS | Server rejects viewer updates; size, rate and document limits; malformed updates close the connection (§7.15) |
 | Assignee (e.g. a child) seeing more than their chores | Info disclosure | Assignee access limited to their assigned tasks by authz and RLS; tested in the authz matrix (ADR 0013) |
+| Private data left on a lost or shared phone (offline copies) | Info disclosure | No credentials, tokens or CSRF values stored; wiped on sign-out, when the session ends and when someone else signs in; device lock; revoke the device's session (§7.14) |
+| Stale or tampered app served from the phone's cache | Tampering | Service worker is same-origin, revalidated on every load, caches only hashed app files and icons, never API data; CSP unchanged (§7.10) |
+| Linking a project, quote or cost to something the user can't see (another person's asset or contact, another project's file or quote) | Info disclosure / Tampering | Links checked by the service and again by database triggers; hidden details stay hidden (A§7.1) |
 | Proof photos exposing location or reaching the wrong people | Info disclosure | EXIF GPS stripped; visible only to assignee, assigner and project members (RLS) |
 | Malicious plugin | Elevation | Admin-only install, no install-from-URL, permissions manifest, sandboxed UI iframes; backend isolation planned (§10) |
 
@@ -414,9 +417,12 @@ Cross-Origin-Resource-Policy: same-origin
 
 - The WebSocket handshake requires a valid session cookie or a scoped token, and an `Origin`
   header equal to `BASE_URL`; anything else is refused before upgrading.
-- Authorization (`authz.require`) is checked at connect and re-checked when membership or
-  roles change; affected connections are closed. RLS applies to every stored update.
-- Viewers receive updates; any update they send is rejected and the attempt logged.
+- Authorization (`authz.require`) is checked at connect. A sharing change applies at once
+  to that person's open note connections in the project (removed: closed; new role: edits
+  accepted or refused accordingly), and every connection is re-checked every 15 seconds
+  (live-update sockets too). RLS applies to every stored update.
+- Viewers receive updates; any update they send is rejected and the attempt logged as a
+  `collab_refused` security event (as are oversized, too-fast and malformed messages).
 - Limits per connection and user: message size, updates per second, open connections, and
   total document size. Malformed or oversized messages close the connection. Currently:
   256 KB per message (1 MB per WebSocket frame at the server), 200 messages per 10 s,
