@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { lazy, Suspense, useState } from 'react'
 import { api } from '../api.ts'
+import { notePreview } from '../preview.ts'
 import { navigate } from '../router.ts'
 import { Button, Card, ErrorText, Link } from '../ui.tsx'
 
@@ -48,18 +49,19 @@ export function ProjectNotes({ projectId, canEdit }: { projectId: string; canEdi
         <h2 className="text-lg font-semibold">Notes</h2>
         {canEdit && <Button variant="secondary" onPress={() => create.mutate()} isDisabled={create.isPending}>New note</Button>}
       </div>
-      <ul className="grid gap-2 sm:grid-cols-2">
+      {/* Two stacked columns: short cards don't leave gaps next to tall ones. */}
+      <ul className="gap-2 sm:columns-2">
         {(notes.data ?? []).map((n) => (
-          <li key={n.id}>
+          <li key={n.id} className="mb-2 break-inside-avoid">
             <Card>
               <Link to={`/notes/${n.id}`} className="block font-semibold">{n.title}</Link>
               {itemsOf(n.id).length > 0 ? (
                 <>
-                  <p className="line-clamp-1 text-sm text-stone-500">{n.text_content}</p>
+                  {notePreview(n.text_content, true) && <p className="line-clamp-1 text-sm text-stone-500">{notePreview(n.text_content, true)}</p>}
                   <NoteChecklistItems items={itemsOf(n.id)} canEdit={canEdit} noteId={n.id} onTick={(item) => tick.mutate({ noteId: n.id, item })} />
                 </>
               ) : (
-                <p className="line-clamp-2 text-sm text-stone-500">{n.text_content || 'Empty note'}</p>
+                <p className="line-clamp-2 text-sm text-stone-500">{notePreview(n.text_content, false) || 'Empty note'}</p>
               )}
             </Card>
           </li>

@@ -40,3 +40,13 @@ describe('money', async () => {
     expect(formatCents(185050)).toContain('1,850.50')
   })
 })
+
+describe('note preview', async () => {
+  const { notePreview } = await import('./preview.ts')
+  it('leaves out checkbox lines when the card shows them', () => {
+    const md = '## Deck\n\nUse **cedar**\n\n- [x] test 1\n- [ ] test2\n- [ ] '
+    expect(notePreview(md, true)).toBe('Deck · Use cedar')
+    expect(notePreview('- [x] test 1\n- [ ] test2', true)).toBe('')
+    expect(notePreview('- a\n- b', false)).toBe('a · b')
+  })
+})
