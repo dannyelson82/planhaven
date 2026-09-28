@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type Session } from '../api.ts'
 import { deviceName } from '../devices.ts'
 import { Card, Link } from '../ui.tsx'
-import { SignOutButton } from './Auth.tsx'
 
 type SessionInfo = { id: string; last_seen_at: string; ip: string | null; user_agent: string | null; current: boolean }
 
@@ -32,7 +31,6 @@ export function AccountScreen({ session }: { session: Session }) {
           ))}
         </ul>
       </Card>
-      <SignOutButton />
       {about.data && <p className="text-center text-xs text-stone-500">Planhaven {about.data.version}</p>}
     </div>
   )

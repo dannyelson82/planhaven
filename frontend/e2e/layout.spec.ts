@@ -69,6 +69,9 @@ test('installs as an app and opens offline', async ({ page, context }) => {
   await expect
     .poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration())?.active)))
     .toBe(true)
+  // The service worker takes over the page it was installed from (clientsClaim), so a new
+  // version reaches open pages without clearing site data.
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true)
   // Offline, the app itself still opens (data needs the server, so it says so).
   await context.setOffline(true)
   await page.reload()

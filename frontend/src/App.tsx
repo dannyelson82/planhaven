@@ -7,7 +7,7 @@ import { match, navigate, usePath } from './router.ts'
 import { AccountScreen } from './screens/Account.tsx'
 import { AssetScreen, AssetsScreen } from './screens/Assets.tsx'
 import { ContactScreen, ContactsScreen } from './screens/Contacts.tsx'
-import { InviteScreen, LoginScreen, SecondFactorScreen, SetupScreen } from './screens/Auth.tsx'
+import { InviteScreen, LoginScreen, SecondFactorScreen, SetupScreen, SignOutButton } from './screens/Auth.tsx'
 import { ListScreen } from './screens/Lists.tsx'
 import { NoteScreen } from './screens/Notes.tsx'
 import { ProjectScreen } from './screens/Project.tsx'
@@ -160,6 +160,7 @@ function Shell({ session, children }: { session: Session; children: ReactNode })
           </Link>
         ))}
         <p className="mt-auto text-xs text-stone-500">{session.user.display_name}</p>
+        <SignOutButton className="justify-start px-3" />
       </nav>
       <main className="mx-auto w-full max-w-5xl px-4 pb-24 pt-[max(1rem,env(safe-area-inset-top))] md:px-8 md:pb-8">
         {(!online || session.offline) && (
@@ -182,6 +183,7 @@ function Shell({ session, children }: { session: Session; children: ReactNode })
             {n.label}
           </Link>
         ))}
+        <SignOutButton className="min-h-14 flex-1 rounded-none px-1 text-sm font-normal text-stone-600 dark:text-stone-400" />
       </nav>
     </div>
   )

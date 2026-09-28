@@ -1,6 +1,6 @@
 # ADR 0015: External share links for people without an account
 
-- **Status:** Proposed (waiting for the maintainer)
+- **Status:** Accepted
 - **Date:** 2026-09-28
 
 ## Context
@@ -22,7 +22,7 @@ be narrow, visible, revocable and short-lived.
 3. **Share links with per-component permissions.** One link, the owner ticks exactly what the
    person may see and do, in plain language.
 
-## Proposal
+## Decision
 
 Option 3.
 
@@ -50,6 +50,7 @@ simple page with only what was ticked. No account, no access to the rest of the 
   log redaction catch it (docs/repo-setup.md, `.gitleaks.toml`).
 - Expiry required: default 30 days, longest 1 year. Revoke at any time from the project.
 - Optional 6-digit PIN sent separately (text it to the mechanic), rate limited per link.
+  **Off by default**; the owner ticks it on per link.
 - Every link has an activity log; the owner can see when it was used.
 - Authorization: a new **link principal** checked by `authz.require` against the link's ticked
   permissions, and enforced again by RLS via the link's ID (same two layers as users,
@@ -59,11 +60,12 @@ simple page with only what was ticked. No account, no access to the rest of the 
 - Links stop working when the project is deleted, when the creator loses access to it, or when
   the creator's account is disabled.
 
-## Questions for the maintainer
+## Maintainer's answers (2026-09-28)
 
-1. PIN: on by default (untick to skip), or off by default?
-2. Default expiry 30 days, maximum 1 year: OK?
-3. When: build right after the invite/admin screens, or after phase 0.3?
+1. PIN: optional, **off by default**.
+2. Expiry: default 30 days, maximum 1 year.
+3. Timing: whenever it fits best; planned right after the admin/invite screens, before
+   phase 0.3.
 
 ## Consequences
 
