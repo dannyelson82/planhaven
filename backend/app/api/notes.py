@@ -120,6 +120,50 @@ async def set_note_text(
     await service.set_text(deps.database(request), session, note_id, body.text)
 
 
+class ChecklistItemOut(BaseModel):
+    index: int
+    text: str
+    checked: bool
+
+
+class NoteChecklistOut(BaseModel):
+    note_id: uuid.UUID
+    title: str
+    items: list[ChecklistItemOut]
+
+
+class TickIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    index: Annotated[int, Field(ge=0, le=10_000)]
+    text: Annotated[str, Field(max_length=300)]
+    checked: bool
+
+
+@router.get("/projects/{project_id}/note-checklists")
+async def note_checklists(
+    project_id: uuid.UUID, session: SessionDep, request: Request
+) -> list[NoteChecklistOut]:
+    rows = await service.project_checklists(deps.database(request), session, project_id)
+    return [
+        NoteChecklistOut(
+            note_id=note.id,
+            title=note.title,
+            items=[ChecklistItemOut(index=i.index, text=i.text, checked=i.checked) for i in items],
+        )
+        for note, items in rows
+    ]
+
+
+@router.post("/notes/{note_id}/checklist", status_code=204)
+async def tick(note_id: uuid.UUID, body: TickIn, session: SessionDep, request: Request) -> None:
+    try:
+        await service.set_checked(
+            deps.database(request), session, note_id, body.index, body.text, body.checked
+        )
+    except service.ChecklistChangedError as exc:
+        raise HTTPException(409, str(exc)) from None
+
+
 @router.delete("/notes/{note_id}", status_code=204)
 async def delete_note(note_id: uuid.UUID, session: SessionDep, request: Request) -> None:
     await service.delete_note(deps.database(request), session, note_id, deps.client_ip(request))

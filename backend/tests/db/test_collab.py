@@ -7,6 +7,7 @@ import logging
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import pycrdt
@@ -314,3 +315,61 @@ def test_sharing_changes_apply_to_open_notes_at_once(team: tuple[U, U, U, str, s
             ws.receive_bytes()
         assert closed.value.code == 4403
         assert time.monotonic() - started < 5
+
+
+# A note made by the real editor (TipTap + Yjs): "Before launch", then a checklist with
+# "Check oil" (not ticked) and "Charge **battery**" (ticked).
+TIPTAP_NOTE = (Path(__file__).parent.parent / "fixtures" / "tiptap-checklist-note.bin").read_bytes()
+
+
+def test_checklists_can_be_ticked_from_the_project_page(team: tuple[U, U, U, str, str]) -> None:
+    owner, viewer, stranger, pid, nid = team
+    with owner.ws(f"/api/v1/collab/notes/{nid}") as ws:
+        _sync(ws, pycrdt.Doc())
+        ws.send_bytes(pycrdt.create_update_message(TIPTAP_NOTE))
+        ws.send_bytes(pycrdt.create_sync_message(pycrdt.Doc()))  # answered once the edit is in
+        ws.receive_bytes()
+    owner.put(
+        f"/api/v1/notes/{nid}/text",
+        headers=owner.h,
+        json={"text": "Before launch\n\n- [ ] Check oil\n- [x] Charge **battery**"},
+    )
+
+    lists = viewer.get(f"/api/v1/projects/{pid}/note-checklists").json()
+    assert lists == [
+        {
+            "note_id": nid,
+            "title": "Wiring plan",
+            "items": [
+                {"index": 0, "text": "Check oil", "checked": False},
+                {"index": 1, "text": "Charge battery", "checked": True},
+            ],
+        }
+    ]
+    assert stranger.get(f"/api/v1/projects/{pid}/note-checklists").status_code == 404
+    tick = {"index": 0, "text": "Check oil", "checked": True}
+    assert (
+        viewer.post(f"/api/v1/notes/{nid}/checklist", headers=viewer.h, json=tick).status_code
+        == 403
+    )
+    stale = {"index": 0, "text": "Something else", "checked": True}
+    assert (
+        owner.post(f"/api/v1/notes/{nid}/checklist", headers=owner.h, json=stale).status_code == 409
+    )
+
+    # Ticked while someone has the note open: they see it live; it's stored for everyone.
+    with owner.ws(f"/api/v1/collab/notes/{nid}") as ws:
+        doc: pycrdt.Doc[Any] = pycrdt.Doc()
+        _sync(ws, doc)
+        r = owner.post(f"/api/v1/notes/{nid}/checklist", headers=owner.h, json=tick)
+        assert r.status_code == 204, r.text
+        message = ws.receive_bytes()
+        pycrdt.handle_sync_message(message[1:], doc)
+        assert [i.checked for i in note_service.checklist(doc)] == [True, True]
+    items = owner.get(f"/api/v1/projects/{pid}/note-checklists").json()[0]["items"]
+    assert [i["checked"] for i in items] == [True, True]
+    assert (
+        owner.get(f"/api/v1/notes/{nid}")
+        .json()["text_content"]
+        .startswith("Before launch\n\n- [x] Check oil")
+    )
