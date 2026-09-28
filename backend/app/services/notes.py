@@ -7,6 +7,7 @@ connection. Edit contents are never logged.
 """
 
 import asyncio
+import contextlib
 import logging
 import time
 import uuid
@@ -207,14 +208,23 @@ PUBLISH_EVERY = 2.0
 TEXT_DELAY = 1.0
 
 
+# Rooms with a text copy waiting to be written (a room may already be closed).
+_text_pending: set[Room] = set()
+
+
 def _schedule_text(room: Room) -> None:
     room.text_dirty = True
+    _text_pending.add(room)
     if room.text_task is None or room.text_task.done():
-        room.text_task = asyncio.ensure_future(_save_text(room))
+        room.text_task = asyncio.ensure_future(_save_text_later(room))
 
 
-async def _save_text(room: Room) -> None:
+async def _save_text_later(room: Room) -> None:
     await asyncio.sleep(TEXT_DELAY)
+    await _write_text(room)
+
+
+async def _write_text(room: Room) -> None:
     while room.text_dirty and room.db is not None and room.last_editor is not None:
         room.text_dirty = False
         markdown = to_markdown(room.doc)[:MAX_TEXT_CONTENT]
@@ -223,8 +233,19 @@ async def _save_text(room: Room) -> None:
                 await store.set_text(conn, room.note_id, markdown)
         except Exception:
             log.exception("could not save a note's text copy")
-            return
+            break
         live.publish(room.project_id, "notes")
+    _text_pending.discard(room)
+
+
+async def flush_text() -> None:
+    """On shutdown: write every pending text copy now instead of after the delay."""
+    for room in list(_text_pending):
+        if room.text_task is not None and not room.text_task.done():
+            room.text_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await room.text_task
+        await _write_text(room)
 
 
 def _changed(room: Room) -> None:
