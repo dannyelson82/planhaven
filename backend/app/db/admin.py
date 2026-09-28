@@ -220,3 +220,69 @@ async def seen_ip_recently(
             {"u": user_id, "ip": ip, "x": exclude_session},
         )
     )
+
+
+# ---------------------------------------------------------------- password reset links
+
+
+@dataclass(frozen=True, slots=True)
+class ResetRow:
+    id: uuid.UUID
+    user_id: uuid.UUID
+    expires_at: datetime
+
+
+async def create_password_reset(
+    conn: AsyncConnection,
+    *,
+    user_id: uuid.UUID,
+    token_hash: bytes,
+    created_by: uuid.UUID,
+    ttl: timedelta,
+) -> ResetRow:
+    """System context. Cancels this person's older unused links."""
+    await conn.execute(
+        text(
+            "UPDATE password_resets SET revoked_at = now() WHERE user_id = :u "
+            "AND used_at IS NULL AND revoked_at IS NULL"
+        ),
+        {"u": user_id},
+    )
+    reset_id = uuid.uuid7()
+    row = (
+        await conn.execute(
+            text("""
+                INSERT INTO password_resets (id, user_id, token_hash, created_by, expires_at)
+                VALUES (:id, :u, :h, :by, now() + :ttl)
+                RETURNING id, user_id, expires_at
+            """),
+            {"id": reset_id, "u": user_id, "h": token_hash, "by": created_by, "ttl": ttl},
+        )
+    ).one()
+    return ResetRow(**row._mapping)
+
+
+async def valid_password_reset(conn: AsyncConnection, token_hash: bytes) -> ResetRow | None:
+    row = (
+        await conn.execute(
+            text("""
+                SELECT r.id, r.user_id, r.expires_at FROM password_resets r
+                JOIN users u ON u.id = r.user_id AND u.disabled_at IS NULL
+                WHERE r.token_hash = :h AND r.used_at IS NULL AND r.revoked_at IS NULL
+                  AND r.expires_at > now()
+            """),
+            {"h": token_hash},
+        )
+    ).first()
+    return ResetRow(**row._mapping) if row else None
+
+
+async def consume_password_reset(conn: AsyncConnection, reset_id: uuid.UUID) -> bool:
+    result = await conn.execute(
+        text(
+            "UPDATE password_resets SET used_at = now() WHERE id = :id "
+            "AND used_at IS NULL AND revoked_at IS NULL AND expires_at > now()"
+        ),
+        {"id": reset_id},
+    )
+    return result.rowcount == 1

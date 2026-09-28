@@ -12,6 +12,7 @@ from app.api import deps
 from app.api.deps import SessionDep
 from app.services import admin as admin_service
 from app.services import invites as invite_service
+from app.services import password_resets as reset_service
 from app.services import plugins as plugin_service
 from app.services.admin import AdminContext
 from app.services.auth import AuthError
@@ -113,6 +114,22 @@ async def reset_second_factor(user_id: uuid.UUID, ctx: Ctx, request: Request) ->
         await admin_service.reset_second_factor(deps.database(request), ctx, user_id)
     except (AuthError, LookupError) as exc:
         raise _error(exc) from None
+
+
+class ResetLinkOut(BaseModel):
+    url: str
+    expires_at: datetime
+
+
+@router.post("/users/{user_id}/password-reset", status_code=201)
+async def password_reset_link(user_id: uuid.UUID, ctx: Ctx, request: Request) -> ResetLinkOut:
+    try:
+        created = await reset_service.create(
+            deps.database(request), ctx, user_id, base_url=deps.settings(request).base_url
+        )
+    except (AuthError, LookupError) as exc:
+        raise _error(exc) from None
+    return ResetLinkOut(url=created.url, expires_at=created.expires_at)
 
 
 @router.post("/invites", status_code=201)
