@@ -240,7 +240,7 @@ function TickRow({ item, canEdit, onTick }: { item: ChecklistItem; canEdit: bool
       <label className="flex min-h-11 items-center gap-3">
         <input type="checkbox" checked={checked} disabled={!canEdit} className="size-5 shrink-0 accent-brand-600"
           onChange={() => { setChecked(!checked); onTick(item) }} />
-        <span className={`min-w-0 ${checked ? 'text-stone-500 line-through' : ''}`}>{item.text || '(empty)'}</span>
+        <span className={`min-w-0 whitespace-pre-line ${checked ? 'text-stone-500 line-through' : ''}`}>{item.text || '(empty)'}</span>
       </label>
     </li>
   )

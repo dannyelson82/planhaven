@@ -199,7 +199,9 @@ async def _store_legacy(note_id: str, user_id: str, project_id: str) -> None:
     try:
         async with db.user_transaction(uuid.UUID(user_id)) as conn:
             await conn.execute(
-                text("UPDATE notes SET content = NULL WHERE id = :n"), {"n": note_id}
+                # with a preview left garbled by the old editor's bug
+                text("UPDATE notes SET content = NULL, text_content = '[' WHERE id = :n"),
+                {"n": note_id},
             )
             await conn.execute(
                 text(
@@ -254,6 +256,9 @@ def test_notes_from_the_earlier_live_editor_open_and_convert(team: Team) -> None
             },
         ],
     }
+    # The project page's preview is rebuilt from the document, not the garbled copy.
+    listed = owner.get(f"/api/v1/projects/{pid}/notes").json()
+    assert listed[0]["text_content"] == "Before launch\n\n- [ ] Check oil\n- [x] Charge **battery**"
     # Saving it stores the converted document from then on.
     assert _save(owner, nid, note["version"], note["content"], title="Launch").status_code == 200
     assert owner.get(f"/api/v1/notes/{nid}").json()["text_content"] == (

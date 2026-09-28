@@ -188,13 +188,13 @@ def _task_items(node: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _plain(node: dict[str, Any]) -> str:
-    parts = []
-    for child in node.get("content", []):
-        if child.get("type") == "text":
-            parts.append(child["text"])
-        elif child.get("type") != "taskList":
-            parts.append(_plain(child))
-    return "".join(parts)
+    """An item's text as the editor shows it: its paragraphs on separate lines (a checkbox can
+    hold several, e.g. after Backspace joins two lines), without any sub-checklist."""
+    children = node.get("content", [])
+    if any(c.get("type") in BLOCKS for c in children):
+        lines = (_plain(c) for c in children if c.get("type") != "taskList")
+        return "\n".join(line for line in lines if line)
+    return "".join("\n" if c.get("type") == "hardBreak" else c.get("text", "") for c in children)
 
 
 def checklist(document: dict[str, Any]) -> list[tuple[int, str, bool]]:
