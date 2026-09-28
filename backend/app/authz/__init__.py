@@ -79,6 +79,11 @@ class Action(StrEnum):
     CONTACT_EDIT = "contact.edit"
     CONTACT_MANAGE = "contact.manage"
     CONTACT_SHARE = "contact.share"
+    # Templates (lists and task sets for later projects): shared one by one, same roles
+    TEMPLATE_VIEW = "template.view"
+    TEMPLATE_EDIT = "template.edit"
+    TEMPLATE_MANAGE = "template.manage"
+    TEMPLATE_SHARE = "template.share"
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,6 +114,10 @@ RULES: dict[Action, Rule] = {
     Action.CONTACT_EDIT: Rule(),
     Action.CONTACT_MANAGE: Rule(),
     Action.CONTACT_SHARE: Rule(recent=True),
+    Action.TEMPLATE_VIEW: Rule(),
+    Action.TEMPLATE_EDIT: Rule(),
+    Action.TEMPLATE_MANAGE: Rule(),
+    Action.TEMPLATE_SHARE: Rule(recent=True),
 }
 
 # Which project roles allow each project action (ARCHITECTURE.md §7.5). Mirrored by the
@@ -126,6 +135,10 @@ PROJECT_ROLES: dict[Action, frozenset[str]] = {
     Action.CONTACT_EDIT: frozenset({"owner", "editor"}),
     Action.CONTACT_MANAGE: frozenset({"owner"}),
     Action.CONTACT_SHARE: frozenset({"owner"}),
+    Action.TEMPLATE_VIEW: frozenset({"owner", "editor", "viewer"}),
+    Action.TEMPLATE_EDIT: frozenset({"owner", "editor"}),
+    Action.TEMPLATE_MANAGE: frozenset({"owner"}),
+    Action.TEMPLATE_SHARE: frozenset({"owner"}),
 }
 
 

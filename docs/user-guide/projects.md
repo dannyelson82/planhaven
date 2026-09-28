@@ -41,6 +41,13 @@ with its form; tap it again or **Close** to put it away.
 3. The first open task is shown as **Next small step**.
 4. To change a task, tap ✎ on it: its **Title**, **Notes**, and **Items needed**. ✕ deletes it.
 
+### Tasks from a template
+
+- **Save tasks as template** (under the tasks) keeps the open tasks for later projects.
+- **+ Task** → **Or add tasks from a template…** adds them to this project.
+
+See [Templates](templates.md).
+
 ### Items a task needs
 
 A task can need items from the project's lists (for example "Change oil" needs the oil and

@@ -109,6 +109,20 @@ test('user guide screenshots', async ({ page }, info) => {
   await page.getByRole('heading', { name: 'Sea Ray 240' }).waitFor()
   await shot(page, device, 'asset')
 
+  // Templates: one saved from the Hardware store list.
+  const lists = await (await page.request.get(`/api/v1/projects/${pid}/lists`)).json()
+  const hardware = lists.find((l: { title: string }) => l.title === 'Hardware store')
+  const saved = await (await page.request.post(`/api/v1/lists/${hardware.id}/template`, { data: { name: `Boat parts (${device})` }, headers })).json()
+  await page.goto('/templates')
+  await page.getByRole('heading', { name: 'Templates' }).waitFor()
+  await shot(page, device, 'templates')
+  await page.goto(`/templates/${saved.id}`)
+  await page.getByRole('heading', { name: saved.name }).waitFor()
+  await shot(page, device, 'template')
+  await page.goto(`/lists/${hardware.id}`)
+  await page.getByRole('button', { name: 'Save as template' }).click()
+  await shot(page, device, 'save-as-template', page.getByLabel('Template name').locator('xpath=ancestor::form'))
+
   // Trash, account, admin.
   await page.goto(`/projects/${pid}/trash`)
   await page.getByRole('heading', { name: /^Trash/ }).waitFor()
@@ -119,6 +133,7 @@ test('user guide screenshots', async ({ page }, info) => {
   await page.goto('/admin')
   await page.getByRole('heading', { name: 'Admin' }).waitFor()
   await shot(page, device, 'admin')
+  await shot(page, device, 'admin-experimental', page.getByRole('region', { name: 'Experimental features' }))
 })
 
 test.describe('signed out', () => {

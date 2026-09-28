@@ -106,6 +106,22 @@ MATRIX: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/assets/{asset_id}/photo/thumbnail"): "verified",
     ("POST", "/api/v1/contacts/import"): "verified",
     ("GET", "/api/v1/list-item-suggestions"): "verified",
+    ("GET", "/api/v1/templates"): "verified",
+    ("GET", "/api/v1/experiments"): "verified",
+    ("PUT", "/api/v1/experiments/{name}"): "verified",
+    ("GET", "/api/v1/admin/experiments"): "admin",
+    ("PUT", "/api/v1/admin/experiments"): "admin",
+    ("GET", "/api/v1/templates/{template_id}"): "verified",
+    ("POST", "/api/v1/lists/{list_id}/template"): "verified",
+    ("POST", "/api/v1/projects/{project_id}/tasks/template"): "verified",
+    ("POST", "/api/v1/templates/{template_id}/use"): "verified",
+    ("PATCH", "/api/v1/templates/{template_id}"): "verified",
+    ("DELETE", "/api/v1/templates/{template_id}"): "verified",
+    ("DELETE", "/api/v1/template-items/{item_id}"): "verified",
+    ("GET", "/api/v1/templates/{template_id}/members"): "verified",
+    ("POST", "/api/v1/templates/{template_id}/members"): "verified",
+    ("PATCH", "/api/v1/templates/{template_id}/members/{user_id}"): "verified",
+    ("DELETE", "/api/v1/templates/{template_id}/members/{user_id}"): "verified",
     ("GET", "/api/v1/contacts/{contact_id}/vcard"): "verified",
     ("PUT", "/api/v1/contacts/{contact_id}/photo"): "verified",
     ("DELETE", "/api/v1/contacts/{contact_id}/photo"): "verified",
@@ -160,6 +176,14 @@ MATRIX: dict[tuple[str, str], str] = {
 
 # Bodies that pass validation, so checks inside services (step-up) are reached.
 BODIES: dict[tuple[str, str], object] = {
+    ("PUT", "/api/v1/experiments/{name}"): {"opted_in": True},
+    ("PUT", "/api/v1/admin/experiments"): {"enabled": False},
+    ("POST", "/api/v1/lists/{list_id}/template"): {"name": "Hardware run"},
+    ("POST", "/api/v1/projects/{project_id}/tasks/template"): {"name": "Winterizing"},
+    ("POST", "/api/v1/templates/{template_id}/use"): {
+        "project_id": "01a0e7bd-1966-744c-8bdd-6c09370f1826"
+    },
+    ("PATCH", "/api/v1/templates/{template_id}"): {"name": "Hardware run"},
     ("PATCH", "/api/v1/costs/{cost_id}"): {"store": "Hardware store"},
     ("POST", "/api/v1/costs/{cost_id}/items"): {"items": [{"text": "Hose clamps"}]},
     ("PATCH", "/api/v1/cost-items/{item_id}"): {"text": "Hose clamps"},

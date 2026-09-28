@@ -1,4 +1,5 @@
-"""Queries for project and asset membership, and the household directory."""
+"""Queries for membership of projects, assets, contacts and templates, and the household
+directory."""
 
 import uuid
 from dataclasses import dataclass
@@ -64,6 +65,20 @@ _QUERIES: dict[str, dict[str, str]] = {
         "set_role": "UPDATE contact_members SET role = :role "
         "WHERE contact_id = :r AND user_id = :u",
         "remove": "DELETE FROM contact_members WHERE contact_id = :r AND user_id = :u",
+    },
+    "template": {
+        "members": """
+            SELECT m.user_id, u.display_name, u.email, m.role
+            FROM template_members m JOIN users u ON u.id = m.user_id
+            WHERE m.template_id = :r
+            ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'editor' THEN 1 ELSE 2 END,
+                     u.display_name
+        """,
+        "add": "INSERT INTO template_members (template_id, user_id, role) "
+        "VALUES (:r, :u, :role) ON CONFLICT (template_id, user_id) DO NOTHING",
+        "set_role": "UPDATE template_members SET role = :role "
+        "WHERE template_id = :r AND user_id = :u",
+        "remove": "DELETE FROM template_members WHERE template_id = :r AND user_id = :u",
     },
 }
 

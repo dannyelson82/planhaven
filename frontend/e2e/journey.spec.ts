@@ -53,7 +53,7 @@ test('first boot to first project', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Edit task' })).toBeVisible()
   await page.getByRole('dialog').getByLabel('Notes').fill('5W-30, 6 quarts')
   await page.getByLabel('Due date').fill('2026-10-15')
-  await page.getByRole('button', { name: 'Save' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Edit task' })).toBeHidden()
   await expect(page.locator('label', { hasText: 'Change oil' })).toContainText('has notes')
 
@@ -112,7 +112,7 @@ test('first boot to first project', async ({ page }) => {
   // The oil change needs the hose clamps from the list; the task says so until they're got.
   await page.getByRole('button', { name: 'Edit Change oil' }).click()
   await page.getByRole('group', { name: 'Items needed' }).getByLabel('Hose clamps').check()
-  await page.getByRole('button', { name: 'Save' }).click()
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByText('Needs 1 of 1 item: Hose clamps')).toBeVisible()
 
   // A note: edit, leave without Done (asked first), then Done saves and goes back.
@@ -184,8 +184,8 @@ test('first boot to first project', async ({ page }) => {
   await page.getByRole('button', { name: 'Add asset' }).click()
   await expect(page.getByRole('heading', { name: 'Sea Ray 240' })).toBeVisible()
   await page.getByLabel('Hull ID', { exact: true }).fill('SERA1234B626')
-  await page.getByRole('button', { name: 'Save' }).click()
-  await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled()
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
   // A photo of the boat (an iPhone HEIC), shown on the asset's card.
   await page.getByTestId('asset-photo-input').setInputFiles({
     name: 'boat.HEIC', mimeType: 'image/heic',
@@ -209,7 +209,7 @@ test('first boot to first project', async ({ page }) => {
   await page.getByLabel('Phone').fill('555-0100')
   // A plain web address is fine; https:// is added.
   await page.getByLabel('Website').fill('www.davepipes.example')
-  await page.getByRole('button', { name: 'Save' }).click()
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByRole('link', { name: 'Call' })).toHaveAttribute('href', 'tel:5550100')
   await expect(page.getByLabel('Website')).toHaveValue('https://www.davepipes.example')
   // A photo of the contact (an iPhone HEIC photo works).
@@ -251,6 +251,13 @@ test('first boot to first project', async ({ page }) => {
 
   // Admin: invite someone; they join in another browser. Then a password reset link for them.
   await page.goto('/admin')
+  // Experimental features: off until the admin turns them on (none in development yet).
+  const experimental = page.getByRole('region', { name: 'Experimental features' })
+  await expect(experimental).toContainText('No experimental features are in development right now')
+  await experimental.getByLabel('Enable experimental features').check()
+  await expect(experimental.getByLabel('Enable experimental features')).toBeChecked()
+  await experimental.getByLabel('Enable experimental features').uncheck()
+  await expect(experimental.getByLabel('Enable experimental features')).not.toBeChecked()
   await page.getByRole('button', { name: 'Make invite link' }).click()
   const inviteUrl = await page.getByRole('textbox', { name: 'Invite link' }).inputValue()
   expect(inviteUrl).toMatch(/\/invite#phv_inv_/)

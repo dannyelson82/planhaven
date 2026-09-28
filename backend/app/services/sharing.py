@@ -17,6 +17,7 @@ from app.db import auth as audit
 from app.db import contacts as contact_store
 from app.db import projects as project_store
 from app.db import sharing as store
+from app.db import templates as template_store
 from app.db.database import Database
 from app.services.auth import CurrentSession
 
@@ -24,7 +25,7 @@ ROLES = ("owner", "editor", "viewer")
 
 Member = store.MemberRow
 DirectoryEntry = store.DirectoryRow
-Kind = Literal["project", "asset", "contact"]
+Kind = Literal["project", "asset", "contact", "template"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +38,7 @@ _ACTIONS: dict[str, _Actions] = {
     "project": _Actions(authz.Action.PROJECT_VIEW, authz.Action.PROJECT_SHARE),
     "asset": _Actions(authz.Action.ASSET_VIEW, authz.Action.ASSET_SHARE),
     "contact": _Actions(authz.Action.CONTACT_VIEW, authz.Action.CONTACT_SHARE),
+    "template": _Actions(authz.Action.TEMPLATE_VIEW, authz.Action.TEMPLATE_SHARE),
 }
 
 
@@ -54,6 +56,9 @@ async def _access(
         elif kind == "asset":
             access = authz.ProjectAccess(await asset_store.role(conn, resource_id))
             exists = await asset_store.get_asset(conn, resource_id) is not None
+        elif kind == "template":
+            access = authz.ProjectAccess(await template_store.role(conn, resource_id))
+            exists = await template_store.get_template(conn, resource_id) is not None
         else:
             access = authz.ProjectAccess(await contact_store.role(conn, resource_id))
             exists = await contact_store.get_contact(conn, resource_id) is not None
@@ -92,6 +97,10 @@ async def _notify_added(
             asset = await asset_store.get_asset(conn, resource_id)
             payload = {"asset_id": str(resource_id), "title": asset.name if asset else ""}
             event = "asset_shared_with_you"
+        elif kind == "template":
+            template = await template_store.get_template(conn, resource_id)
+            payload = {"template_id": str(resource_id), "title": template.name if template else ""}
+            event = "template_shared_with_you"
         else:
             contact = await contact_store.get_contact(conn, resource_id)
             payload = {"contact_id": str(resource_id), "title": contact.name if contact else ""}

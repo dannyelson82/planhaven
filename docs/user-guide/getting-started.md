@@ -40,12 +40,12 @@ safe (a password manager), then tap **I've saved them**.
 ### On a phone
 
 The menu is at the bottom: **Projects**, **Assets**, **Contacts**, **Account** and **Sign out**.
-**Help** is at the bottom of every page, and on **Account**.
+**Help** is at the bottom of every page, and on **Account** (with **Templates**).
 
 ### On a computer
 
-The menu is on the left: **Projects**, **Assets**, **Contacts**, **Account**, **Admin** (admins
-only), **Help**, and **Sign out** at the bottom.
+The menu is on the left: **Projects**, **Assets**, **Contacts**, **Account**, **Templates**,
+**Admin** (admins only), **Help**, and **Sign out** at the bottom.
 
 ## PlanHaven on your phone
 

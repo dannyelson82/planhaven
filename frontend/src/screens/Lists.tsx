@@ -8,6 +8,7 @@ import { useLiveProject } from '../live.ts'
 import { Button, Card, ErrorText, Field, Form, Link } from '../ui.tsx'
 import { cachedGet, sendOrQueue, updateOfflineCopy } from '../offline.ts'
 import { Movable } from './Movable.tsx'
+import { SaveAsTemplate } from './Templates.tsx'
 
 export type ListSummary = {
   id: string; project_id: string; title: string; kind: Kind; open_items: number; total_items: number; version: number
@@ -312,6 +313,7 @@ export function ListScreen({ id }: { id: string }) {
           <ItemList items={done} editing={editing} priced={l.kind !== 'checklist'} onToggle={(i) => toggle.mutate(i)} onDelete={(i) => remove.mutate(i)} onSave={(i, text, qty, price) => save.mutate({ i, text, qty, price })} />
         </>
       )}
+      {!editing && l.items.length > 0 && <SaveAsTemplate path={`/api/v1/lists/${id}/template`} suggested={l.title} label="Save as template" />}
       {editing && (
         <div className="flex justify-end">
           <Button variant="danger-ghost" isDisabled={removeList.isPending}

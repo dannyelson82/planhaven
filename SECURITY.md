@@ -235,6 +235,12 @@ read-only, feed-only, and defaults to "titles only" content. Tokens are never lo
   cannot read other users' projects.
 - **Not-found over forbidden:** requests for resources the principal can't read return `404`,
   so IDs can't be probed.
+- **Shared one by one:** projects, assets, contacts and templates each have their own members
+  (owner, editor, viewer); only owners share (with a fresh second factor), and each keeps at
+  least one owner. Using a template in a project also needs edit rights on that project.
+- **Experimental features** (ADR 0012) are off unless an admin turns them on and makes each
+  available (step-up, audited, stored where only the system context can write), and each
+  person opts in for themselves (their own rows only). Code behind one checks both.
 - **Authorization test matrix:** CI generates tests for every route × role (owner, editor,
   viewer, non-member, admin, each token type) and asserts the expected result. A new route
   without an entry in the matrix fails the build.

@@ -1,6 +1,7 @@
 # ADR 0012: AI project assistant (both local and commercial models) behind experimental flags
 
-- **Status:** Accepted
+- **Status:** Accepted. The experimental-features framework (master switch, availability,
+  opt-in) shipped in v0.2.15, with no features in it yet.
 - **Date:** 2026-09-27
 - **Changes:** SECURITY.md §7.7 ("no automatic actions from local AI output") and the MCP tool
   list in ARCHITECTURE.md §12.3.

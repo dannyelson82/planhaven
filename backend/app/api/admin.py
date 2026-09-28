@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.api import deps
 from app.api.deps import SessionDep
 from app.services import admin as admin_service
+from app.services import experiments as experiment_service
 from app.services import invites as invite_service
 from app.services import password_resets as reset_service
 from app.services import plugins as plugin_service
@@ -235,3 +236,57 @@ async def set_plugin_enabled(
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from None
     return PluginChangeOut(restart_required=True)
+
+
+# ------------------------------------------------------------------ experimental features
+
+
+class ExperimentOut(BaseModel):
+    name: str
+    title: str
+    description: str
+    risks: str
+    available: bool
+
+
+class ExperimentsOut(BaseModel):
+    enabled: bool
+    features: list[ExperimentOut]
+
+
+class ExperimentsIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool
+    available: Annotated[dict[str, bool], Field(max_length=100)] = {}
+
+
+def _experiments(enabled: bool, features: list[experiment_service.FeatureState]) -> ExperimentsOut:
+    return ExperimentsOut(
+        enabled=enabled,
+        features=[
+            ExperimentOut(
+                name=f.name,
+                title=f.experiment.title,
+                description=f.experiment.description,
+                risks=f.experiment.risks,
+                available=f.available,
+            )
+            for f in features
+        ],
+    )
+
+
+@router.get("/experiments")
+async def get_experiments(ctx: Ctx, request: Request) -> ExperimentsOut:
+    return _experiments(*await experiment_service.admin_view(deps.database(request), ctx))
+
+
+@router.put("/experiments")
+async def set_experiments(ctx: Ctx, body: ExperimentsIn, request: Request) -> ExperimentsOut:
+    try:
+        state = await experiment_service.admin_set(
+            deps.database(request), ctx, body.enabled, body.available
+        )
+    except experiment_service.UnknownExperimentError as exc:
+        raise HTTPException(422, str(exc)) from None
+    return _experiments(*state)
