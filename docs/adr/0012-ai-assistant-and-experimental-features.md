@@ -5,6 +5,9 @@
 - **Changes:** SECURITY.md §7.7 ("no automatic actions from local AI output") and the MCP tool
   list in ARCHITECTURE.md §12.3.
 
+> **Update 2026-09-28:** commercial assistants connect **per person**: each user links their
+> own (e.g. Claude or ChatGPT) through the MCP connector's OAuth (A§12.2).
+
 ## Context
 
 The maintainer wants both AI paths, local models (A§11) and commercial assistants via MCP

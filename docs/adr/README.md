@@ -19,3 +19,4 @@ A decision is changed by adding a new ADR that supersedes the old one, not by re
 | [0012](0012-ai-assistant-and-experimental-features.md) | AI project assistant (local and commercial) behind experimental feature flags | Accepted |
 | [0013](0013-chores-and-time-planner.md) | Household chores with proof; personal time planner; cut-list plugin moved to 0.7 | Accepted |
 | [0014](0014-ui-toolkit-react-aria-tailwind.md) | UI toolkit: React Aria Components with Tailwind CSS | Accepted |
+| [0015](0015-external-share-links.md) | External share links with per-component permissions | Proposed |
