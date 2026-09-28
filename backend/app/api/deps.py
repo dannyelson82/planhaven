@@ -132,3 +132,23 @@ async def websocket_session(websocket: Any) -> CurrentSession | None:
     if session is None or not authz.allowed(session.principal, authz.Action.USE_APP):
         return None
     return session
+
+
+# ------------------------------------------------------------------ share-link guests (ADR 0015)
+
+
+def share_cookie_name(s: Settings) -> str:
+    return "__Host-planhaven_share" if s.base_scheme == "https" else "planhaven_share"
+
+
+async def require_share_session(request: Request) -> Any:
+    """A guest using a share link: their link session cookie, and nothing else (a signed-in
+    account doesn't count). Unsafe methods must come from our own pages."""
+    from app.services import share_links
+
+    require_same_origin(request)
+    token = request.cookies.get(share_cookie_name(settings(request)), "")
+    guest = await share_links.guest_from_session(database(request), token)
+    if guest is None:
+        raise HTTPException(401, "Open the share link again.")
+    return guest

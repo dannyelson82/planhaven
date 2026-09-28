@@ -15,6 +15,8 @@ import { ProjectScreen } from './screens/Project.tsx'
 import { PurchaseScreen } from './screens/Purchase.tsx'
 import { ProjectsScreen } from './screens/Projects.tsx'
 import { TemplateScreen, TemplatesScreen } from './screens/Templates.tsx'
+import { GuestScreen } from './screens/Share.tsx'
+import { ShareLinksScreen } from './screens/ShareLinks.tsx'
 import { TrashScreen } from './screens/Trash.tsx'
 
 const HelpScreen = lazy(() => import('./screens/Help.tsx'))
@@ -88,6 +90,8 @@ function Root() {
   if (route.name === 'invite' && !session.data) return <InviteScreen />
   // A reset link works whether or not someone is signed in on this device.
   if (route.name === 'reset') return <ResetScreen />
+  // Someone with a share link: no account, their own page (ADR 0015).
+  if (route.name === 'share') return <GuestScreen />
   if (session.isPending) return <p className="p-6 text-stone-500">Loading…</p>
   if (session.isError) return <Unreachable retry={() => void session.refetch()} />
   if (!session.data) {
@@ -132,6 +136,8 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
       return <TemplateScreen id={route.id} myId={session.user.id} />
     case 'help':
       return <Suspense fallback={<p className="text-stone-500">Loading…</p>}><HelpScreen slug={route.slug} /></Suspense>
+    case 'project-links':
+      return <ShareLinksScreen projectId={route.id} />
     case 'project-trash':
       return <TrashScreen projectId={route.id} />
     case 'account':

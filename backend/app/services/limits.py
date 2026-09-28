@@ -26,6 +26,10 @@ LOGIN_ACCOUNT = Limit("login-acct", capacity=50, per_second=1 / 60)
 SETUP_IP = Limit("setup-ip", capacity=5, per_second=1 / 60)
 PASSKEY_LOGIN_IP = Limit("passkey-ip", capacity=20, per_second=1 / 30)
 MFA_USER = Limit("mfa-user", capacity=10, per_second=1 / 60)
+# Share links (ADR 0015): opening one, per IP; wrong PINs, per link; guest actions, per link.
+SHARE_OPEN_IP = Limit("share-open-ip", capacity=20, per_second=1 / 30)
+SHARE_PIN_LINK = Limit("share-pin-link", capacity=5, per_second=1 / 300)
+SHARE_WRITE_LINK = Limit("share-write-link", capacity=120, per_second=1 / 2)
 
 
 class RateLimitedError(Exception):

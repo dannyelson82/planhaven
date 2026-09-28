@@ -196,10 +196,11 @@ async def _send_problem(send: Send, status: int, title: str) -> None:
 
 
 # File uploads (raw body): project attachments (POST), asset and contact photos (PUT), and
-# contact cards (POST /contacts/import). Every other body gets the (small) JSON limit.
+# contact cards (POST /contacts/import), and share-link guests' photos (POST /share/files).
+# Every other body gets the (small) JSON limit.
 _UPLOAD_PATH = re.compile(
     r"/api/v1/(projects/[0-9a-fA-F-]{36}/attachments|(assets|contacts)/[0-9a-fA-F-]{36}/photo"
-    r"|contacts/import)"
+    r"|contacts/import|share/files)"
 )
 
 

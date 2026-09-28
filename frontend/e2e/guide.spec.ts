@@ -123,6 +123,29 @@ test('user guide screenshots', async ({ page }, info) => {
   await page.getByRole('button', { name: 'Save as template' }).click()
   await shot(page, device, 'save-as-template', page.getByLabel('Template name').locator('xpath=ancestor::form'))
 
+  // Share links: the form, the link made, and what the guest sees.
+  await page.goto(`/projects/${pid}/links`)
+  await page.getByRole('button', { name: 'Make a share link' }).click()
+  await page.getByLabel('Name of the link').fill(`Dave's Garage (${device})`)
+  await page.getByRole('checkbox', { name: 'Cover the boat' }).check()
+  await page.getByLabel('Note they can add to').selectOption({ label: 'Engine notes' })
+  await page.getByRole('checkbox', { name: 'Add photos (location removed)' }).check()
+  await shot(page, device, 'share-link-new', page.locator('form').filter({ hasText: 'New share link' }))
+  await page.getByRole('button', { name: 'Make the link' }).click()
+  const url = await page.getByRole('textbox', { name: 'Share link' }).inputValue()
+  // The picture shows an example address, never a real token.
+  await page.getByRole('textbox', { name: 'Share link' }).evaluate((el: HTMLInputElement) => { el.value = 'https://planhaven.example.com/s#phv_shr_…' })
+  await shot(page, device, 'share-link-made', page.locator('form, div').filter({ has: page.getByRole('textbox', { name: 'Share link' }) }).last())
+  const guest = await page.context().browser()!.newContext({ viewport: page.viewportSize()!, isMobile: device === 'phone', hasTouch: device === 'phone' })
+  const dave = await guest.newPage()
+  await dave.goto(url)
+  await shot(dave, device, 'guest-open')
+  await dave.getByLabel('Your name').fill('Dave')
+  await dave.getByRole('button', { name: 'Open' }).click()
+  await dave.getByRole('heading', { name: 'Winterize boat' }).waitFor()
+  await shot(dave, device, 'guest')
+  await guest.close()
+
   // Trash, account, admin.
   await page.goto(`/projects/${pid}/trash`)
   await page.getByRole('heading', { name: /^Trash/ }).waitFor()

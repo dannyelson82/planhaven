@@ -60,6 +60,18 @@ class Database:
             yield conn
 
     @asynccontextmanager
+    async def link_transaction(self, link_id: uuid.UUID) -> AsyncIterator[AsyncConnection]:
+        """A transaction for a guest using a share link (ADR 0015): no user; the database
+        allows only what the link was given, item by item (app.link_allows, migration 0026)."""
+        if not isinstance(link_id, uuid.UUID):
+            raise TypeError("link_id must be a UUID")
+        async with self.engine.begin() as conn:
+            await conn.execute(
+                text("SELECT set_config('app.share_link', :lid, true)"), {"lid": str(link_id)}
+            )
+            yield conn
+
+    @asynccontextmanager
     async def system_transaction(self) -> AsyncIterator[AsyncConnection]:
         """A transaction for system jobs (recurrence, purges). Policies grant it only what
         they explicitly allow."""

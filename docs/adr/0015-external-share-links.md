@@ -1,6 +1,6 @@
 # ADR 0015: External share links for people without an account
 
-- **Status:** Accepted
+- **Status:** Accepted; built in v0.2.16 (migration 0026, SECURITY.md §7.16)
 - **Date:** 2026-09-28
 
 ## Context
@@ -66,6 +66,17 @@ simple page with only what was ticked. No account, no access to the rest of the 
 2. Expiry: default 30 days, maximum 1 year.
 3. Timing: whenever it fits best; planned right after the admin/invite screens, before
    phase 0.3.
+
+## As built (v0.2.16)
+
+- The database check is item by item (maintainer's choice, 2026-09-28): guest transactions
+  set `app.share_link` and have no user; `app.link_allows` answers for each row; column
+  guards limit guests to ticks and adding to the one note.
+- Opening a link gives a guest session cookie (12 hours at most); the token itself is used
+  once and never stored in the browser.
+- Guests' photos are recorded as uploaded by the link's creator (the account behind the
+  link), with the guest's name in the link's activity.
+- Quotes, costs and asset details stay out of links for now.
 
 ## Consequences
 
