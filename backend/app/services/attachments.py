@@ -26,6 +26,7 @@ from app.services.auth import CurrentSession
 AttachmentRow = store.AttachmentRow
 
 UPLOAD_USER = limits.Limit("upload-user", capacity=60, per_second=1 / 10)
+UPLOAD_LINK = limits.Limit("upload-link", capacity=30, per_second=1 / 20)  # share-link guests
 
 
 class UploadTooLargeError(Exception):
@@ -202,6 +203,14 @@ async def receive_photo(
         ip=ip,
         user_id=session.user.id,
     )
+    return await clean_photo(blobs, chunks=chunks, max_bytes=max_bytes)
+
+
+async def clean_photo(
+    blobs: BlobStore, *, chunks: AsyncIterator[bytes], max_bytes: int
+) -> tuple[str, str, str]:
+    """The photo pipeline on its own (type check, HEIC, cleaning, thumbnail): (image blob,
+    thumbnail blob, content type). Callers check permissions and rate limits first."""
     with blobs.temp_file() as tmp:
         try:
             received = await blobs.receive(chunks, tmp, max_bytes)

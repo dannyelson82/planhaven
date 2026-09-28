@@ -86,6 +86,7 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
         <div className="flex flex-wrap items-center gap-2">
         <Button variant="secondary" onPress={() => setArranging(!arranging)} aria-pressed={arranging}>Arrange</Button>
         <ShareButton kind="project" id={id} isOwner={p.role === 'owner'} myId={myId} />
+        {canEdit && <Link to={`/projects/${id}/links`} className="inline-flex min-h-11 items-center rounded-xl px-4 font-medium ring-1 ring-stone-300 dark:ring-stone-700">Share link</Link>}
         <Select
           aria-label="Stage"
           selectedKey={p.stage}

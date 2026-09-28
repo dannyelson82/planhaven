@@ -14,6 +14,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
+from typing import Literal
 
 STEP_UP_WINDOW = timedelta(minutes=5)
 
@@ -69,6 +70,7 @@ class Action(StrEnum):
     PROJECT_EDIT = "project.edit"
     PROJECT_MANAGE = "project.manage"
     PROJECT_SHARE = "project.share"  # add/remove members, change roles
+    PROJECT_SHARE_LINK = "project.share_link"  # make a link for someone without an account
     # Assets (vehicle, boat, house, ...): shared like projects, same roles (ADR 0005)
     ASSET_VIEW = "asset.view"
     ASSET_EDIT = "asset.edit"
@@ -106,6 +108,8 @@ RULES: dict[Action, Rule] = {
     Action.PROJECT_MANAGE: Rule(),
     # Changing who can see a project needs a fresh second factor (SECURITY.md §7.1).
     Action.PROJECT_SHARE: Rule(recent=True),
+    # A share link lets someone in without an account: a fresh second factor (ADR 0015).
+    Action.PROJECT_SHARE_LINK: Rule(recent=True),
     Action.ASSET_VIEW: Rule(),
     Action.ASSET_EDIT: Rule(),
     Action.ASSET_MANAGE: Rule(),
@@ -127,6 +131,7 @@ PROJECT_ROLES: dict[Action, frozenset[str]] = {
     Action.PROJECT_EDIT: frozenset({"owner", "editor"}),
     Action.PROJECT_MANAGE: frozenset({"owner"}),
     Action.PROJECT_SHARE: frozenset({"owner"}),
+    Action.PROJECT_SHARE_LINK: frozenset({"owner", "editor"}),
     Action.ASSET_VIEW: frozenset({"owner", "editor", "viewer"}),
     Action.ASSET_EDIT: frozenset({"owner", "editor"}),
     Action.ASSET_MANAGE: frozenset({"owner"}),
@@ -172,3 +177,57 @@ def allowed(principal: Principal, action: Action, resource: ProjectAccess | None
     except AuthzError:
         return False
     return True
+
+
+# ------------------------------------------------------------------ share links (ADR 0015)
+
+LinkWhat = Literal[
+    "task.read",
+    "task.tick",
+    "note.read",
+    "note.append",
+    "list.read",
+    "list.tick",
+    "file.read",
+    "file.add",
+]
+
+
+@dataclass(frozen=True, slots=True)
+class LinkGrant:
+    """What one share link was given: its boxes and chosen items. A guest has no account;
+    these are their only permissions (checked here, and again by the database)."""
+
+    link_id: uuid.UUID
+    project_id: uuid.UUID
+    tasks_view: str  # none | all | chosen
+    tasks_tick: bool
+    files_view: bool
+    files_add: bool
+    lists_tick: bool
+    append_note_id: uuid.UUID | None
+    task_ids: frozenset[uuid.UUID]
+    note_ids: frozenset[uuid.UUID]
+    list_ids: frozenset[uuid.UUID]
+
+
+def link_allows(grant: LinkGrant, what: LinkWhat, item: uuid.UUID | None = None) -> bool:
+    """Mirrors app.link_allows (migration 0026)."""
+    task_ok = grant.tasks_view == "all" or (grant.tasks_view == "chosen" and item in grant.task_ids)
+    rules: dict[str, bool] = {
+        "task.read": task_ok,
+        "task.tick": grant.tasks_tick and task_ok,
+        "note.read": item is not None and (item == grant.append_note_id or item in grant.note_ids),
+        "note.append": item is not None and item == grant.append_note_id,
+        "list.read": item in grant.list_ids,
+        "list.tick": grant.lists_tick and item in grant.list_ids,
+        "file.read": grant.files_view,
+        "file.add": grant.files_add,
+    }
+    return rules[what]
+
+
+def require_link(grant: LinkGrant, what: LinkWhat, item: uuid.UUID | None = None) -> None:
+    """Not-found, like anything else the caller can't see."""
+    if not link_allows(grant, what, item):
+        raise NotFoundError("Not found.")

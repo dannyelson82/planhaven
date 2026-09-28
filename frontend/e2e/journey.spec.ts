@@ -168,6 +168,52 @@ test('first boot to first project', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'parts.csv' })).toHaveAttribute('href', /\/download$/)
   await expect.poll(() => page.getByRole('img', { name: 'IMG_0001.jpg' }).evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
 
+  // A share link for someone without an account (ADR 0015): the chosen task only, a note to
+  // add to, photos. The guest opens it in their own browser, with just their name.
+  const projectPage = page.url()
+  await page.getByRole('link', { name: 'Share link' }).click()
+  await page.getByRole('button', { name: 'Make a share link' }).click()
+  await page.getByLabel('Name of the link').fill("Dave's Garage")
+  await page.getByRole('checkbox', { name: 'Change oil' }).check()
+  await page.getByLabel('Note they can add to').selectOption({ label: 'Engine notes' })
+  await page.getByRole('checkbox', { name: "See the project's photos and files" }).check()
+  await page.getByRole('checkbox', { name: 'Add photos (location removed)' }).check()
+  await page.getByRole('button', { name: 'Make the link' }).click()
+  const shareUrl = await page.getByRole('textbox', { name: 'Share link' }).inputValue()
+  expect(shareUrl).toMatch(/\/s#phv_shr_/)
+  const garage = await page.context().browser()!.newContext()
+  const dave = await garage.newPage()
+  const daveProblems = watchForProblems(dave)
+  await dave.goto(shareUrl)
+  await expect(dave).toHaveURL(/\/s$/) // the token leaves the address bar
+  await dave.getByLabel('Your name').fill('Dave')
+  await dave.getByRole('button', { name: 'Open' }).click()
+  await expect(dave.getByRole('heading', { name: 'Winterize boat' })).toBeVisible()
+  await expect(dave.getByText('Change oil')).toBeVisible()
+  await expect(dave.getByText('Cover the boat')).toHaveCount(0) // not given
+  await dave.getByRole('checkbox', { name: /Change oil/ }).check()
+  await expect(dave.getByRole('checkbox', { name: /Change oil/ })).toBeChecked()
+  await dave.getByLabel('Add to “Engine notes”').fill('Impeller replaced, 2 hours.')
+  await dave.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(dave.getByText('Impeller replaced, 2 hours.')).toBeVisible()
+  await dave.getByLabel('Choose photos').setInputFiles({ name: 'impeller.png', mimeType: 'image/png', buffer: png })
+  await expect(dave.getByRole('img', { name: /impeller/ })).toBeVisible()
+  expect(daveProblems).toEqual([])
+  // The owner sees who did what, then turns the link off.
+  await page.getByRole('button', { name: 'Activity' }).click()
+  await expect(page.getByRole('list', { name: "Activity of Dave's Garage" })).toContainText('Dave added to the note')
+  await page.getByRole('button', { name: 'Turn off' }).click()
+  await page.getByRole('button', { name: 'Tap again to turn it off' }).click()
+  await expect(page.getByText('Turned off')).toBeVisible()
+  await dave.reload()
+  await expect(dave.getByRole('heading', { name: "This link doesn't work" })).toBeVisible()
+  await garage.close()
+  await page.goto(projectPage)
+  // Dave's tick shows on the project: the task is done.
+  await expect(page.getByRole('region', { name: 'Open tasks' })).not.toContainText('Change oil')
+  await page.getByText(/^Done \(\d+\)$/).click()
+  await expect(page.locator('label', { hasText: 'Change oil' }).first()).toBeVisible()
+
   // Deleted by mistake: the file comes back from the trash.
   await page.getByRole('button', { name: 'Delete parts.csv' }).click()
   await expect(page.getByRole('link', { name: 'parts.csv' })).toBeHidden()

@@ -154,7 +154,9 @@ async def test_every_route_as_every_principal(callers: dict[str, Caller]) -> Non
 async def test_unsafe_session_routes_need_csrf(callers: dict[str, Caller]) -> None:
     failures = []
     for (method, path), cls in MATRIX.items():
-        if method == "GET" or cls in ("public", "public_origin"):
+        # Share-link guests have no CSRF token: their cookie is SameSite=Strict and their
+        # unsafe requests must come from our origin (checked below).
+        if method == "GET" or cls in ("public", "public_origin", "share"):
             continue
         if (method, path) == ("POST", "/api/v1/auth/logout"):
             continue
@@ -168,7 +170,7 @@ async def test_public_unsafe_routes_need_our_origin(callers: dict[str, Caller]) 
     anon = callers["anon"].client
     failures = []
     for (method, path), cls in MATRIX.items():
-        if cls != "public_origin":
+        if cls != "public_origin" and not (cls == "share" and method != "GET"):
             continue
         response = await anon.request(
             method,

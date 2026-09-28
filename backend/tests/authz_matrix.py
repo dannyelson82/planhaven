@@ -8,6 +8,7 @@ Classes:
 - verified      a session that completed the second factor
 - step_up       verified, with a second factor in the last 5 minutes
 - admin         admin with step-up; everyone else gets 404
+- share         a share-link guest (ADR 0015): only their link session counts; accounts get 401
 
 A route missing from this table fails the tests. When token principals (sync, PAT, OAuth)
 arrive, they get their own columns.
@@ -107,6 +108,18 @@ MATRIX: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/contacts/import"): "verified",
     ("GET", "/api/v1/list-item-suggestions"): "verified",
     ("GET", "/api/v1/templates"): "verified",
+    ("GET", "/api/v1/projects/{project_id}/share-links"): "verified",
+    ("POST", "/api/v1/projects/{project_id}/share-links"): "verified",
+    ("POST", "/api/v1/share-links/{link_id}/revoke"): "verified",
+    ("GET", "/api/v1/share-links/{link_id}/events"): "verified",
+    ("POST", "/api/v1/share/open"): "public_origin",
+    ("POST", "/api/v1/share/leave"): "public_origin",
+    ("GET", "/api/v1/share/view"): "share",
+    ("POST", "/api/v1/share/tasks/{task_id}"): "share",
+    ("POST", "/api/v1/share/list-items/{item_id}"): "share",
+    ("POST", "/api/v1/share/notes/{note_id}/add"): "share",
+    ("POST", "/api/v1/share/files"): "share",
+    ("GET", "/api/v1/share/files/{attachment_id}/{part}"): "share",
     ("GET", "/api/v1/experiments"): "verified",
     ("PUT", "/api/v1/experiments/{name}"): "verified",
     ("GET", "/api/v1/admin/experiments"): "admin",
@@ -176,6 +189,11 @@ MATRIX: dict[tuple[str, str], str] = {
 
 # Bodies that pass validation, so checks inside services (step-up) are reached.
 BODIES: dict[tuple[str, str], object] = {
+    ("POST", "/api/v1/projects/{project_id}/share-links"): {"name": "Garage", "files_view": True},
+    ("POST", "/api/v1/share/open"): {"token": "phv_shr_not-a-real-link", "name": "Dave"},
+    ("POST", "/api/v1/share/tasks/{task_id}"): {"done": True},
+    ("POST", "/api/v1/share/list-items/{item_id}"): {"checked": True},
+    ("POST", "/api/v1/share/notes/{note_id}/add"): {"text": "Oil changed"},
     ("PUT", "/api/v1/experiments/{name}"): {"opted_in": True},
     ("PUT", "/api/v1/admin/experiments"): {"enabled": False},
     ("POST", "/api/v1/lists/{list_id}/template"): {"name": "Hardware run"},
@@ -257,6 +275,7 @@ EXPECT: dict[str, dict[str, object]] = {
         "admin_stale": 403,
         "admin_fresh": "ok",
     },
+    "share": {p: 401 for p in ("anon", "partial", "stale", "fresh", "admin_stale", "admin_fresh")},
     "admin": {
         "anon": 401,
         "partial": 404,
@@ -276,8 +295,14 @@ GUARDS: dict[str, set[str]] = {
     "verified": {"require_verified_session"},
     "step_up": {"require_verified_session"},
     "admin": {"require_admin", "require_admin_network"},
+    "share": {"require_share_session"},
 }
-SESSION_GUARDS = {"require_session", "require_verified_session", "require_admin"}
+SESSION_GUARDS = {
+    "require_session",
+    "require_verified_session",
+    "require_admin",
+    "require_share_session",
+}
 
 
 # WebSocket routes authenticate in the handler (Origin + session cookie + second factor,

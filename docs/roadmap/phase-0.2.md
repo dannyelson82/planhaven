@@ -117,5 +117,6 @@ as they're found rather than hunted now.
 - [x] v0.2.15: templates for lists and tasks, private and shareable one by one by their
       creator (migration 0024); admin "Enable experimental features" switch with
       availability and opt-in (ADR 0012, migration 0025); combined into one release
+- [x] v0.2.16: share links for people without an account (ADR 0015, migration 0026)
 - Dropped: reading product details from a pasted link (reliability; server fetching
   arbitrary links)

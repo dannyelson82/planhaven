@@ -150,6 +150,11 @@ Organized by STRIDE category. Details for each control are in §7.
 | Repudiation of changes (esp. by AI) | Repudiation | Append-only audit log with actor, client, IP (§7.12) |
 | Resource exhaustion | DoS | Rate limits, body and upload limits, job concurrency limits, query limits (§7.11) |
 | Cross-site WebSocket hijacking of the live-updates channel | Spoofing | Session or token required at handshake, `Origin` must equal `BASE_URL` (§7.15) |
+| Share link forwarded or leaked | Info disclosure | Only what was ticked; expiry required (max 1 year); optional PIN; revoke any time; activity log with names; token after `#` so never in logs or Referer (§7.16) |
+| Guessing share links or PINs | Spoofing | 256-bit tokens stored hashed; open attempts rate limited per IP, wrong PINs per link (§7.16) |
+| A share link reaching more than it was given | Elevation of privilege | Checked in the app and again by the database item by item (`app.link_allows`, RLS); column guards; no user identity in guest transactions (§7.16) |
+| Guest uploads | Tampering | Photos only, same cleaning pipeline (location removed), size and rate limits (§7.5, §7.16) |
+| A guest rewriting a note | Tampering | Append only: text added at the end with the guest's name; the rest of the note never changes (§7.16) |
 | Stale access on a live connection after removal from a project | Elevation / Info disclosure | Sharing changes applied to open note connections at once (closed, or switched to read-only); every connection also re-checked every 15 s (§7.15) |
 | Viewer or malicious client pushing edits or oversized/malformed updates | Tampering / DoS | Server rejects viewer updates; size, rate and document limits; malformed updates close the connection (§7.15) |
 | Assignee (e.g. a child) seeing more than their chores | Info disclosure | Assignee access limited to their assigned tasks by authz and RLS; tested in the authz matrix (ADR 0013) |
@@ -458,6 +463,30 @@ Cross-Origin-Resource-Policy: same-origin
 - Note contents are never logged.
 - Ticking a note's checkbox from the project page: editor role required, checked against the
   item's text so a stale page can't tick the wrong line, and saved by the server.
+
+### 7.16 Share links (ADR 0015)
+
+- A link is a capability: 256 random bits with the `phv_shr_` prefix (log redaction and
+  secret scanning), stored only as a SHA-256 hash, shown once. It sits after `#` in the
+  URL, so browsers never send it to the server, proxies or `Referer`; the guest page reads
+  it once and removes it from the address bar.
+- Made only by project owners and editors with a fresh second factor; audited. It must
+  expire (1 day to 1 year) and can be turned off at any time; an optional 6-digit PIN
+  (Argon2-hashed, shown once) is off by default.
+- Opening it gives a short-lived guest session (12 hours at most, never past the link's
+  expiry): an HttpOnly, `SameSite=Strict`, `__Host-` cookie. Guest requests must come
+  from our origin; account sessions don't work on guest routes, and guest sessions don't
+  work anywhere else.
+- Guest transactions carry no user identity, only the link. The database answers every
+  read and write through `app.link_allows` (migration 0026): only the chosen tasks, notes
+  and lists, the project's files if allowed, and only while the link is live and its
+  creator can still edit the project. Triggers let a guest change only the tick of a task
+  or list item, or add to the one note allowed. The app checks the same rules first.
+- Never through a link: deleting, sharing, members' names or emails, contacts, quotes,
+  costs, other projects, the admin console.
+- Rate limits: opening (per IP), wrong PINs (per link), guest changes and uploads (per
+  link). Uploads are photos only, cleaned like any upload.
+- Every guest action is recorded in the link's activity with the name the guest gave.
 
 ---
 
