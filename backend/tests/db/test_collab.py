@@ -274,10 +274,9 @@ def _wait_for(check: Any, seconds: float = 5.0) -> None:
 
 
 def test_server_writes_the_text_copy_and_shows_who_is_editing(
-    team: tuple[U, U, U, str, str], monkeypatch: pytest.MonkeyPatch
+    team: tuple[U, U, U, str, str],
 ) -> None:
     owner, viewer, _, pid, nid = team
-    monkeypatch.setattr(note_service, "TEXT_DELAY", 0.0)
     with owner.ws(f"/api/v1/collab/notes/{nid}") as ws:
         _sync(ws, pycrdt.Doc())
         # Viewers see who has the note open for editing (not themselves).

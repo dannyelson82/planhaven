@@ -43,7 +43,6 @@ from app.core.logging import configure_logging
 from app.db.database import Database
 from app.plugins_host.host import LoadedPlugins, discover
 from app.services import attachments as attachment_service
-from app.services import notes as note_service
 from app.services import plugins as plugin_service
 
 # Every router the app serves. The authorization test matrix reads this list, so a router
@@ -89,8 +88,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except Exception:  # database not ready: start without plugins, /readyz will say so
             application.state.plugins = LoadedPlugins()
         yield
-        # Pending note text copies are written before the database goes away.
-        await note_service.flush_text()
         await db.dispose()
 
     app = FastAPI(

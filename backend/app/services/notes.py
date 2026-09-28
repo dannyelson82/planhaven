@@ -7,7 +7,6 @@ connection. Edit contents are never logged.
 """
 
 import asyncio
-import contextlib
 import logging
 import time
 import uuid
@@ -196,67 +195,9 @@ class Room:
     # someone types, and once more when the last person leaves (so the page shows the end).
     last_published: float = 0.0
     unpublished: bool = False
-    # The server writes the note's Markdown copy (previews, search) itself, a moment after
-    # typing stops, as the last person who edited.
-    db: Database | None = None
-    last_editor: uuid.UUID | None = None
-    text_dirty: bool = False
-    text_task: asyncio.Task[None] | None = None
-    text_writing: bool = False
 
 
 PUBLISH_EVERY = 2.0
-TEXT_DELAY = 1.0
-
-
-# Rooms with a text copy waiting to be written (a room may already be closed).
-_text_pending: set[Room] = set()
-
-
-def _schedule_text(room: Room) -> None:
-    room.text_dirty = True
-    _text_pending.add(room)
-    if room.text_task is None or room.text_task.done():
-        room.text_task = asyncio.ensure_future(_save_text_later(room))
-
-
-async def _save_text_later(room: Room) -> None:
-    await asyncio.sleep(TEXT_DELAY)
-    room.text_writing = True
-    try:
-        await _write_text(room)
-    finally:
-        room.text_writing = False
-
-
-async def _write_text(room: Room) -> None:
-    while room.text_dirty and room.db is not None and room.last_editor is not None:
-        room.text_dirty = False
-        markdown = to_markdown(room.doc)[:MAX_TEXT_CONTENT]
-        try:
-            async with room.db.user_transaction(room.last_editor) as conn:
-                await store.set_text(conn, room.note_id, markdown)
-        except Exception:
-            log.exception("could not save a note's text copy")
-            break
-        live.publish(room.project_id, "notes")
-    _text_pending.discard(room)
-
-
-async def flush_text() -> None:
-    """On shutdown: write every pending text copy now instead of after the delay."""
-    for room in list(_text_pending):
-        task = room.text_task
-        if task is not None and not task.done():
-            if room.text_writing:
-                # Already talking to the database: let it finish (cancelling mid-transaction
-                # would abandon the connection).
-                await task
-            else:
-                task.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await task
-        await _write_text(room)
 
 
 def _changed(room: Room) -> None:
@@ -285,7 +226,7 @@ class Rooms:
                 for blob in ([snapshot] if snapshot else []) + updates:
                     doc.apply_update(blob)
                     size += len(blob)
-                room = Room(note.id, note.project_id, doc, size, db=db)
+                room = Room(note.id, note.project_id, doc, size)
                 self._rooms[note.id] = room
             room.peers.add(peer)
         live.publish(room.project_id, "notes")  # "being edited by" changed
@@ -404,9 +345,10 @@ async def handle_message(db: Database, room: Room, peer: Peer, message: bytes) -
                 user_id=peer.user_id,
                 update=update,
             )
+            # The Markdown copy (previews, search) is made here from the stored document, so
+            # it always matches the note (browsers used to send it, sometimes out of order).
+            await store.set_text(conn, room.note_id, to_markdown(room.doc)[:MAX_TEXT_CONTENT])
         room.size += len(update)
-        room.last_editor = peer.user_id
-        _schedule_text(room)
         _changed(room)
     await _broadcast(room, pycrdt.create_update_message(update), exclude=peer)
     log.info("note updated", extra={"note_id": str(room.note_id), "bytes": len(update)})
