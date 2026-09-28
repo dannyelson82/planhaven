@@ -1,8 +1,9 @@
 """Database tests run against a real PostgreSQL (CI starts one). They're skipped when
 PLANHAVEN_DB_HOST isn't set, e.g. on a laptop without PostgreSQL."""
 
+import gc
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 
 import pytest
 from alembic import command
@@ -70,3 +71,11 @@ def fresh_rate_limits() -> None:
 
 # Shared fixture: an owner (admin), an editor, a viewer and a stranger, all fully signed in.
 from tests.db.test_projects import people  # noqa: E402, F401
+
+
+@pytest.fixture(autouse=True)
+def _collect_garbage_after_each_test() -> Iterator[None]:
+    """A database connection left checked out is reported when it's garbage-collected;
+    collecting after each test pins the report to the test that caused it."""
+    yield
+    gc.collect()
