@@ -118,9 +118,10 @@ test('first boot to first project', async ({ page }) => {
   await expect(page.getByLabel('Note title')).toHaveValue('Engine notes')
   const diag: string[] = []
   const t1 = Date.now()
-  page.on('request', (r) => { if (r.url().includes('/api/')) diag.push(`${Date.now() - t1} REQ ${r.method()} ${r.url().replace(/.*\/api\/v1/, '')}`) })
+  page.on('request', (r) => { if (r.url().includes('/api/')) diag.push(`${Date.now() - t1} REQ ${r.method()} ${r.url().replace(/.*\/api\/v1/, '')} ${r.postData() ?? ''}`) })
   page.on('response', async (r) => { if (r.url().includes('note')) diag.push(`${Date.now() - t1} RES ${r.status()} ${r.url().replace(/.*\/api\/v1/, '')} ${(await r.text().catch(() => '')).slice(0, 150)}`) })
   page.on('framenavigated', () => diag.push(`${Date.now() - t1} NAV ${page.url()}`))
+  diag.push('EDITOR ' + await editor.innerHTML())
   await page.getByRole('button', { name: 'Done' }).click()
   await expect(page.getByRole('heading', { name: 'Winterize boat' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Engine notes' })).toBeVisible()
@@ -130,7 +131,7 @@ test('first boot to first project', async ({ page }) => {
   const t0 = Date.now()
   for (let i = 0; i < 40 && !(await impeller.count()); i++) await page.waitForTimeout(250)
   console.log('DIAG appeared after ms', Date.now() - t0, 'count', await impeller.count())
-  console.log('DIAG log', JSON.stringify(diag))
+  for (const d of diag) console.log('DIAG', d.slice(0, 1500))
   await expect(impeller).not.toBeChecked()
   await impeller.check() // tick it from the project page
   await expect(impeller).toBeChecked()
