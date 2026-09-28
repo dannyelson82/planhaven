@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 
-// End-to-end tests against a running Planhaven (container in CI, local server in dev).
+// End-to-end tests against a running PlanHaven (container in CI, local server in dev).
 // PLAYWRIGHT_BASE_URL must match the instance's BASE_URL; SETUP_TOKEN is its setup token.
 export default defineConfig({
   testDir: './e2e',

@@ -134,79 +134,61 @@ test('lists work offline and catch up when back online', async ({ page, context 
   expect(problems.filter((p) => !p.includes('Failed to load resource') && !p.includes('ERR_INTERNET_DISCONNECTED'))).toEqual([])
 })
 
-// Fast typing in a note (long, wrapping checklist items), then back and forth between the
-// note and the project page: every character is kept and the connection is never cut.
-test('fast typing in a note keeps every character', async ({ page }, info) => {
+// Notes are saved on Done (docs/adr/0016). Typing fast, long wrapping lines, edits in the
+// middle of wrapped text: every character is kept exactly once, and the card matches.
+test('a note keeps exactly what was typed, saved on Done', async ({ page }, info) => {
   const problems = watchForProblems(page)
-  const closedWhileTyping: string[] = []
-  let typing = false
-  page.on('websocket', (ws) => ws.on('close', () => { if (typing && ws.url().includes('/collab/')) closedWhileTyping.push(ws.url()) }))
-  await page.goto('/projects')
-  await page.getByRole('link', { name: 'Winterize boat' }).click()
-  await page.getByRole('button', { name: 'New note' }).click()
-  const editor = page.getByRole('textbox', { name: 'Note', exact: true })
-  await expect(page.getByText('Saved automatically')).toBeVisible()
-  const first = `Need a way to edit list item quantities from the list page (${info.project.name})`
-  const second = 'Confirm deletes or a remove items mode in lists so nothing goes by accident'
-  typing = true
-  await editor.click()
-  await page.getByRole('button', { name: 'Checklist' }).click()
-  await editor.pressSequentially(first, { delay: 2 })
-  await editor.press('Enter')
-  await editor.pressSequentially(second, { delay: 2 })
-  typing = false
-  const noteUrl = page.url()
-  for (let round = 0; round < 2; round++) {
-    await page.getByRole('link', { name: '← Back to project' }).click()
-    await expect(page.getByRole('region', { name: 'Notes' }).getByRole('checkbox', { name: first })).toBeVisible()
-    await page.goto(noteUrl)
-    await expect(page.getByText('Saved automatically')).toBeVisible()
-    await expect(page.getByRole('textbox', { name: 'Note', exact: true })).toContainText(first)
-    await expect(page.getByRole('textbox', { name: 'Note', exact: true })).toContainText(second)
-  }
-  // Exactly two checklist rows, each with its own text once (nothing duplicated).
-  const rows = page.getByRole('textbox', { name: 'Note', exact: true }).locator('li p')
-  await expect(rows).toHaveText([first, second])
-  expect(closedWhileTyping).toEqual([])
-  expect(problems).toEqual([])
-})
-
-// Owner report: the note's card on the project page showed garbled text after editing
-// wrapped lines. The card's text now comes from the server's copy of the saved note.
-test('the note card shows exactly what the note says', async ({ page }, info) => {
-  test.skip(info.project.name !== 'desktop', 'desktop layout wraps the long lines used here')
   await page.goto('/projects')
   await page.getByRole('link', { name: 'Winterize boat' }).click()
   await page.getByRole('button', { name: 'New note' }).click()
   const ed = () => page.getByRole('textbox', { name: 'Note', exact: true })
-  await expect(page.getByText('Saved automatically')).toBeVisible()
-  await page.getByLabel('Note title').fill('Wrapped lines')
-  await page.getByLabel('Note title').press('Enter')
-  await ed().click()
+  await page.getByLabel('Note title').fill(`Wrapped (${info.project.name})`)
   const lines = [
-    'This is a fairly long first line that will certainly wrap around on a desktop screen because it keeps going and going',
-    'Second paragraph also long enough to wrap when the window is not very wide at all',
+    'GARBAGE TEXT STILL SHOWING UP IN THE NOTES WHEN SWITCHING BACK AND FORTH BETWEEN SCREENS',
+    'FOUND AN = SIGN RANDOM "=" IN ONE OF THE LINES; (a) [b] {c} + - _ \' "',
     'Short third',
   ]
+  await ed().click()
   for (const [i, line] of lines.entries()) {
-    await page.keyboard.type(line, { delay: 4 })
+    await page.keyboard.type(line, { delay: 2 })
     if (i < lines.length - 1) await page.keyboard.press('Enter')
   }
   const noteUrl = page.url()
   const edits = [
-    async () => { const b = (await ed().locator('p').first().boundingBox())!; await page.mouse.click(b.x + b.width * 0.4, b.y + b.height - 4); await page.keyboard.type(' MID ', { delay: 4 }) },
+    async () => { const b = (await ed().locator('p').first().boundingBox())!; await page.mouse.click(b.x + b.width * 0.4, b.y + b.height - 4); await page.keyboard.type(' MID ', { delay: 2 }) },
     async () => { const b = (await ed().locator('p').nth(1).boundingBox())!; await page.mouse.click(b.x + 1, b.y + 4); await page.keyboard.press('Home'); await page.keyboard.press('Backspace') },
-    async () => { const b = (await ed().locator('p').first().boundingBox())!; await page.mouse.click(b.x + b.width * 0.7, b.y + 4); await page.keyboard.press('Enter'); await page.keyboard.type('after split', { delay: 4 }) },
-    async () => { await page.keyboard.type(' LAST WORDS', { delay: 1 }) }, // then leave at once
+    async () => { await page.keyboard.type(' LAST WORDS', { delay: 1 }) },
   ]
-  for (const edit of edits) {
+  for (const edit of [async () => undefined, ...edits]) {
     await edit()
-    const paragraphs = await ed().evaluate((el) => [...el.querySelectorAll('p')].map((p) => p.textContent!.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' · '))
-    await page.getByRole('link', { name: '← Back to project' }).click()
-    const card = page.getByRole('region', { name: 'Notes' }).locator('li', { hasText: 'Wrapped lines' })
-    await expect.poll(async () => (await card.innerText()).replace(/\s+/g, ' ')).toContain(paragraphs)
+    const paragraphs = await ed().evaluate((el) => [...el.querySelectorAll('p')].map((p) => p.textContent!.replace(/\s+/g, ' ').trim()).filter(Boolean))
+    await page.getByRole('button', { name: 'Done' }).click()
+    await expect(page.getByRole('heading', { name: 'Winterize boat' })).toBeVisible()
+    const card = page.getByRole('region', { name: 'Notes' }).locator('li', { hasText: `Wrapped (${info.project.name})` })
+    await expect.poll(async () => (await card.innerText()).replace(/\s+/g, ' ')).toContain(paragraphs.join(' · '))
     await page.goto(noteUrl)
-    await expect(page.getByText('Saved automatically')).toBeVisible()
+    await expect(ed().locator('p')).toHaveText(paragraphs)
     await ed().click()
   }
+  expect(problems).toEqual([])
+})
+
+test('leaving without saving keeps the note as it was', async ({ page }, info) => {
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Winterize boat' }).click()
+  await page.getByRole('button', { name: 'New note' }).click()
+  await page.getByLabel('Note title').fill(`Keep me (${info.project.name})`)
+  await page.getByRole('textbox', { name: 'Note', exact: true }).click()
+  await page.keyboard.type('saved words')
+  await page.getByRole('button', { name: 'Done' }).click()
+  await page.getByRole('link', { name: `Keep me (${info.project.name})` }).click()
+  await page.getByRole('textbox', { name: 'Note', exact: true }).click()
+  await page.keyboard.type(' and unsaved words')
+  await page.getByRole('link', { name: 'Projects' }).first().click()
+  await expect(page.getByRole('heading', { name: 'Save your changes?' })).toBeVisible()
+  await page.getByRole('button', { name: 'Leave without saving' }).click()
+  await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()
+  await page.getByRole('link', { name: 'Winterize boat' }).click()
+  await page.getByRole('link', { name: `Keep me (${info.project.name})` }).click()
+  await expect(page.getByRole('textbox', { name: 'Note', exact: true })).toHaveText('saved words')
 })

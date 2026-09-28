@@ -1,4 +1,4 @@
-# Planhaven
+# PlanHaven
 
 **From idea to done.**
 
@@ -40,5 +40,5 @@ Please use GitHub private vulnerability reporting. See [SECURITY.md](SECURITY.md
 
 ## License
 
-Apache License 2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE). The Planhaven name and logo
+Apache License 2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE). The PlanHaven name and logo
 are not covered by the license. Rationale: [ADR 0010](docs/adr/0010-license-apache-2.md).

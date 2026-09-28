@@ -1,10 +1,10 @@
 # Backup and restore
 
-Planhaven keeps your data in two places inside the container, and both need backing up:
+PlanHaven keeps your data in two places inside the container, and both need backing up:
 
 | What | Where (container) | Backed up by |
 |---|---|---|
-| Database: projects, tasks, accounts | `/config/pgdata` | Planhaven, nightly, into `/config/backups` |
+| Database: projects, tasks, accounts | `/config/pgdata` | PlanHaven, nightly, into `/config/backups` |
 | Keys (master key, session key) | `/config/secrets` | **You**: copy this folder somewhere safe once |
 | Attachments (from phase 0.2) | `/data` | Your usual Unraid backup |
 
@@ -14,7 +14,7 @@ matching keys still works, but everyone has to set up their second factor again.
 
 ## Automatic database backups
 
-- Every night at 03:00 (the container's `TZ`), Planhaven writes
+- Every night at 03:00 (the container's `TZ`), PlanHaven writes
   `/config/backups/planhaven-<date>-<time>.dump`.
 - It keeps the 7 newest backups, plus the newest from each of the last 4 weeks.
 - The files are readable only by the database user inside the container. On Unraid they are in
@@ -29,7 +29,7 @@ This replaces the current database with the backup. Anything changed since then 
 1. Put the backup file in the container's `/config/backups` folder, if it isn't already there.
 2. Run (replace the file name):
    `docker exec planhaven /etc/s6-overlay/scripts/restore-db /config/backups/planhaven-20261001-030000.dump`
-   Planhaven pauses the app, restores, and starts it again. It prints "restore complete" when
+   PlanHaven pauses the app, restores, and starts it again. It prints "restore complete" when
    done.
 3. If you're restoring onto a new server, also copy your saved `/config/secrets` folder back
    before starting the container.

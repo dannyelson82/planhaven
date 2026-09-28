@@ -5,7 +5,7 @@
 
 ## Context
 
-Planhaven must handle both one-off work (remodel the garage) and recurring work tied to a
+PlanHaven must handle both one-off work (remodel the garage) and recurring work tied to a
 durable thing (oil change on the truck, winterizing the boat) (A§1). Ideas often become
 projects later. A separate "Job" or "Idea" entity would split the same kind of work across
 two models and complicate sharing, AI context and plugins.

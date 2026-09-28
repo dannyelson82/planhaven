@@ -139,7 +139,7 @@ def load(discovered: list[DiscoveredPlugin], enabled: set[str]) -> LoadedPlugins
                 register(_Registry(manifest, loaded))
             loaded.manifests[manifest.plugin.id] = manifest
             log.info("plugin loaded", extra={"plugin_id": manifest.plugin.id})
-        except Exception as exc:  # a broken plugin must not stop Planhaven starting
+        except Exception as exc:  # a broken plugin must not stop PlanHaven starting
             loaded.errors[manifest.plugin.id] = f"failed to load ({type(exc).__name__})"
             log.error(
                 "plugin failed to load",

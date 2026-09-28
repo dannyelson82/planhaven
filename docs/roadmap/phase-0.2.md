@@ -3,7 +3,7 @@
 > **Status:** In progress · **Started:** 2026-09-27
 > Scope: ARCHITECTURE.md §18 (0.2) and ADR 0011. Every release meets SECURITY.md §11.
 
-**Goal:** Planhaven becomes useful every day: share projects with the household, keep lists,
+**Goal:** PlanHaven becomes useful every day: share projects with the household, keep lists,
 write notes together in real time, attach photos and documents, track assets, contractors
 and quotes, and use lists offline on the phone.
 

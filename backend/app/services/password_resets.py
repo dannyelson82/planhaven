@@ -1,6 +1,6 @@
 """Password reset links (SECURITY.md §7.1).
 
-There is no email in Planhaven, so a forgotten password is reset by an admin: they make a
+There is no email in PlanHaven, so a forgotten password is reset by an admin: they make a
 one-time link and hand it over (text message, in person). `BASE_URL/reset#<token>`: the token
 is in the URL fragment, so it never reaches proxy or server logs; it's 256-bit, stored as a
 hash, single use, valid 24 hours, and a new link cancels older ones. Using it sets the new

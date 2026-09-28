@@ -1,4 +1,4 @@
-# fail2ban jail for Planhaven. Adjust logpath to where /config is mounted on the host.
+# fail2ban jail for PlanHaven. Adjust logpath to where /config is mounted on the host.
 # The ban must happen where the attacker's real address is visible: normally on the reverse
 # proxy host. Behind a CDN or tunnel, ban at that layer instead (e.g. CrowdSec + bouncer).
 [planhaven]

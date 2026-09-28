@@ -1,10 +1,10 @@
 # Deployment helpers
 
-Tested configurations for running Planhaven behind a reverse proxy (SECURITY.md §9).
+Tested configurations for running PlanHaven behind a reverse proxy (SECURITY.md §9).
 
 | Folder | What it's for |
 |---|---|
-| `crowdsec/` | Parser, scenario and acquisition for Planhaven's security log |
+| `crowdsec/` | Parser, scenario and acquisition for PlanHaven's security log |
 | `fail2ban/` | Filter and jail for the same log |
 | `proxy/nginx-proxy-manager/` | Proxy host settings for Nginx Proxy Manager |
 

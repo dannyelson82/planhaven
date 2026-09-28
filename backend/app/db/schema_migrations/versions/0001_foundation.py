@@ -1,6 +1,6 @@
 """Foundation: RLS helper functions, audit log, event outbox.
 
-Every user-content table in Planhaven follows the pattern set here (ARCHITECTURE.md §8.3,
+Every user-content table in PlanHaven follows the pattern set here (ARCHITECTURE.md §8.3,
 ADR 0004): owned by planhaven_owner, ROW LEVEL SECURITY enabled *and* forced, explicit
 per-command grants to planhaven_app, and policies that fail closed when no identity is set.
 

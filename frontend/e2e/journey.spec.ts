@@ -94,27 +94,30 @@ test('first boot to first project', async ({ page }) => {
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByText('Needs 1 of 1 item: Hose clamps')).toBeVisible()
 
-  // A note, edited in two tabs at once: typing in one appears live in the other.
+  // A note: edit, leave without Done (asked first), then Done saves and goes back.
   await page.getByRole('button', { name: 'New note' }).click()
   const title = page.getByLabel('Note title')
   await expect(title).toHaveValue('Untitled note')
   await title.fill('Engine notes')
-  await title.press('Enter')
   const editor = page.getByRole('textbox', { name: 'Note', exact: true })
-  await expect(page.getByText('Saved automatically')).toBeVisible()
   await editor.click()
   await editor.pressSequentially('Oil: 10W-30')
-  const other = await page.context().newPage()
-  const otherProblems = watchForProblems(other)
-  await other.goto(page.url())
-  await expect(other.getByRole('textbox', { name: 'Note', exact: true })).toContainText('Oil: 10W-30')
+  await page.keyboard.press('Enter')
   await page.getByRole('button', { name: 'Checklist' }).click()
   await editor.pressSequentially('Change impeller')
-  await expect(other.getByRole('textbox', { name: 'Note', exact: true }).getByRole('checkbox')).toHaveCount(1)
-  await expect(other.getByRole('textbox', { name: 'Note', exact: true })).toContainText('Change impeller')
-  expect(otherProblems).toEqual([])
-  await other.close()
+  await expect(page.getByText('Not saved yet')).toBeVisible()
+  // The back link asks: keep editing stays on the note.
   await page.getByRole('link', { name: '← Back to project' }).click()
+  await expect(page.getByRole('heading', { name: 'Save your changes?' })).toBeVisible()
+  await page.getByRole('button', { name: 'Keep editing' }).click()
+  await expect(editor).toContainText('Change impeller')
+  // So does the browser's back button.
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Save your changes?' })).toBeVisible()
+  await page.getByRole('button', { name: 'Keep editing' }).click()
+  await expect(page.getByLabel('Note title')).toHaveValue('Engine notes')
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(page.getByRole('heading', { name: 'Winterize boat' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Engine notes' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Notes' }).getByText(/Oil: 10W-30/).first()).toBeVisible()
   // The note's checkbox can be ticked from the project page; the note itself shows it.
@@ -236,7 +239,7 @@ test('first boot to first project', async ({ page }) => {
 
   // Sign out and back in, with the second factor.
   await page.goto('/account')
-  await expect(page.getByText(/^Planhaven (dev|\d+\.\d+\.\d+)$/)).toBeVisible()
+  await expect(page.getByText(/^PlanHaven (dev|\d+\.\d+\.\d+)$/)).toBeVisible()
   await page.getByRole('button', { name: 'Sign out' }).click()
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
   await page.getByLabel('Email').fill(ADMIN.email)

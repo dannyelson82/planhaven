@@ -5,7 +5,7 @@
 
 ## Context
 
-Planhaven must be extensible (first plugin: a cut-list optimizer; later a vehicle log, a Home
+PlanHaven must be extensible (first plugin: a cut-list optimizer; later a vehicle log, a Home
 Assistant bridge, and so on) (A§1.1, A§14). Fully isolating plugins from day one (separate
 processes or containers, RPC, resource limits) is a lot of work before a single plugin exists.
 In-process plugins with free access to internals, however, can never be isolated later

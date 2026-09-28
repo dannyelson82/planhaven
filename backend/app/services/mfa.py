@@ -29,7 +29,7 @@ from app.db.database import Database
 from app.services import limits
 from app.services.auth import AuthError, CurrentSession, recently_verified
 
-ISSUER = "Planhaven"
+ISSUER = "PlanHaven"
 STEP_SECONDS = 30
 RECOVERY_CODE_COUNT = 10
 MAX_FAILURES = 5

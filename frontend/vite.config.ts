@@ -16,8 +16,8 @@ export default defineConfig({
       injectRegister: false, // registered in main.tsx (no inline script: CSP)
       manifestFilename: 'manifest.webmanifest',
       manifest: {
-        name: 'Planhaven',
-        short_name: 'Planhaven',
+        name: 'PlanHaven',
+        short_name: 'PlanHaven',
         description: 'From idea to done',
         start_url: '/',
         scope: '/',

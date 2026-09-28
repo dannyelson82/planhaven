@@ -66,7 +66,7 @@ async def set_enabled(
     if plugin is None:
         raise authz.NotFoundError("Not found.")
     if enabled and not plugin.compatible:
-        raise ValueError("This plugin isn't compatible with this version of Planhaven.")
+        raise ValueError("This plugin isn't compatible with this version of PlanHaven.")
     async with db.system_transaction() as conn:
         await store.set_enabled(conn, plugin_id, enabled, session.user.id)
         await audit.record_audit(

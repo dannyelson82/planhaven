@@ -48,7 +48,7 @@ from app.services.auth import (
     user_from_row,
 )
 
-RP_NAME = "Planhaven"
+RP_NAME = "PlanHaven"
 CHALLENGE_TTL = timedelta(minutes=5)
 MAX_PASSKEYS = 20
 

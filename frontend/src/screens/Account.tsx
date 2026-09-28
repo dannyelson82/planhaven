@@ -1,10 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
-import { api, type Session } from '../api.ts'
+import type { Session } from '../api.ts'
 import { Card, Link } from '../ui.tsx'
 import { DevicesCard, PasswordCard, SecondFactorCard } from './Security.tsx'
 
 export function AccountScreen({ session }: { session: Session }) {
-  const about = useQuery({ queryKey: ['about'], queryFn: () => api<{ version: string }>('GET', '/api/v1/about') })
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Account</h1>
@@ -25,7 +23,6 @@ export function AccountScreen({ session }: { session: Session }) {
       <PasswordCard />
       <SecondFactorCard />
       <DevicesCard />
-      {about.data && <p className="text-center text-xs text-stone-500">Planhaven {about.data.version}</p>}
     </div>
   )
 }

@@ -1,9 +1,9 @@
-# Planhaven — Security
+# PlanHaven — Security
 
 > **Status:** Draft v0.1 · **Last updated:** 2026-09-26
 > Companion to [`ARCHITECTURE.md`](ARCHITECTURE.md). Section references like "A§12" point there.
 
-Planhaven is designed to be exposed to the internet. This document is both the project's
+PlanHaven is designed to be exposed to the internet. This document is both the project's
 security policy (how to report issues) and its security design: what we protect, from whom,
 and how. Every release must meet the acceptance criteria in §11.
 
@@ -31,7 +31,7 @@ unless they prefer otherwise.
 
 ## 2. Scope and deployment assumptions
 
-In scope: the Planhaven container image, its web UI, API, MCP endpoint, OAuth server, ICS feeds,
+In scope: the PlanHaven container image, its web UI, API, MCP endpoint, OAuth server, ICS feeds,
 sync endpoints, bundled plugins, the published Apple Shortcut, and the CI/release pipeline.
 
 Assumed deployment:
@@ -90,7 +90,7 @@ flowchart LR
     subgraph E[Semi-trusted edge]
         RP[Reverse proxy]
     end
-    subgraph A[Planhaven container]
+    subgraph A[PlanHaven container]
         APP[App server]
         W[Worker]
         X[Extractor subprocess<br/>lowest privilege]
@@ -149,7 +149,7 @@ Organized by STRIDE category. Details for each control are in §7.
 | Supply-chain compromise | Elevation | Hash-pinned deps, SHA-pinned Actions, scanning, signed images, SBOM, protected branches (§8) |
 | Repudiation of changes (esp. by AI) | Repudiation | Append-only audit log with actor, client, IP (§7.12) |
 | Resource exhaustion | DoS | Rate limits, body and upload limits, job concurrency limits, query limits (§7.11) |
-| Cross-site WebSocket hijacking of the collaboration channel | Spoofing | Session or token required at handshake, `Origin` must equal `BASE_URL` (§7.15) |
+| Cross-site WebSocket hijacking of the live-updates channel | Spoofing | Session or token required at handshake, `Origin` must equal `BASE_URL` (§7.15) |
 | Stale access on a live connection after removal from a project | Elevation / Info disclosure | Sharing changes applied to open note connections at once (closed, or switched to read-only); every connection also re-checked every 15 s (§7.15) |
 | Viewer or malicious client pushing edits or oversized/malformed updates | Tampering / DoS | Server rejects viewer updates; size, rate and document limits; malformed updates close the connection (§7.15) |
 | Assignee (e.g. a child) seeing more than their chores | Info disclosure | Assignee access limited to their assigned tasks by authz and RLS; tested in the authz matrix (ADR 0013) |
@@ -426,30 +426,27 @@ Cross-Origin-Resource-Policy: same-origin
 - Account deletion removes the user's owned projects (after transfer prompt) and all tokens,
   sessions, and factors.
 
-### 7.15 Real-time collaboration (ADR 0011)
+### 7.15 Live updates and note saving (ADR 0011, ADR 0016)
 
-- The WebSocket handshake requires a valid session cookie or a scoped token, and an `Origin`
-  header equal to `BASE_URL`; anything else is refused before upgrading.
-- Authorization (`authz.require`) is checked at connect. A sharing change applies at once
-  to that person's open note connections in the project (removed: closed; new role: edits
-  accepted or refused accordingly), and every connection is re-checked every 15 seconds
-  (live-update sockets too). RLS applies to every stored update.
-- Viewers receive updates; any update they send is rejected and the attempt logged as a
-  `collab_refused` security event (as are oversized, too-fast and malformed messages).
-- Limits per connection and user: message size, updates per second, open connections, and
-  total document size. Malformed or oversized messages close the connection. Currently:
-  256 KB per message (1 MB per WebSocket frame at the server), 600 messages per 10 s (browsers bundle edits and cursor moves),
-  20 open WebSockets per user, 5 MB per document; compression is off.
-- Awareness data (display name, cursor) is relayed only within the document and not stored.
-  Project members (who can read the note anyway) also see on the project page who has a
-  note open for editing (display names only, kept in memory).
-- The note's Markdown copy (previews, search) is written by the server from the stored
-  document; clients can no longer set it.
-- Update contents are never logged; logs hold document ID, user, byte counts and outcomes.
-- Every accepted update is attributed (user or MCP client) so history and undo work.
-- Ticking a note's checkbox from the project page is made by the server as a normal CRDT
-  update: editor role required, attributed to the user, checked against the item's text so a
-  stale page can't tick the wrong line, and sent live to anyone with the note open.
+- The live-updates WebSocket handshake requires a valid session cookie or a scoped token,
+  and an `Origin` header equal to `BASE_URL`; anything else is refused before upgrading.
+- Authorization (`authz.require`) is checked at connect and every 15 seconds; a sharing
+  change closes the socket of a removed member at once. The socket only sends "something
+  changed" notices (no content); pages then fetch through the normal API.
+- Nothing sent by the browser over the socket is acted on. Limits: 20 open WebSockets per
+  user, 1 MB per frame, compression off.
+- Notes are saved on Done: one authenticated, CSRF-protected `PUT` with `If-Match`,
+  editor role required, audited (`note.saved`). A stale version is refused (409), never
+  merged or overwritten.
+- The note document is untrusted input. The server rebuilds it from an allowlist of node
+  types, marks and attributes; links may only be `http(s)` or `mailto` (others are dropped,
+  keeping their text); limits: 4 MB stored, 50,000 nodes, depth 30, 200,000 characters.
+  Anything else is refused (422).
+- The note's Markdown copy (previews, search) is written by the server from the cleaned
+  document; clients can't set it.
+- Note contents are never logged.
+- Ticking a note's checkbox from the project page: editor role required, checked against the
+  item's text so a stale page can't tick the wrong line, and saved by the server.
 
 ---
 
@@ -491,8 +488,8 @@ For whoever runs an instance:
 1. **TLS at the proxy.** Use a valid certificate; redirect HTTP to HTTPS.
 2. **Set `BASE_URL`** to the exact public `https://` URL and **`TRUSTED_PROXIES`** to the
    proxy's address or Docker network.
-3. **Do not put forward-auth (Authelia/Authentik proxy auth) in front of Planhaven.** It breaks
-   the Shortcut, calendar feed, and MCP connector. Use Planhaven's native auth, or its OIDC
+3. **Do not put forward-auth (Authelia/Authentik proxy auth) in front of PlanHaven.** It breaks
+   the Shortcut, calendar feed, and MCP connector. Use PlanHaven's native auth, or its OIDC
    login if you want single sign-on.
 4. **Proxy settings:** allow request bodies up to `MAX_UPLOAD_MB`; disable buffering and set
    long read timeouts for `/mcp`. Tested snippets are in `deploy/proxy/`.

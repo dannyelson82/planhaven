@@ -23,7 +23,7 @@ data, so authorization must be scoped, consented and revocable (S§7.7).
 
 ## Decision
 
-Planhaven includes its own **OAuth 2.1 authorization server** (A§12.2):
+PlanHaven includes its own **OAuth 2.1 authorization server** (A§12.2):
 
 - Authorization code flow with **PKCE S256 required** and exact-match redirect URIs.
 - Discovery metadata at `/.well-known/oauth-authorization-server`, plus protected-resource
@@ -43,5 +43,5 @@ Planhaven includes its own **OAuth 2.1 authorization server** (A§12.2):
   audit events (S§7.12) and tests against the OAuth 2.1 security best-practice rules.
 - Tokens follow the prefix scheme (`phv_oat_`, `phv_ort_`) and are hashed at rest (S§7.3).
 - Built in phase 0.6. Before then there is no `/mcp` endpoint at all.
-- If an operator enables OIDC login (S§7.1), it is used to sign the user in; Planhaven still
+- If an operator enables OIDC login (S§7.1), it is used to sign the user in; PlanHaven still
   issues the MCP tokens.

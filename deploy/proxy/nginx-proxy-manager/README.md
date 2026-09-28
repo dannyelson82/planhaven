@@ -1,14 +1,14 @@
 # Nginx Proxy Manager
 
-Planhaven expects a reverse proxy in front of it that handles HTTPS (SECURITY.md §9).
+PlanHaven expects a reverse proxy in front of it that handles HTTPS (SECURITY.md §9).
 
 ## Proxy host
 
 1. **Hosts → Proxy Hosts → Add Proxy Host.**
 2. **Details:**
-   - *Domain Names:* your Planhaven address, e.g. `projects.example.com`
+   - *Domain Names:* your PlanHaven address, e.g. `projects.example.com`
    - *Scheme:* `http`
-   - *Forward Hostname / IP:* the Planhaven container's name (if both containers share a custom
+   - *Forward Hostname / IP:* the PlanHaven container's name (if both containers share a custom
      Docker network) or your server's IP
    - *Forward Port:* `8080`
    - *Websockets Support:* **on** (needed for live updates and co-editing, ADR 0011)
@@ -25,13 +25,13 @@ Planhaven expects a reverse proxy in front of it that handles HTTPS (SECURITY.md
    proxy_buffering off;
    ```
 
-NPM already sends `X-Forwarded-For` and `X-Forwarded-Proto`, which Planhaven reads **only** from
+NPM already sends `X-Forwarded-For` and `X-Forwarded-Proto`, which PlanHaven reads **only** from
 addresses listed in `TRUSTED_PROXIES`.
 
-## Planhaven settings
+## PlanHaven settings
 
 - `BASE_URL`: exactly the address above, with `https://`.
-- `TRUSTED_PROXIES`: the address Planhaven sees NPM connecting from. On a custom Docker network
+- `TRUSTED_PROXIES`: the address PlanHaven sees NPM connecting from. On a custom Docker network
   that's the network's range (Docker → the network → Subnet, e.g. `172.18.0.0/16`).
 
 Check: after signing in, Account → *Signed-in devices* should show **your** public IP, not NPM's.
@@ -42,5 +42,5 @@ Cloudflare ranges).
 ## Don't
 
 - Don't put forward-auth (Authelia/Authentik proxy auth, Cloudflare Access) in front of
-  Planhaven: the iPhone Shortcut, calendar feed and AI connector can't pass it (ADR 0009).
+  PlanHaven: the iPhone Shortcut, calendar feed and AI connector can't pass it (ADR 0009).
 - Don't expose port 8080 to the internet directly.

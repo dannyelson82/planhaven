@@ -1,104 +1,45 @@
-// The shared rich-text editor (TipTap + Yjs). Loaded only when a note is opened: it's large.
-import Collaboration from '@tiptap/extension-collaboration'
-import CollaborationCaret from '@tiptap/extension-collaboration-caret'
+// The note editor (TipTap), loaded only when a note is opened. It edits a copy of the note in
+// this browser; nothing is sent until the person taps Done (owner decision 2026-09-28,
+// docs/adr/0016-notes-save-on-done.md). No live co-editing, no automatic saving.
 import { TaskItem, TaskList } from '@tiptap/extension-list'
-import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react'
+import { EditorContent, type JSONContent, useEditor, useEditorState, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import { useEffect, useState } from 'react'
-import * as Y from 'yjs'
-import { NoteConnection, type Status } from '../collab.ts'
 import { Button, Card } from '../ui.tsx'
-const STATUS_TEXT: Record<Status, string> = {
-  connecting: 'Connecting…',
-  connected: 'Saved automatically',
-  offline: 'Offline: reconnecting…',
-  denied: 'You no longer have access to this note.',
-}
 
-// Caret colours are CSS classes (see index.css), never inline styles: the CSP forbids them.
-const CARET_COLOURS = 8
-
-function colourFor(userId: string): number {
-  let hash = 0
-  for (const ch of userId) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0
-  return hash % CARET_COLOURS
-}
-
-// Awareness data comes from other people's browsers: treat it as untrusted.
-function safeColour(value: unknown): number {
-  return Number.isInteger(value) && (value as number) >= 0 && (value as number) < CARET_COLOURS ? (value as number) : 0
-}
-
-function renderCaret(user: Record<string, unknown>): HTMLElement {
-  const caret = document.createElement('span')
-  caret.className = `collab-caret collab-c${safeColour(user.colour)}`
-  const label = document.createElement('span')
-  label.className = 'collab-caret-label'
-  label.textContent = typeof user.name === 'string' ? user.name.slice(0, 40) : 'Someone'
-  caret.append(label)
-  return caret
-}
-
-type Live = { doc: Y.Doc; connection: NoteConnection }
-
-export default function NoteEditor(props: { noteId: string; canEdit: boolean; me: { id: string; name: string } }) {
-  const { noteId, canEdit } = props
-  const [live, setLive] = useState<Live | null>(null)
-  const [status, setStatus] = useState<Status>('connecting')
-  const [synced, setSynced] = useState(false)
-  // The document and connection live exactly as long as this screen is open.
-  useEffect(() => {
-    const doc = new Y.Doc()
-    const connection = new NoteConnection(noteId, doc, !canEdit, (c) => {
-      setStatus(c.status)
-      // Once loaded, the editor stays on screen through reconnects: typing continues and
-      // catches up when the connection is back.
-      setSynced((loaded) => loaded || c.synced)
-    })
-    // Creating the connection is the external side effect; the editor needs it to render.
-    // oxlint-disable-next-line react/set-state-in-effect
-    setLive({ doc, connection })
-    return () => { connection.destroy(); doc.destroy(); setLive(null) }
-  }, [noteId, canEdit])
-  if (!live) return null
-  return <LiveEditor {...props} {...live} status={status} synced={synced} />
-}
-
-function LiveEditor({ canEdit, me, doc, connection, status, synced }: {
-  noteId: string; canEdit: boolean; me: { id: string; name: string }; status: Status; synced: boolean
-} & Live) {
+export default function NoteEditor({ initial, canEdit, onChange }: {
+  initial: JSONContent
+  canEdit: boolean
+  onChange: (doc: JSONContent) => void
+}) {
   const editor = useEditor({
     injectCSS: false,
     editable: canEdit,
     immediatelyRender: true,
-    editorProps: { attributes: { class: 'note-content', role: 'textbox', 'aria-multiline': 'true', 'aria-label': 'Note', ...(canEdit ? {} : { 'aria-readonly': 'true' }) } },
+    content: initial,
+    editorProps: {
+      attributes: {
+        class: 'note-content', role: 'textbox', 'aria-multiline': 'true', 'aria-label': 'Note',
+        ...(canEdit ? {} : { 'aria-readonly': 'true' }),
+        // Grammar-checker extensions (Grammarly, LanguageTool) rewrite text inside editors
+        // behind the editor's back, which garbles notes. Ask them to stay out.
+        'data-gramm': 'false', 'data-gramm_editor': 'false', 'data-enable-grammarly': 'false',
+        'data-lt-active': 'false',
+      },
+    },
     extensions: [
-      StarterKit.configure({ undoRedo: false, link: { openOnClick: true, autolink: true } }),
+      StarterKit.configure({ link: { openOnClick: false, autolink: true } }),
       TaskList,
       TaskItem.configure({ nested: true }),
-      Collaboration.configure({ document: doc }),
-      CollaborationCaret.configure({
-        provider: { awareness: connection.awareness },
-        user: { name: me.name, colour: colourFor(me.id) },
-        render: renderCaret,
-        selectionRender: (user: Record<string, unknown>) => ({ nodeName: 'span', class: `collab-selection collab-c${safeColour(user.colour)}` }),
-      }),
     ],
-  }, [connection])
-
-  // The note's text copy (previews, search) is written by the server from the saved
-  // document, so it can't be out of date or out of order.
+    onUpdate: ({ editor: e }) => onChange(e.getJSON()),
+  })
 
   return (
     <div className="space-y-2">
       {canEdit && editor && <Toolbar editor={editor} />}
       <Card className="min-h-64">
-        {!synced && status !== 'denied' ? <p className="text-stone-500">Loading…</p> : null}
-        <EditorContent editor={editor} className={synced ? '' : 'hidden'} />
+        <EditorContent editor={editor} />
       </Card>
-      <p role="status" className={`text-xs ${status === 'connected' ? 'text-stone-500' : 'text-amber-700 dark:text-amber-400'}`}>
-        {canEdit ? STATUS_TEXT[status] : status === 'connected' ? 'View only: changes by others appear live' : STATUS_TEXT[status]}
-      </p>
     </div>
   )
 }

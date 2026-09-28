@@ -4,12 +4,12 @@ from typing import Any
 
 import pytest
 
-from tests.db import test_collab
-from tests.db.test_collab import U
+from tests.db import team as setup
+from tests.db.team import U
 
 pytestmark = pytest.mark.db
 
-team = test_collab.team  # the shared fixture: owner, viewer, stranger, project, note
+team = setup.team  # the shared fixture: owner, viewer, stranger, project, note
 
 type Team = tuple[U, U, U, str, str]
 PLUMBER = {"name": "Dave Pipes", "company": "Pipes & Co", "phone": "555-0100"}

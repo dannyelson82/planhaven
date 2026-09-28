@@ -4,12 +4,12 @@ from typing import Any
 
 import pytest
 
-from tests.db import test_collab
-from tests.db.test_collab import COOKIE, ORIGIN, PASSWORD, U
+from tests.db import team as setup
+from tests.db.team import COOKIE, ORIGIN, PASSWORD, U
 
 pytestmark = pytest.mark.db
 
-team = test_collab.team  # the shared fixture: owner (admin), viewer, stranger, project, note
+team = setup.team  # the shared fixture: owner (admin), viewer, stranger, project, note
 
 type Team = tuple[U, U, U, str, str]
 NEW_PASSWORD = "a brand new passphrase 77"

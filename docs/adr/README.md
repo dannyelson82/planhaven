@@ -15,8 +15,9 @@ A decision is changed by adding a new ADR that supersedes the old one, not by re
 | [0008](0008-plugins-in-process-isolation-ready.md) | Plugins: trusted in-process v1, isolation-ready boundary, sandboxed iframe UIs | Accepted |
 | [0009](0009-behind-existing-reverse-proxy.md) | Behind the user's existing reverse proxy; no forward-auth | Accepted |
 | [0010](0010-license-apache-2.md) | Apache-2.0 license and dependency license policy | Accepted |
-| [0011](0011-realtime-collaboration.md) | Real-time collaborative editing with Yjs over authenticated WebSockets | Accepted |
+| [0011](0011-realtime-collaboration.md) | Real-time collaborative editing with Yjs over authenticated WebSockets | Accepted; paused for notes by 0016 |
 | [0012](0012-ai-assistant-and-experimental-features.md) | AI project assistant (local and commercial) behind experimental feature flags | Accepted |
 | [0013](0013-chores-and-time-planner.md) | Household chores with proof; personal time planner; cut-list plugin moved to 0.7 | Accepted |
 | [0014](0014-ui-toolkit-react-aria-tailwind.md) | UI toolkit: React Aria Components with Tailwind CSS | Accepted |
 | [0015](0015-external-share-links.md) | External share links with per-component permissions | Accepted |
+| [0016](0016-notes-save-on-done.md) | Notes saved on Done; live co-editing paused | Accepted |
