@@ -12,6 +12,7 @@ import { InviteScreen, LoginScreen, ResetScreen, SecondFactorScreen, SetupScreen
 import { ListScreen } from './screens/Lists.tsx'
 import { NoteScreen } from './screens/Notes.tsx'
 import { ProjectScreen } from './screens/Project.tsx'
+import { PurchaseScreen } from './screens/Purchase.tsx'
 import { ProjectsScreen } from './screens/Projects.tsx'
 import { TrashScreen } from './screens/Trash.tsx'
 import { useSession } from './session.ts'
@@ -106,6 +107,8 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
       return <ProjectScreen id={route.id} myId={session.user.id} />
     case 'list':
       return <ListScreen id={route.id} />
+    case 'cost':
+      return <PurchaseScreen id={route.id} />
     case 'note':
       return <NoteScreen id={route.id} />
     case 'assets':

@@ -129,6 +129,11 @@ MATRIX: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/projects/{project_id}/costs"): "verified",
     ("POST", "/api/v1/projects/{project_id}/costs"): "verified",
     ("DELETE", "/api/v1/costs/{cost_id}"): "verified",
+    ("GET", "/api/v1/costs/{cost_id}"): "verified",
+    ("PATCH", "/api/v1/costs/{cost_id}"): "verified",
+    ("POST", "/api/v1/costs/{cost_id}/items"): "verified",
+    ("PATCH", "/api/v1/cost-items/{item_id}"): "verified",
+    ("DELETE", "/api/v1/cost-items/{item_id}"): "verified",
     # Task needs (items from the project's lists): verified, then project role
     ("GET", "/api/v1/projects/{project_id}/task-needs"): "verified",
     ("PUT", "/api/v1/tasks/{task_id}/needs"): "verified",
@@ -152,6 +157,9 @@ MATRIX: dict[tuple[str, str], str] = {
 
 # Bodies that pass validation, so checks inside services (step-up) are reached.
 BODIES: dict[tuple[str, str], object] = {
+    ("PATCH", "/api/v1/costs/{cost_id}"): {"store": "Hardware store"},
+    ("POST", "/api/v1/costs/{cost_id}/items"): {"items": [{"text": "Hose clamps"}]},
+    ("PATCH", "/api/v1/cost-items/{item_id}"): {"text": "Hose clamps"},
     ("PUT", "/api/v1/projects/{project_id}/layout"): {"tiles": [{"kind": "notes"}]},
     ("POST", "/api/v1/auth/password"): {
         "current_password": "definitely not it",

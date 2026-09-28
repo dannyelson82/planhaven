@@ -96,7 +96,7 @@ as they're found rather than hunted now.
       into the project budget, shown as budget vs. spent
 
 **Batch 3 (plan first)**
-- [ ] Purchases: a spent entry is one trip to one store, with item lines, a receipt photo,
+- [x] Purchases (v0.2.12): a spent entry is one trip to one store, with item lines, a receipt photo,
       and "add checked items from a list" with actual prices. Reading receipts with AI
       comes with the AI phase (ADR 0012); receipts are entered by hand until then.
 - [x] Arrange the project page as tiles (ADR 0017): groups and single notes, lists or files,
@@ -108,7 +108,8 @@ as they're found rather than hunted now.
       opening a slide-down drawer; drag notes, lists and files straight around the page in
       Arrange mode (drop on their group to regroup); contact search; "This project's trash
       can" with an icon; quotes and costs as separate tiles
-- [ ] v0.2.12: purchases with receipts (Batch 3)
+- [x] v0.2.12: purchases with receipts (Batch 3): store, receipt, item lines, items from
+      a list, "Record purchase" on a list (migration 0023)
 - [ ] v0.2.13: contacts import and export (vCard); templates for lists and tasks, private
       and shareable one by one by their creator; suggestions from past list items
 - [ ] v0.2.14: admin "Enable experimental features" switch (ADR 0012)
