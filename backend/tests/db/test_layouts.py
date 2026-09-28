@@ -12,7 +12,7 @@ pytestmark = pytest.mark.db
 team = setup.team
 
 type Team = tuple[U, U, U, str, str]
-GROUPS = ["tasks", "lists", "notes", "files", "money"]
+GROUPS = ["tasks", "lists", "notes", "files", "quotes", "costs"]
 
 
 def _put(u: U, pid: str, tiles: list[dict[str, Any]]) -> Any:
@@ -42,7 +42,7 @@ def test_tiles_per_person_following_the_owner(team: Team) -> None:
         ],
     )
     assert r.status_code == 200, r.text
-    arranged = [f"note:{nid}", "notes", "tasks", "lists", "files", "money"]
+    arranged = [f"note:{nid}", "notes", "tasks", "lists", "files", "quotes", "costs"]
     assert r.json()["source"] == "mine"
     assert _kinds(r.json()) == arranged
     assert r.json()["tiles"][0]["width"] == "wide"
@@ -50,8 +50,11 @@ def test_tiles_per_person_following_the_owner(team: Team) -> None:
     seen = viewer.get(f"/api/v1/projects/{pid}/layout").json()
     assert (seen["source"], _kinds(seen)) == ("owner", arranged)
     # Viewers can arrange their own view; it doesn't change the owner's.
-    assert _put(viewer, pid, [{"kind": "money"}]).status_code == 200
-    assert _kinds(viewer.get(f"/api/v1/projects/{pid}/layout").json())[0] == "money"
+    # ("money", the old combined tile, is split into quotes and costs where it was.)
+    assert _put(viewer, pid, [{"kind": "money", "width": "wide"}]).status_code == 200
+    split = viewer.get(f"/api/v1/projects/{pid}/layout").json()
+    assert _kinds(split)[:2] == ["quotes", "costs"]
+    assert {t["width"] for t in split["tiles"][:2]} == {"wide"}
     assert _kinds(owner.get(f"/api/v1/projects/{pid}/layout").json()) == arranged
     # Reset: back to following the owner.
     viewer._cookie()

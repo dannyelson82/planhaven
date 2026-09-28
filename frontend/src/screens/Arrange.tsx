@@ -2,29 +2,17 @@
 // (tasks, lists, notes, files, quotes and costs) and any single note, list or file given its
 // own tile. Each person arranges their own view of each project; until they do, they see the
 // owner's. Drag and drop (React Aria: touch, mouse and keyboard), no extra library.
-import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Button as AriaButton, GridList, GridListItem, useDragAndDrop } from 'react-aria-components'
-import { api } from '../api.ts'
-import { GROUP_LABEL, type Group, SINGLE_LABEL, type Single, type Tile, tileKey, useLayout, type Width, WIDTH_LABEL } from '../layout.ts'
-import { cachedGet } from '../offline.ts'
+import { SINGLE_LABEL, type Single, type Tile, tileKey, useLayout, useTileNames, type Width, WIDTH_LABEL } from '../layout.ts'
 import { Button, Card, ErrorText } from '../ui.tsx'
 
-type Named = { id: string; title?: string; filename?: string }
 
 /** The Arrange panel: drag tiles into order, pick each one's width, give a single note, list or
  * file its own tile (or put it back in its group). Every change is saved at once. */
 export function ArrangePanel({ projectId, onDone }: { projectId: string; onDone: () => void }) {
   const { layout, save, reset } = useLayout(projectId)
-  const notes = useQuery({ queryKey: ['notes', projectId], queryFn: () => api<Named[]>('GET', `/api/v1/projects/${projectId}/notes`) })
-  const lists = useQuery({ queryKey: ['lists', projectId], queryFn: () => cachedGet<Named[]>(`/api/v1/projects/${projectId}/lists`) })
-  const files = useQuery({ queryKey: ['attachments', projectId], queryFn: () => api<Named[]>('GET', `/api/v1/projects/${projectId}/attachments`) })
-  const sources: Record<Single, Named[]> = { note: notes.data ?? [], list: lists.data ?? [], file: files.data ?? [] }
-  const nameOf = (t: Tile): string | null => {
-    if (!t.id) return GROUP_LABEL[t.kind as Group]
-    const found = sources[t.kind as Single].find((x) => x.id === t.id)
-    return found ? `${SINGLE_LABEL[t.kind as Single]}: ${found.title ?? found.filename}` : null
-  }
+  const { sources, nameOf } = useTileNames(projectId)
   // Tiles for things since deleted (or not shared with you) aren't listed.
   const tiles = layout.tiles.filter((t) => nameOf(t) !== null)
   const [choice, setChoice] = useState('')

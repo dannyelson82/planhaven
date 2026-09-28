@@ -2,6 +2,13 @@
 
 /* PlanHaven design tokens. Mobile-first; dark mode follows the system (A§13.5). */
 @theme {
+  /* The add bar's drawer slides down (only when motion is welcome). */
+  --animate-slide-down: slide-down 160ms ease-out;
+  @keyframes slide-down {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: none; }
+  }
+
   --color-brand-50: oklch(0.97 0.02 160);
   --color-brand-100: oklch(0.93 0.05 160);
   --color-brand-500: oklch(0.6 0.13 160);

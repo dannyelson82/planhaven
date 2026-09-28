@@ -102,3 +102,15 @@ as they're found rather than hunted now.
 - [x] Arrange the project page as tiles (ADR 0017): groups and single notes, lists or files,
       narrow / wide / full, drag and drop; per project and person, following the owner's
       arrangement until you make your own
+
+**Batch 4 (maintainer's notes, 2026-09-28)**
+- [x] v0.2.11: add bar under the project title (+ Task, List, Note, Photo/File, Quote, Cost)
+      opening a slide-down drawer; drag notes, lists and files straight around the page in
+      Arrange mode (drop on their group to regroup); contact search; "This project's trash
+      can" with an icon; quotes and costs as separate tiles
+- [ ] v0.2.12: purchases with receipts (Batch 3)
+- [ ] v0.2.13: contacts import and export (vCard); templates for lists and tasks, private
+      and shareable one by one by their creator; suggestions from past list items
+- [ ] v0.2.14: admin "Enable experimental features" switch (ADR 0012)
+- Dropped: reading product details from a pasted link (reliability; server fetching
+  arbitrary links)

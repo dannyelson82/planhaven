@@ -12,7 +12,10 @@ from app.services import layouts as service
 
 router = APIRouter(prefix="/api/v1", tags=["layouts"])
 
-Kind = Literal["tasks", "lists", "notes", "files", "money", "note", "list", "file"]
+# "money" (quotes and costs as one tile, until v0.2.11) is still accepted and split in two.
+Kind = Literal[
+    "tasks", "lists", "notes", "files", "quotes", "costs", "money", "note", "list", "file"
+]
 Width = Literal["narrow", "wide", "full"]
 
 

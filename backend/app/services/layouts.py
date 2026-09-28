@@ -1,8 +1,8 @@
 """How a project page is arranged, per person (owner request, 2026-09-28).
 
-The page is a grid of tiles: the groups (tasks, lists, notes, files, quotes and costs) and any
-single note, list or file pulled out into its own tile, each narrow, wide or full width. Tasks
-and quotes and costs always stay together, as do a list's items.
+The page is a grid of tiles: the groups (tasks, lists, notes, files, quotes, costs) and any
+single note, list or file pulled out into its own tile, each narrow, wide or full width. Tasks,
+quotes and costs stay grouped, as do a list's items.
 
 Someone who hasn't arranged a project's page sees the owner's arrangement (the person who
 shared it), or the default; once they arrange it, they keep their own. Anyone who can see the
@@ -20,7 +20,9 @@ from app.db import projects as project_store
 from app.db.database import Database
 from app.services.auth import CurrentSession
 
-GROUPS = ("tasks", "lists", "notes", "files", "money")
+GROUPS = ("tasks", "lists", "notes", "files", "quotes", "costs")
+# "Quotes and costs" was one tile until v0.2.11; an arrangement saved then is split in place.
+SPLIT = {"money": ("quotes", "costs")}
 ITEMS = ("note", "list", "file")
 WIDTHS = ("narrow", "wide", "full")
 
@@ -37,7 +39,12 @@ def complete(tiles: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Known tiles only, each once; every group present (missing ones at the end)."""
     out: list[dict[str, Any]] = []
     seen: set[tuple[str, str | None]] = set()
-    for tile in tiles:
+    expanded = [
+        {**tile, "kind": part}
+        for tile in tiles
+        for part in SPLIT.get(str(tile.get("kind")), (tile.get("kind"),))
+    ]
+    for tile in expanded:
         kind, item, width = tile.get("kind"), tile.get("id"), tile.get("width", "full")
         if width not in WIDTHS:
             width = "full"

@@ -19,8 +19,7 @@ const DOCUMENT_TYPES = 'application/pdf,image/*,.heic,.heif'
 
 const select = 'min-h-11 min-w-0 rounded-xl border border-stone-300 bg-white px-2 dark:border-stone-700 dark:bg-stone-900'
 
-/** Quotes from contractors and money spent, on a project page. */
-export function ProjectMoney({ projectId, canEdit }: { projectId: string; canEdit: boolean }) {
+function useMoney(projectId: string) {
   const client = useQueryClient()
   const quotes = useQuery({ queryKey: ['quotes', projectId], queryFn: () => api<Quote[]>('GET', `/api/v1/projects/${projectId}/quotes`) })
   const costs = useQuery({ queryKey: ['costs', projectId], queryFn: () => api<Cost[]>('GET', `/api/v1/projects/${projectId}/costs`) })
@@ -29,23 +28,22 @@ export function ProjectMoney({ projectId, canEdit }: { projectId: string; canEdi
     client.invalidateQueries({ queryKey: ['costs', projectId] }),
     client.invalidateQueries({ queryKey: ['contact'] }),
   ])
+  return { quotes, costs, refresh }
+}
+
+/** Quotes from contractors on a project page (added from the project's add bar). */
+export function ProjectQuotes({ projectId, canEdit }: { projectId: string; canEdit: boolean }) {
+  const { quotes, refresh } = useMoney(projectId)
   const setStatus = useMutation({
     mutationFn: ({ q, status }: { q: Quote; status: QuoteStatus }) =>
       api('PATCH', `/api/v1/quotes/${q.id}`, { status }, { 'If-Match': `"${q.version}"` }),
     onSettled: refresh,
   })
   const removeQuote = useMutation({ mutationFn: (q: Quote) => api('DELETE', `/api/v1/quotes/${q.id}`), onSettled: refresh })
-  const removeCost = useMutation({ mutationFn: (c: Cost) => api('DELETE', `/api/v1/costs/${c.id}`), onSettled: refresh })
-  const total = (costs.data ?? []).reduce((sum, c) => sum + c.amount_cents, 0)
-  // Budget: accepted quotes plus the estimated prices on shopping and parts lists.
-  const lists = useQuery({ queryKey: ['lists', projectId], queryFn: () => cachedGet<ListSummary[]>(`/api/v1/projects/${projectId}/lists`) })
-  const quoted = (quotes.data ?? []).filter((q) => q.status === 'accepted').reduce((sum, q) => sum + (q.amount_cents ?? 0), 0)
-  const listed = (lists.data ?? []).filter((l) => l.kind !== 'checklist').reduce((sum, l) => sum + (l.estimated_cents ?? 0), 0)
-  const planned = quoted + listed
-
   return (
-    <section aria-label="Quotes and costs" className="space-y-3">
-      <h2 className="text-lg font-semibold">Quotes and costs</h2>
+    <section aria-label="Quotes" className="space-y-3">
+      <h2 className="text-lg font-semibold">Quotes</h2>
+      {quotes.data?.length === 0 && <p className="text-sm text-stone-500">No quotes yet.</p>}
       <ul className="space-y-2">
         {(quotes.data ?? []).map((q) => (
           <li key={q.id}>
@@ -73,8 +71,26 @@ export function ProjectMoney({ projectId, canEdit }: { projectId: string; canEdi
           </li>
         ))}
       </ul>
-      {canEdit && <AddQuote projectId={projectId} onAdded={refresh} />}
+      <ErrorText error={setStatus.error ?? removeQuote.error ?? quotes.error} />
+    </section>
+  )
+}
 
+/** Money spent on a project, and the budget: accepted quotes plus list estimates vs. spent. */
+export function ProjectCosts({ projectId, canEdit }: { projectId: string; canEdit: boolean }) {
+  const { quotes, costs, refresh } = useMoney(projectId)
+  const removeCost = useMutation({ mutationFn: (c: Cost) => api('DELETE', `/api/v1/costs/${c.id}`), onSettled: refresh })
+  const total = (costs.data ?? []).reduce((sum, c) => sum + c.amount_cents, 0)
+  const lists = useQuery({ queryKey: ['lists', projectId], queryFn: () => cachedGet<ListSummary[]>(`/api/v1/projects/${projectId}/lists`) })
+  const quoted = (quotes.data ?? []).filter((q) => q.status === 'accepted').reduce((sum, q) => sum + (q.amount_cents ?? 0), 0)
+  const listed = (lists.data ?? []).filter((l) => l.kind !== 'checklist').reduce((sum, l) => sum + (l.estimated_cents ?? 0), 0)
+  const planned = quoted + listed
+  return (
+    <section aria-label="Costs" className="space-y-3">
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-lg font-semibold">Costs</h2>
+        <span className="font-semibold" aria-label="Total spent">{formatCents(total)}</span>
+      </div>
       {(planned > 0 || total > 0) && (
         <dl aria-label="Budget" className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 rounded-2xl bg-white p-4 ring-1 ring-stone-200 dark:bg-stone-900 dark:ring-stone-800">
           <dt className="text-stone-600 dark:text-stone-400">Accepted quotes</dt><dd className="text-right tabular-nums">{formatCents(quoted)}</dd>
@@ -88,41 +104,35 @@ export function ProjectMoney({ projectId, canEdit }: { projectId: string; canEdi
           )}
         </dl>
       )}
-
-      <div className="space-y-2 pt-2">
-        <div className="flex items-baseline justify-between">
-          <h3 className="font-semibold">Spent</h3>
-          <span className="font-semibold" aria-label="Total spent">{formatCents(total)}</span>
-        </div>
-        {(costs.data ?? []).length > 0 && (
-          <ul className="divide-y divide-stone-200 rounded-2xl bg-white ring-1 ring-stone-200 dark:divide-stone-800 dark:bg-stone-900 dark:ring-stone-800">
-            {(costs.data ?? []).map((c) => (
-              <li key={c.id} className="flex items-center gap-2 px-3 py-1">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate">{c.description}</span>
-                  <span className="block text-xs text-stone-500">{new Date(`${c.spent_on}T12:00:00`).toLocaleDateString()}</span>
-                </span>
-                <span className="tabular-nums">{formatCents(c.amount_cents)}</span>
-                {canEdit && <Button variant="ghost" aria-label={`Delete cost ${c.description}`} onPress={() => removeCost.mutate(c)}>✕</Button>}
-              </li>
-            ))}
-          </ul>
-        )}
-        {canEdit && <AddCost projectId={projectId} quotes={quotes.data ?? []} onAdded={refresh} />}
-      </div>
-      <ErrorText error={setStatus.error ?? removeQuote.error ?? removeCost.error ?? quotes.error ?? costs.error} />
+      {costs.data?.length === 0 && <p className="text-sm text-stone-500">Nothing spent yet.</p>}
+      {(costs.data ?? []).length > 0 && (
+        <ul className="divide-y divide-stone-200 rounded-2xl bg-white ring-1 ring-stone-200 dark:divide-stone-800 dark:bg-stone-900 dark:ring-stone-800">
+          {(costs.data ?? []).map((c) => (
+            <li key={c.id} className="flex items-center gap-2 px-3 py-1">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{c.description}</span>
+                <span className="block text-xs text-stone-500">{new Date(`${c.spent_on}T12:00:00`).toLocaleDateString()}</span>
+              </span>
+              <span className="tabular-nums">{formatCents(c.amount_cents)}</span>
+              {canEdit && <Button variant="ghost" aria-label={`Delete cost ${c.description}`} onPress={() => removeCost.mutate(c)}>✕</Button>}
+            </li>
+          ))}
+        </ul>
+      )}
+      <ErrorText error={removeCost.error ?? costs.error} />
     </section>
   )
 }
 
-function AddQuote({ projectId, onAdded }: { projectId: string; onAdded: () => Promise<unknown> }) {
-  const [open, setOpen] = useState(false)
+/** New quote (in the project's add bar). */
+export function AddQuote({ projectId }: { projectId: string }) {
+  const { refresh: onAdded } = useMoney(projectId)
   const [title, setTitle] = useState('')
   const [contactId, setContactId] = useState('')
   const [amount, setAmount] = useState('')
   const [fileId, setFileId] = useState('')
-  const contacts = useQuery({ queryKey: ['contacts'], queryFn: () => api<Contact[]>('GET', '/api/v1/contacts'), enabled: open })
-  const files = useQuery({ queryKey: ['attachments', projectId], queryFn: () => api<FileItem[]>('GET', `/api/v1/projects/${projectId}/attachments`), enabled: open })
+  const contacts = useQuery({ queryKey: ['contacts'], queryFn: () => api<Contact[]>('GET', '/api/v1/contacts') })
+  const files = useQuery({ queryKey: ['attachments', projectId], queryFn: () => api<FileItem[]>('GET', `/api/v1/projects/${projectId}/attachments`) })
   const cents = amount.trim() ? parseAmount(amount) : null
   const amountOk = !amount.trim() || (cents !== null && cents >= 0)
   const client = useQueryClient()
@@ -136,11 +146,10 @@ function AddQuote({ projectId, onAdded }: { projectId: string; onAdded: () => Pr
       title, contact_id: contactId || null, amount_cents: cents, attachment_id: fileId || null,
       status: cents !== null ? 'received' : 'requested',
     }),
-    onSuccess: async () => { setTitle(''); setAmount(''); setContactId(''); setFileId(''); setOpen(false); await onAdded() },
+    onSuccess: async () => { setTitle(''); setAmount(''); setContactId(''); setFileId(''); await onAdded() },
   })
-  if (!open) return <Button variant="secondary" onPress={() => setOpen(true)}>Add a quote</Button>
   return (
-    <Card>
+    <div>
       <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); if (title.trim() && amountOk) add.mutate() }}>
         <Field label="What for" isRequired maxLength={200} value={title} onChange={setTitle} />
         <div className="flex flex-wrap gap-2">
@@ -168,14 +177,16 @@ function AddQuote({ projectId, onAdded }: { projectId: string; onAdded: () => Pr
         <ErrorText error={add.error} />
         <div className="flex gap-2">
           <Button type="submit" isDisabled={!title.trim() || !amountOk || add.isPending}>Add quote</Button>
-          <Button variant="ghost" onPress={() => setOpen(false)}>Cancel</Button>
         </div>
       </form>
-    </Card>
+    </div>
   )
 }
 
-function AddCost({ projectId, quotes, onAdded }: { projectId: string; quotes: Quote[]; onAdded: () => Promise<unknown> }) {
+/** Money spent (in the project's add bar); may be for an accepted quote. */
+export function AddCost({ projectId }: { projectId: string }) {
+  const { quotes: quoteQuery, refresh: onAdded } = useMoney(projectId)
+  const quotes = quoteQuery.data ?? []
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
   const [quoteId, setQuoteId] = useState('')
