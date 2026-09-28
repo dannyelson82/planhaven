@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Checkbox } from 'react-aria-components'
 import { api } from '../api.ts'
 import { useLiveProject } from '../live.ts'
@@ -105,7 +105,31 @@ export function ListScreen({ id }: { id: string }) {
     },
     onSettled: refresh,
   })
-  const remove = useMutation({ mutationFn: (i: Item) => api('DELETE', `/api/v1/list-items/${i.id}`), onSettled: refresh })
+  // Deleting only happens in edit mode, and can be undone for a few seconds.
+  const [editing, setEditing] = useState(false)
+  const [deleted, setDeleted] = useState<Item | null>(null)
+  useEffect(() => {
+    if (!deleted) return
+    const timer = setTimeout(() => setDeleted(null), 8000)
+    return () => clearTimeout(timer)
+  }, [deleted])
+  const remove = useMutation({
+    mutationFn: (i: Item) => api('DELETE', `/api/v1/list-items/${i.id}`),
+    onSuccess: (_d, i) => setDeleted(i),
+    onSettled: refresh,
+  })
+  const undo = useMutation({
+    mutationFn: (i: Item) => api('POST', `/api/v1/lists/${id}/items`, {
+      text: i.text, ...(i.quantity ? { quantity: i.quantity } : {}), ...(i.unit ? { unit: i.unit } : {}),
+    }, { 'Idempotency-Key': crypto.randomUUID() }),
+    onSuccess: () => setDeleted(null),
+    onSettled: refresh,
+  })
+  const save = useMutation({
+    mutationFn: ({ i, text, qty }: { i: Item; text: string; qty: string }) =>
+      api('PATCH', `/api/v1/list-items/${i.id}`, { text, quantity: qty.trim() || null }, { 'If-Match': `"${i.version}"` }),
+    onSettled: refresh,
+  })
   if (list.error) return <ErrorText error={list.error} />
   if (!list.data) return <p className="text-stone-500">Loading…</p>
   const l = list.data
@@ -114,7 +138,16 @@ export function ListScreen({ id }: { id: string }) {
   return (
     <div className="space-y-4">
       <Link to={`/projects/${l.project_id}`} className="text-sm text-brand-700 dark:text-brand-100">← Back to project</Link>
-      <h1 className="text-2xl font-bold">{l.title}</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold">{l.title}</h1>
+        <Button variant={editing ? 'primary' : 'secondary'} onPress={() => setEditing(!editing)}>{editing ? 'Done' : 'Edit'}</Button>
+      </div>
+      {deleted && (
+        <p role="status" className="flex items-center justify-between gap-2 rounded-xl bg-stone-100 p-2 pl-3 dark:bg-stone-800">
+          <span className="min-w-0 truncate">Deleted “{deleted.text}”</span>
+          <Button variant="ghost" onPress={() => undo.mutate(deleted)} isDisabled={undo.isPending}>Undo</Button>
+        </p>
+      )}
       <Form onSubmit={(e) => { e.preventDefault(); if (text.trim()) add.mutate({ text, qty }) }}>
         <div className="flex items-end gap-2">
           <div className="min-w-0 flex-1"><Field label="Add item" isRequired maxLength={500} value={text} onChange={setText} /></div>
@@ -123,21 +156,30 @@ export function ListScreen({ id }: { id: string }) {
         <ErrorText error={add.error} />
         <Button type="submit">Add</Button>
       </Form>
-      <ItemList items={open} onToggle={(i) => toggle.mutate(i)} onDelete={(i) => remove.mutate(i)} />
+      <ItemList items={open} editing={editing} onToggle={(i) => toggle.mutate(i)} onDelete={(i) => remove.mutate(i)} onSave={(i, text, qty) => save.mutate({ i, text, qty })} />
       {open.length === 0 && <p className="text-stone-500">All done!</p>}
       {done.length > 0 && (
         <>
           <p className="pt-2 text-sm font-medium text-stone-500">In the cart ({done.length})</p>
-          <ItemList items={done} onToggle={(i) => toggle.mutate(i)} onDelete={(i) => remove.mutate(i)} />
+          <ItemList items={done} editing={editing} onToggle={(i) => toggle.mutate(i)} onDelete={(i) => remove.mutate(i)} onSave={(i, text, qty) => save.mutate({ i, text, qty })} />
         </>
       )}
-      <ErrorText error={toggle.error ?? remove.error} />
+      <ErrorText error={toggle.error ?? remove.error ?? save.error ?? undo.error} />
     </div>
   )
 }
 
-function ItemList({ items, onToggle, onDelete }: { items: Item[]; onToggle: (i: Item) => void; onDelete: (i: Item) => void }) {
+type Handlers = { onToggle: (i: Item) => void; onDelete: (i: Item) => void; onSave: (i: Item, text: string, qty: string) => void }
+
+function ItemList({ items, editing, onToggle, onDelete, onSave }: { items: Item[]; editing: boolean } & Handlers) {
   if (items.length === 0) return null
+  if (editing) {
+    return (
+      <ul className="divide-y divide-stone-200 rounded-2xl bg-white ring-1 ring-stone-200 dark:divide-stone-800 dark:bg-stone-900 dark:ring-stone-800">
+        {items.map((i) => <EditRow key={`${i.id}-${i.version}`} item={i} onDelete={onDelete} onSave={onSave} />)}
+      </ul>
+    )
+  }
   return (
     <ul className="divide-y divide-stone-200 rounded-2xl bg-white ring-1 ring-stone-200 dark:divide-stone-800 dark:bg-stone-900 dark:ring-stone-800">
       {items.map((i) => (
@@ -150,9 +192,32 @@ function ItemList({ items, onToggle, onDelete }: { items: Item[]; onToggle: (i: 
             {quantityText(i) && <span className="text-sm text-stone-500">{quantityText(i)}</span>}
             {i.id.startsWith('pending-') && <span className="text-xs text-amber-700 dark:text-amber-400">not sent yet</span>}
           </Checkbox>
-          <Button variant="ghost" aria-label={`Delete ${i.text}`} isDisabled={i.id.startsWith('pending-')} onPress={() => onDelete(i)}>✕</Button>
         </li>
       ))}
     </ul>
+  )
+}
+
+/** Edit mode: change the name or quantity (saved when you leave the box), or delete. */
+function EditRow({ item, onDelete, onSave }: { item: Item } & Pick<Handlers, 'onDelete' | 'onSave'>) {
+  const [text, setText] = useState(item.text)
+  const [qty, setQty] = useState(item.quantity ? String(Number(item.quantity)) : '')
+  const pending = item.id.startsWith('pending-')
+  const commit = () => {
+    const original = item.quantity ? String(Number(item.quantity)) : ''
+    if (text.trim() && (text !== item.text || qty !== original)) onSave(item, text.trim(), qty)
+  }
+  const input = 'min-w-0 rounded-xl border border-stone-300 bg-white px-3 py-2.5 dark:border-stone-700 dark:bg-stone-900'
+  return (
+    <li className="flex items-center gap-2 px-3 py-2">
+      <input aria-label={`Name of ${item.text}`} value={text} maxLength={500} disabled={pending}
+        onChange={(e) => setText(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+        className={`${input} flex-1`} />
+      <input aria-label={`Quantity of ${item.text}`} value={qty} inputMode="decimal" maxLength={12} disabled={pending}
+        onChange={(e) => setQty(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+        className={`${input} w-20`} placeholder="Qty" />
+      <Button variant="danger-ghost" aria-label={`Delete ${item.text}`} isDisabled={pending}
+        onPress={() => onDelete({ ...item, text: text.trim() || item.text, quantity: qty.trim() || null })}>✕</Button>
+    </li>
   )
 }
