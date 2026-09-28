@@ -441,6 +441,10 @@ Cross-Origin-Resource-Policy: same-origin
   256 KB per message (1 MB per WebSocket frame at the server), 600 messages per 10 s (browsers bundle edits and cursor moves),
   20 open WebSockets per user, 5 MB per document; compression is off.
 - Awareness data (display name, cursor) is relayed only within the document and not stored.
+  Project members (who can read the note anyway) also see on the project page who has a
+  note open for editing (display names only, kept in memory).
+- The note's Markdown copy (previews, search) is written by the server from the stored
+  document; clients can no longer set it.
 - Update contents are never logged; logs hold document ID, user, byte counts and outcomes.
 - Every accepted update is attributed (user or MCP client) so history and undo work.
 - Ticking a note's checkbox from the project page is made by the server as a normal CRDT

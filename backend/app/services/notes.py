@@ -8,7 +8,6 @@ connection. Edit contents are never logged.
 
 import asyncio
 import logging
-import re
 import time
 import uuid
 from collections.abc import Awaitable, Callable
@@ -25,6 +24,7 @@ from app.db.database import Database
 from app.services import auth as auth_service
 from app.services import live
 from app.services.auth import CurrentSession
+from app.services.note_markdown import to_markdown
 from app.services.projects import ConflictError
 
 log = logging.getLogger("planhaven.collab")
@@ -146,16 +146,6 @@ async def rename(
     return after
 
 
-async def set_text(
-    db: Database, session: CurrentSession, note_id: uuid.UUID, text_content: str
-) -> None:
-    """Plain-text copy for search, AI and export, sent by the editor when it goes idle."""
-    async with db.user_transaction(session.user.id) as conn:
-        _note, access = await _note_access(conn, note_id)
-        _require(session, access, write=True)
-        await store.set_text(conn, note_id, text_content[:MAX_TEXT_CONTENT])
-
-
 async def delete_note(
     db: Database, session: CurrentSession, note_id: uuid.UUID, ip: str | None
 ) -> None:
@@ -188,6 +178,7 @@ class Peer:
     user_id: uuid.UUID
     can_write: bool
     close: Callable[[int, str], Awaitable[None]]
+    name: str = ""
     window_start: float = field(default_factory=time.monotonic)
     window_count: int = 0
 
@@ -238,10 +229,12 @@ class Rooms:
                 room = Room(note.id, note.project_id, doc, size)
                 self._rooms[note.id] = room
             room.peers.add(peer)
-            return room
+        live.publish(room.project_id, "notes")  # "being edited by" changed
+        return room
 
     def leave(self, room: Room, peer: Peer) -> None:
         room.peers.discard(peer)
+        room.unpublished = True  # "being edited by" changed
         if room.unpublished:
             room.unpublished = False
             live.publish(room.project_id, "notes")
@@ -271,6 +264,19 @@ class Rooms:
                 task.add_done_callback(self._closing.discard)
             else:
                 peer.can_write = role in ("owner", "editor")
+
+    def editing(self, project_id: uuid.UUID, exclude: uuid.UUID) -> dict[uuid.UUID, list[str]]:
+        """Who has each note in the project open for editing (other than `exclude`)."""
+        found: dict[uuid.UUID, list[str]] = {}
+        for room in self._rooms.values():
+            if room.project_id != project_id:
+                continue
+            names = sorted(
+                {p.name for p in room.peers if p.can_write and p.user_id != exclude and p.name}
+            )
+            if names:
+                found[room.note_id] = names
+        return found
 
     def peers_of(self, user_id: uuid.UUID) -> list[tuple[Room, Peer]]:
         return [(r, p) for r in self._rooms.values() for p in r.peers if p.user_id == user_id]
@@ -339,6 +345,9 @@ async def handle_message(db: Database, room: Room, peer: Peer, message: bytes) -
                 user_id=peer.user_id,
                 update=update,
             )
+            # The Markdown copy (previews, search) is made here from the stored document, so
+            # it always matches the note (browsers used to send it, sometimes out of order).
+            await store.set_text(conn, room.note_id, to_markdown(room.doc)[:MAX_TEXT_CONTENT])
         room.size += len(update)
         _changed(room)
     await _broadcast(room, pycrdt.create_update_message(update), exclude=peer)
@@ -396,7 +405,6 @@ async def compact_notes(db: Database) -> int:
 # browser: stored with attribution, sent live to anyone with the note open.
 
 MAX_CHECKLIST_NOTES = 50
-_TASK_MARKER = re.compile(r"^(\s*- \[)([ x])(\] )", re.MULTILINE)
 
 
 class ChecklistChangedError(Exception):
@@ -444,20 +452,6 @@ def checklist(doc: pycrdt.Doc[Any]) -> list[ChecklistItem]:
     ]
 
 
-def _tick_in_text(text_content: str, index: int, checked: bool) -> str:
-    """Keep the Markdown copy in step (task items appear there in the same order)."""
-    count = -1
-
-    def swap(match: re.Match[str]) -> str:
-        nonlocal count
-        count += 1
-        if count != index:
-            return match.group(0)
-        return f"{match.group(1)}{'x' if checked else ' '}{match.group(3)}"
-
-    return _TASK_MARKER.sub(swap, text_content)
-
-
 async def _load_doc(db: Database, user_id: uuid.UUID, note_id: uuid.UUID) -> pycrdt.Doc[Any]:
     async with db.user_transaction(user_id) as conn:
         snapshot, updates = await store.load_state(conn, note_id)
@@ -496,6 +490,8 @@ async def set_checked(
         note, access = await _note_access(conn, note_id)
         _require(session, access, write=True)
 
+    markdown = ""
+
     async def change(doc: pycrdt.Doc[Any]) -> bytes | None:
         items = _task_items(doc.get("default", type=pycrdt.XmlFragment))
         if index >= len(items) or _item_text(items[index])[:300] != text:
@@ -504,6 +500,8 @@ async def set_checked(
             return None
         before = doc.get_state()
         items[index].attributes["checked"] = checked
+        nonlocal markdown
+        markdown = to_markdown(doc)[:MAX_TEXT_CONTENT]
         return doc.get_update(before)
 
     async def persist(update: bytes) -> None:
@@ -515,11 +513,7 @@ async def set_checked(
                 user_id=session.user.id,
                 update=update,
             )
-            current = await store.get_note(conn, note.id)
-            if current is not None:
-                await store.set_text(
-                    conn, note.id, _tick_in_text(current.text_content, index, checked)
-                )
+            await store.set_text(conn, note.id, markdown)
 
     # Hold the loader (so nobody can open the note halfway) and, if it's open, its room.
     async with rooms._loading:

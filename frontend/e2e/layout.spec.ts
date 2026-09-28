@@ -170,3 +170,43 @@ test('fast typing in a note keeps every character', async ({ page }, info) => {
   expect(closedWhileTyping).toEqual([])
   expect(problems).toEqual([])
 })
+
+// Owner report: the note's card on the project page showed garbled text after editing
+// wrapped lines. The card's text now comes from the server's copy of the saved note.
+test('the note card shows exactly what the note says', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'desktop layout wraps the long lines used here')
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Winterize boat' }).click()
+  await page.getByRole('button', { name: 'New note' }).click()
+  const ed = () => page.getByRole('textbox', { name: 'Note', exact: true })
+  await expect(page.getByText('Saved automatically')).toBeVisible()
+  await page.getByLabel('Note title').fill('Wrapped lines')
+  await page.getByLabel('Note title').press('Enter')
+  await ed().click()
+  const lines = [
+    'This is a fairly long first line that will certainly wrap around on a desktop screen because it keeps going and going',
+    'Second paragraph also long enough to wrap when the window is not very wide at all',
+    'Short third',
+  ]
+  for (const [i, line] of lines.entries()) {
+    await page.keyboard.type(line, { delay: 4 })
+    if (i < lines.length - 1) await page.keyboard.press('Enter')
+  }
+  const noteUrl = page.url()
+  const edits = [
+    async () => { const b = (await ed().locator('p').first().boundingBox())!; await page.mouse.click(b.x + b.width * 0.4, b.y + b.height - 4); await page.keyboard.type(' MID ', { delay: 4 }) },
+    async () => { const b = (await ed().locator('p').nth(1).boundingBox())!; await page.mouse.click(b.x + 1, b.y + 4); await page.keyboard.press('Home'); await page.keyboard.press('Backspace') },
+    async () => { const b = (await ed().locator('p').first().boundingBox())!; await page.mouse.click(b.x + b.width * 0.7, b.y + 4); await page.keyboard.press('Enter'); await page.keyboard.type('after split', { delay: 4 }) },
+    async () => { await page.keyboard.type(' LAST WORDS', { delay: 1 }) }, // then leave at once
+  ]
+  for (const edit of edits) {
+    await edit()
+    const paragraphs = await ed().evaluate((el) => [...el.querySelectorAll('p')].map((p) => p.textContent!.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' · '))
+    await page.getByRole('link', { name: '← Back to project' }).click()
+    const card = page.getByRole('region', { name: 'Notes' }).locator('li', { hasText: 'Wrapped lines' })
+    await expect.poll(async () => (await card.innerText()).replace(/\s+/g, ' ')).toContain(paragraphs)
+    await page.goto(noteUrl)
+    await expect(page.getByText('Saved automatically')).toBeVisible()
+    await ed().click()
+  }
+})

@@ -18,6 +18,7 @@ type Note = {
   updated_at: string
   version: number
   can_edit: boolean
+  editing?: string[]
 }
 
 /** Notes section on a project page. */
@@ -55,6 +56,9 @@ export function ProjectNotes({ projectId, canEdit }: { projectId: string; canEdi
           <li key={n.id} className="mb-2 break-inside-avoid">
             <Card>
               <Link to={`/notes/${n.id}`} className="block font-semibold">{n.title}</Link>
+              {(n.editing ?? []).length > 0 && (
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Being edited by {(n.editing ?? []).join(', ')}</p>
+              )}
               {itemsOf(n.id).length > 0 ? (
                 <>
                   {notePreview(n.text_content, true) && <p className="line-clamp-1 text-sm text-stone-500">{notePreview(n.text_content, true)}</p>}
