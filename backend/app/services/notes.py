@@ -34,7 +34,9 @@ NoteRow = store.NoteRow
 MAX_MESSAGE_BYTES = 256 * 1024
 MAX_DOCUMENT_BYTES = 5 * 1024 * 1024
 MAX_AWARENESS_BYTES = 16 * 1024
-MESSAGES_PER_WINDOW = 200
+# Browsers bundle edits (10/s) and cursor moves (4/s); this leaves room for several open
+# tabs per person while still cutting off a flood.
+MESSAGES_PER_WINDOW = 600
 WINDOW_SECONDS = 10.0
 RECHECK_SECONDS = 15.0
 MAX_TEXT_CONTENT = 200_000

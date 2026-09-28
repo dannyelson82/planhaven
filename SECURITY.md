@@ -431,7 +431,7 @@ Cross-Origin-Resource-Policy: same-origin
   `collab_refused` security event (as are oversized, too-fast and malformed messages).
 - Limits per connection and user: message size, updates per second, open connections, and
   total document size. Malformed or oversized messages close the connection. Currently:
-  256 KB per message (1 MB per WebSocket frame at the server), 200 messages per 10 s,
+  256 KB per message (1 MB per WebSocket frame at the server), 600 messages per 10 s (browsers bundle edits and cursor moves),
   20 open WebSockets per user, 5 MB per document; compression is off.
 - Awareness data (display name, cursor) is relayed only within the document and not stored.
 - Update contents are never logged; logs hold document ID, user, byte counts and outcomes.
