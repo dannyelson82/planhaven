@@ -64,6 +64,9 @@ RUN mkdir /s6root \
 
 # ------------------------------------------------------------------ runtime
 FROM ${PYTHON_IMAGE}
+# The release version (from the git tag); shown to signed-in users on the Account page.
+ARG PLANHAVEN_VERSION=dev
+ENV PLANHAVEN_VERSION=${PLANHAVEN_VERSION}
 ARG PG_MAJOR
 
 LABEL org.opencontainers.image.title="Planhaven" \

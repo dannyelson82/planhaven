@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { Checkbox } from 'react-aria-components'
 import { api } from '../api.ts'
+import { navigate } from '../router.ts'
 import { useLiveProject } from '../live.ts'
 import { Button, Card, ErrorText, Field, Form, Link } from '../ui.tsx'
 import { cachedGet, sendOrQueue, updateOfflineCopy } from '../offline.ts'
@@ -125,6 +126,14 @@ export function ListScreen({ id }: { id: string }) {
     onSuccess: () => setDeleted(null),
     onSettled: refresh,
   })
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const removeList = useMutation({
+    mutationFn: (projectId: string) => api('DELETE', `/api/v1/lists/${id}`).then(() => projectId),
+    onSuccess: async (projectId) => {
+      await client.invalidateQueries({ queryKey: ['lists'] })
+      navigate(`/projects/${projectId}`)
+    },
+  })
   const save = useMutation({
     mutationFn: ({ i, text, qty }: { i: Item; text: string; qty: string }) =>
       api('PATCH', `/api/v1/list-items/${i.id}`, { text, quantity: qty.trim() || null }, { 'If-Match': `"${i.version}"` }),
@@ -164,7 +173,15 @@ export function ListScreen({ id }: { id: string }) {
           <ItemList items={done} editing={editing} onToggle={(i) => toggle.mutate(i)} onDelete={(i) => remove.mutate(i)} onSave={(i, text, qty) => save.mutate({ i, text, qty })} />
         </>
       )}
-      <ErrorText error={toggle.error ?? remove.error ?? save.error ?? undo.error} />
+      {editing && (
+        <div className="flex justify-end">
+          <Button variant="danger-ghost" isDisabled={removeList.isPending}
+            onPress={() => (confirmDelete ? removeList.mutate(l.project_id) : setConfirmDelete(true))}>
+            {confirmDelete ? 'Tap again to delete this list' : 'Delete this list'}
+          </Button>
+        </div>
+      )}
+      <ErrorText error={toggle.error ?? remove.error ?? save.error ?? undo.error ?? removeList.error} />
     </div>
   )
 }

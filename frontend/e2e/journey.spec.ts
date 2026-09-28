@@ -78,6 +78,15 @@ test('first boot to first project', async ({ page }) => {
   await expect(page.locator('label', { hasText: 'Hose clamps' })).toContainText('4')
   await page.getByRole('link', { name: '← Back to project' }).click()
   await expect(page.getByText('Shopping · 1 to get of 2')).toBeVisible()
+  // A whole list can be deleted from its edit mode (it goes to the trash).
+  await page.getByLabel('New list').fill('Scrap list')
+  await page.getByRole('button', { name: 'Add list' }).click()
+  await page.getByRole('link', { name: 'Scrap list' }).click()
+  await page.getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('button', { name: 'Delete this list' }).click()
+  await page.getByRole('button', { name: 'Tap again to delete this list' }).click()
+  await expect(page.getByRole('heading', { name: 'Winterize boat' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Scrap list' })).toHaveCount(0)
 
   // The oil change needs the hose clamps from the list; the task says so until they're got.
   await page.getByRole('button', { name: 'Edit Change oil' }).click()
@@ -137,7 +146,7 @@ test('first boot to first project', async ({ page }) => {
   await page.getByRole('button', { name: 'Delete parts.csv' }).click()
   await expect(page.getByRole('link', { name: 'parts.csv' })).toBeHidden()
   await page.goto('/trash')
-  await page.getByRole('button', { name: 'Restore' }).click()
+  await page.getByRole('button', { name: 'Restore parts.csv' }).click()
   await page.getByRole('link', { name: 'Open' }).click()
   await expect(page.getByRole('link', { name: 'parts.csv' })).toBeVisible()
 
@@ -195,6 +204,7 @@ test('first boot to first project', async ({ page }) => {
 
   // Sign out and back in, with the second factor.
   await page.goto('/account')
+  await expect(page.getByText(/^Planhaven (dev|\d+\.\d+\.\d+)$/)).toBeVisible()
   await page.getByRole('button', { name: 'Sign out' }).click()
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
   await page.getByLabel('Email').fill(ADMIN.email)

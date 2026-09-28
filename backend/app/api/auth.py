@@ -204,3 +204,9 @@ async def revoke_other_sessions(session: SessionDep, request: Request) -> None:
     await auth_service.revoke_other_sessions(
         deps.database(request), session, deps.client_ip(request)
     )
+
+
+@router.get("/about")
+async def about(session: SessionDep, request: Request) -> dict[str, str]:
+    """Which release is running, for signed-in people (not public: /healthz stays silent)."""
+    return {"version": deps.settings(request).version}

@@ -45,6 +45,7 @@ MATRIX: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/auth/sessions/revoke-others"): "verified",
     ("GET", "/api/v1/auth/passkeys"): "verified",
     ("GET", "/api/v1/notifications"): "verified",
+    ("GET", "/api/v1/about"): "verified",
     ("POST", "/api/v1/notifications/{notification_id}/read"): "verified",
     # Projects and tasks: verified, then the caller's project role (tests/db/test_projects.py)
     ("GET", "/api/v1/projects"): "verified",
