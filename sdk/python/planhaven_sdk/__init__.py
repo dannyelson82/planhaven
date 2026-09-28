@@ -1,8 +1,8 @@
-"""Planhaven plugin SDK, API version 1 (ARCHITECTURE.md §14).
+"""PlanHaven plugin SDK, API version 1 (ARCHITECTURE.md §14).
 
-Plugins interact with Planhaven only through the `PluginContext` they are given: async
+Plugins interact with PlanHaven only through the `PluginContext` they are given: async
 methods taking and returning plain, serializable data. Plugins import nothing from the
-Planhaven application itself (enforced by tests), so this interface can later be served over
+PlanHaven application itself (enforced by tests), so this interface can later be served over
 RPC from an isolated process without changing plugins (ADR 0008).
 """
 

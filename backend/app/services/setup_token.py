@@ -22,8 +22,8 @@ async def _main() -> int:
     print(
         "\n"
         "==================================================================\n"
-        " Planhaven setup: no admin account exists yet.\n"
-        " Open Planhaven in your browser and enter this one-time token:\n\n"
+        " PlanHaven setup: no admin account exists yet.\n"
+        " Open PlanHaven in your browser and enter this one-time token:\n\n"
         f"   {token}\n\n"
         f" It works once and expires in {hours} hours. Restart the container\n"
         " for a new one. Anyone with this token can create the admin account.\n"

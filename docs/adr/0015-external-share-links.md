@@ -10,7 +10,7 @@ giving them an account. Example: a car service project with tasks ("Change oil",
 coolant") that carry instructions. The mechanic opens one link, reads the tasks, checks them
 off, adds photos, and writes in a "Service notes" note.
 
-Planhaven is on the internet and every account has a mandatory second factor (S§7.1). A share
+PlanHaven is on the internet and every account has a mandatory second factor (S§7.1). A share
 link is the opposite: whoever holds the link gets in. It is a **capability URL**, so it must
 be narrow, visible, revocable and short-lived.
 
@@ -69,7 +69,7 @@ simple page with only what was ticked. No account, no access to the rest of the 
 
 ## Consequences
 
-The first way into Planhaven without a second factor, limited to what one link allows. Needs
+The first way into PlanHaven without a second factor, limited to what one link allows. Needs
 threat-model entries (link forwarded or leaked, brute force, guest uploads, a guest writing
 into a note), a new authz principal and matrix column, and tests that a link can never reach
 anything it wasn't given.

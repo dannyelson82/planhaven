@@ -1,4 +1,4 @@
-// Shared building blocks: React Aria components with Planhaven styling (ADR 0014).
+// Shared building blocks: React Aria components with PlanHaven styling (ADR 0014).
 // Touch targets are at least 44px; everything works with keyboard and screen readers.
 import type { ReactNode } from 'react'
 import {
@@ -108,7 +108,7 @@ export function Link({ to, children, className = '' }: { to: string; children: R
 export function AuthPage({ title, children }: { title: string; children: ReactNode }) {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
-      <p className="mb-2 text-center text-sm font-semibold uppercase tracking-wider text-brand-600">Planhaven</p>
+      <p className="mb-2 text-center text-sm font-semibold uppercase tracking-wider text-brand-600">PlanHaven</p>
       <h1 className="mb-6 text-center text-2xl font-bold">{title}</h1>
       <Card>{children}</Card>
     </main>

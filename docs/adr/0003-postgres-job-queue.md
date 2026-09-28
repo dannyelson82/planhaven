@@ -23,7 +23,7 @@ fit in one container (ADR 0002).
 
 ## Decision
 
-Use a **PostgreSQL-backed job queue**, implemented in Planhaven itself (a `jobs` table
+Use a **PostgreSQL-backed job queue**, implemented in PlanHaven itself (a `jobs` table
 claimed with `FOR UPDATE SKIP LOCKED`, retries with backoff, a dead state), rather than
 `procrastinate`.
 

@@ -1,1 +1,1 @@
-"""Planhaven backend. See ARCHITECTURE.md §6 for the package layout."""
+"""PlanHaven backend. See ARCHITECTURE.md §6 for the package layout."""

@@ -15,6 +15,7 @@ from app.api import (
     health,
     invites,
     lists,
+    live,
     mfa,
     notes,
     notifications,
@@ -60,6 +61,7 @@ ROUTERS = (
     sharing.router,
     lists.router,
     notes.router,
+    live.router,
     attachments.router,
     assets.router,
     contacts.router,
@@ -91,7 +93,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await db.dispose()
 
     app = FastAPI(
-        title="Planhaven", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan
+        title="PlanHaven", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan
     )
     app.state.settings = settings
     app.state.db = db

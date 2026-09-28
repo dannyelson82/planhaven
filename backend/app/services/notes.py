@@ -1,58 +1,34 @@
-"""Notes: metadata over REST, and real-time co-editing rooms (ADR 0011, SECURITY.md §7.15).
+"""Notes: open, edit, tap Done to save (owner decision 2026-09-28, docs/adr/0016).
 
-A room holds one note's CRDT document in memory while anyone has it open. Every accepted edit
-is persisted as an attributed update (in a transaction acting as the editor, so RLS applies)
-and relayed to the other participants. Viewers receive edits; any edit they send closes their
-connection. Edit contents are never logged.
+No live co-editing and no automatic saving. A save sends the whole document with the version
+it started from; if someone else saved in between, the save is refused (409) rather than
+overwriting their work. The document is cleaned by the server before it's stored
+(app/services/note_content.py), and the Markdown copy for previews and search is made from it.
 """
 
-import asyncio
-import logging
-import time
 import uuid
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
 from typing import Any
-
-import pycrdt
 
 from app import authz
 from app.db import auth as audit
 from app.db import notes as store
 from app.db import projects as project_store
 from app.db.database import Database
-from app.services import auth as auth_service
 from app.services import live
+from app.services import note_content as content
 from app.services.auth import CurrentSession
-from app.services.note_markdown import to_markdown
+from app.services.note_content import ContentError
 from app.services.projects import ConflictError
 
-log = logging.getLogger("planhaven.collab")
-
 NoteRow = store.NoteRow
+MAX_TEXT_CONTENT = content.MAX_TEXT
+MAX_CHECKLIST_NOTES = 50
 
-MAX_MESSAGE_BYTES = 256 * 1024
-MAX_DOCUMENT_BYTES = 5 * 1024 * 1024
-MAX_AWARENESS_BYTES = 16 * 1024
-# Browsers bundle edits (10/s) and cursor moves (4/s); this leaves room for several open
-# tabs per person while still cutting off a flood.
-MESSAGES_PER_WINDOW = 600
-WINDOW_SECONDS = 10.0
-RECHECK_SECONDS = 15.0
-MAX_TEXT_CONTENT = 200_000
-COMPACT_THRESHOLD = 200
+__all__ = ["ConflictError", "ContentError", "NoteRow"]
 
 
-class CollabCloseError(Exception):
-    """Close the connection with a WebSocket close code (4xxx) and a short reason."""
-
-    def __init__(self, code: int, reason: str) -> None:
-        super().__init__(reason)
-        self.code = code
-        self.reason = reason
-
-
-# ---------------------------------------------------------------- REST
+class ChecklistChangedError(Exception):
+    """The checklist changed since the page was loaded (message is safe to show)."""
 
 
 async def _access(conn: Any, project_id: uuid.UUID) -> authz.ProjectAccess:
@@ -75,6 +51,15 @@ def _require(session: CurrentSession, access: authz.ProjectAccess, write: bool) 
         authz.require(session.principal, authz.Action.PROJECT_EDIT, access)
 
 
+async def _document(conn: Any, note_id: uuid.UUID) -> dict[str, Any]:
+    """The note's document; notes from the earlier live editor are converted on the fly."""
+    document = await store.get_content(conn, note_id)
+    if document is not None:
+        return document
+    snapshot, updates = await store.load_state(conn, note_id)
+    return content.from_legacy(snapshot, updates) or content.EMPTY
+
+
 async def notes_for_project(
     db: Database, session: CurrentSession, project_id: uuid.UUID
 ) -> list[NoteRow]:
@@ -90,6 +75,14 @@ async def create_note(
         _require(session, await _access(conn, project_id), write=True)
         note_id = await store.create_note(
             conn, project_id=project_id, user_id=session.user.id, title=title
+        )
+        await store.save(
+            conn,
+            note_id,
+            expected_version=None,
+            title=title,
+            content=content.EMPTY,
+            text_content="",
         )
         await audit.record_audit(
             conn,
@@ -109,30 +102,45 @@ async def create_note(
 
 async def get_note(
     db: Database, session: CurrentSession, note_id: uuid.UUID
-) -> tuple[NoteRow, bool]:
-    """The note and whether the caller may edit it."""
+) -> tuple[NoteRow, bool, dict[str, Any]]:
+    """The note, whether the caller may edit it, and its document."""
     async with db.user_transaction(session.user.id) as conn:
         note, access = await _note_access(conn, note_id)
         _require(session, access, write=False)
-    return note, authz.allowed(session.principal, authz.Action.PROJECT_EDIT, access)
+        document = await _document(conn, note_id)
+    return note, authz.allowed(session.principal, authz.Action.PROJECT_EDIT, access), document
 
 
-async def rename(
+async def save(
     db: Database,
     session: CurrentSession,
     note_id: uuid.UUID,
+    *,
     expected_version: int,
     title: str,
+    document: Any,
     ip: str | None,
 ) -> NoteRow:
+    """Done: store the title and the whole document, if nobody saved since it was opened."""
+    cleaned = content.clean(document)  # ContentError for anything not allowed
     async with db.user_transaction(session.user.id) as conn:
         note, access = await _note_access(conn, note_id)
         _require(session, access, write=True)
-        if await store.update_title(conn, note_id, expected_version, title) is None:
-            raise ConflictError("This note was changed elsewhere. Reload and try again.")
+        version = await store.save(
+            conn,
+            note_id,
+            expected_version=expected_version,
+            title=title,
+            content=cleaned,
+            text_content=content.to_markdown(cleaned),
+        )
+        if version is None:
+            raise ConflictError(
+                "Someone else saved this note since you opened it. Your changes weren't saved."
+            )
         await audit.record_audit(
             conn,
-            action="note.renamed",
+            action="note.saved",
             actor_user_id=session.user.id,
             ip=ip,
             project_id=note.project_id,
@@ -163,316 +171,23 @@ async def delete_note(
             resource_id=note_id,
         )
     live.publish(note.project_id, "notes")
-    rooms.close_note(note_id, 4404, "note deleted")
 
 
-# ---------------------------------------------------------------- collaboration
-
-
-Send = Callable[[bytes], Awaitable[None]]
-
-
-@dataclass(eq=False)
-class Peer:
-    send: Send
-    user_id: uuid.UUID
-    can_write: bool
-    close: Callable[[int, str], Awaitable[None]]
-    name: str = ""
-    window_start: float = field(default_factory=time.monotonic)
-    window_count: int = 0
-
-
-@dataclass(eq=False)
-class Room:
-    note_id: uuid.UUID
-    project_id: uuid.UUID
-    doc: pycrdt.Doc[Any]
-    size: int
-    peers: set[Peer] = field(default_factory=set)
-    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
-    # Open project pages are told "notes changed" at most every PUBLISH_EVERY seconds while
-    # someone types, and once more when the last person leaves (so the page shows the end).
-    last_published: float = 0.0
-    unpublished: bool = False
-
-
-PUBLISH_EVERY = 2.0
-
-
-def _changed(room: Room) -> None:
-    now = time.monotonic()
-    if now - room.last_published >= PUBLISH_EVERY:
-        room.last_published, room.unpublished = now, False
-        live.publish(room.project_id, "notes")
-    else:
-        room.unpublished = True
-
-
-class Rooms:
-    def __init__(self) -> None:
-        self._rooms: dict[uuid.UUID, Room] = {}
-        self._loading = asyncio.Lock()
-        self._closing: set[asyncio.Task[None]] = set()
-
-    async def join(self, db: Database, user_id: uuid.UUID, note: NoteRow, peer: Peer) -> Room:
-        async with self._loading:
-            room = self._rooms.get(note.id)
-            if room is None:
-                async with db.user_transaction(user_id) as conn:
-                    snapshot, updates = await store.load_state(conn, note.id)
-                doc: pycrdt.Doc[Any] = pycrdt.Doc()
-                size = 0
-                for blob in ([snapshot] if snapshot else []) + updates:
-                    doc.apply_update(blob)
-                    size += len(blob)
-                room = Room(note.id, note.project_id, doc, size)
-                self._rooms[note.id] = room
-            room.peers.add(peer)
-        live.publish(room.project_id, "notes")  # "being edited by" changed
-        return room
-
-    def leave(self, room: Room, peer: Peer) -> None:
-        room.peers.discard(peer)
-        room.unpublished = True  # "being edited by" changed
-        if room.unpublished:
-            room.unpublished = False
-            live.publish(room.project_id, "notes")
-        if not room.peers:
-            self._rooms.pop(room.note_id, None)
-
-    def close_note(self, note_id: uuid.UUID, code: int, reason: str) -> None:
-        room = self._rooms.get(note_id)
-        if room:
-            for peer in list(room.peers):
-                task = asyncio.ensure_future(peer.close(code, reason))
-                self._closing.add(task)
-                task.add_done_callback(self._closing.discard)
-
-    def membership_changed(
-        self, project_id: uuid.UUID, user_id: uuid.UUID, role: str | None
-    ) -> None:
-        """Apply a sharing change to this person's open notes in the project at once:
-        removed means disconnected; a new role changes whether their edits are accepted.
-        (Connections also re-check every RECHECK_SECONDS.)"""
-        for room, peer in self.peers_of(user_id):
-            if room.project_id != project_id:
-                continue
-            if role is None:
-                task = asyncio.ensure_future(peer.close(4403, "access removed"))
-                self._closing.add(task)
-                task.add_done_callback(self._closing.discard)
-            else:
-                peer.can_write = role in ("owner", "editor")
-
-    def editing(self, project_id: uuid.UUID, exclude: uuid.UUID) -> dict[uuid.UUID, list[str]]:
-        """Who has each note in the project open for editing (other than `exclude`)."""
-        found: dict[uuid.UUID, list[str]] = {}
-        for room in self._rooms.values():
-            if room.project_id != project_id:
-                continue
-            names = sorted(
-                {p.name for p in room.peers if p.can_write and p.user_id != exclude and p.name}
-            )
-            if names:
-                found[room.note_id] = names
-        return found
-
-    def peers_of(self, user_id: uuid.UUID) -> list[tuple[Room, Peer]]:
-        return [(r, p) for r in self._rooms.values() for p in r.peers if p.user_id == user_id]
-
-
-rooms = Rooms()
-
-
-def _rate_ok(peer: Peer) -> bool:
-    now = time.monotonic()
-    if now - peer.window_start > WINDOW_SECONDS:
-        peer.window_start, peer.window_count = now, 0
-    peer.window_count += 1
-    return peer.window_count <= MESSAGES_PER_WINDOW
-
-
-async def handle_message(db: Database, room: Room, peer: Peer, message: bytes) -> None:
-    """Process one frame from a peer: sync (0) or awareness (1)."""
-    if len(message) > MAX_MESSAGE_BYTES:
-        raise CollabCloseError(4413, "message too large")
-    if not _rate_ok(peer):
-        raise CollabCloseError(4429, "too many messages")
-    if not message:
-        return
-    kind = message[0]
-    if kind == pycrdt.YMessageType.AWARENESS:
-        if len(message) > MAX_AWARENESS_BYTES:
-            raise CollabCloseError(4413, "awareness too large")
-        await _broadcast(room, message, exclude=peer)
-        return
-    if kind != pycrdt.YMessageType.SYNC or len(message) < 2:
-        raise CollabCloseError(4400, "unknown message")
-
-    sync_type = message[1]
-    if sync_type == pycrdt.YSyncMessageType.SYNC_STEP1:
-        reply = pycrdt.handle_sync_message(message[1:], room.doc)
-        if reply:
-            await peer.send(reply)
-        return
-    if sync_type not in (pycrdt.YSyncMessageType.SYNC_STEP2, pycrdt.YSyncMessageType.SYNC_UPDATE):
-        raise CollabCloseError(4400, "unknown sync message")
-    try:
-        update = pycrdt.read_message(message[2:])
-    except Exception:
-        raise CollabCloseError(4400, "malformed update") from None
-    if update in (b"", b"\x00\x00"):
-        return
-    if not peer.can_write:
-        raise CollabCloseError(4403, "read-only")
-    if room.size + len(update) > MAX_DOCUMENT_BYTES:
-        raise CollabCloseError(4413, "document too large")
-
-    async with room.lock:
-        before = room.doc.get_state()
-        try:
-            room.doc.apply_update(update)
-        except Exception:
-            raise CollabCloseError(4400, "malformed update") from None
-        if room.doc.get_state() == before:
-            return  # nothing new (already known)
-        async with db.user_transaction(peer.user_id) as conn:
-            await store.append_update(
-                conn,
-                note_id=room.note_id,
-                project_id=room.project_id,
-                user_id=peer.user_id,
-                update=update,
-            )
-            # The Markdown copy (previews, search) is made here from the stored document, so
-            # it always matches the note (browsers used to send it, sometimes out of order).
-            await store.set_text(conn, room.note_id, to_markdown(room.doc)[:MAX_TEXT_CONTENT])
-        room.size += len(update)
-        _changed(room)
-    await _broadcast(room, pycrdt.create_update_message(update), exclude=peer)
-    log.info("note updated", extra={"note_id": str(room.note_id), "bytes": len(update)})
-
-
-async def _broadcast(room: Room, message: bytes, exclude: Peer | None) -> None:
-    for other in list(room.peers):
-        if other is not exclude:
-            try:
-                await other.send(message)
-            except Exception:
-                room.peers.discard(other)
-
-
-def opening_messages(room: Room) -> list[bytes]:
-    """Sent on connect: the server's sync step 1 (the client replies with what it has)."""
-    return [pycrdt.create_sync_message(room.doc)]
-
-
-async def still_allowed(db: Database, token: str, note: NoteRow) -> tuple[bool, bool]:
-    """Re-check on a timer: is the session still valid, and may this user still read/write?"""
-    session = await auth_service.authenticate(db, token)
-    if session is None or not session.mfa_verified:
-        return False, False
-    async with db.user_transaction(session.user.id) as conn:
-        access = await _access(conn, note.project_id)
-        if await store.get_note(conn, note.id) is None:
-            return False, False
-    readable = authz.allowed(session.principal, authz.Action.PROJECT_VIEW, access)
-    writable = authz.allowed(session.principal, authz.Action.PROJECT_EDIT, access)
-    return readable, writable
-
-
-async def compact_notes(db: Database) -> int:
-    """System job: fold many small updates into a snapshot."""
-    done = 0
-    async with db.system_transaction() as conn:
-        note_ids = await store.notes_to_compact(conn, COMPACT_THRESHOLD)
-    for note_id in note_ids:
-        async with db.system_transaction() as conn:
-            snapshot, updates = await store.load_state(conn, note_id)
-            last = await store.last_update_id(conn, note_id)
-            doc: pycrdt.Doc[Any] = pycrdt.Doc()
-            for blob in ([snapshot] if snapshot else []) + updates:
-                doc.apply_update(blob)
-            await store.compact(conn, note_id, doc.get_update(), last)
-        done += 1
-    return done
-
-
-# ---------------------------------------------------------------- checklists outside the editor
-# The project page shows each note's checkboxes and can tick them without opening the note.
-# The change is made to the note's CRDT document on the server, exactly like an edit from a
-# browser: stored with attribution, sent live to anyone with the note open.
-
-MAX_CHECKLIST_NOTES = 50
-
-
-class ChecklistChangedError(Exception):
-    """The checklist changed since the page was loaded (message is safe to show)."""
-
-
-@dataclass(frozen=True, slots=True)
-class ChecklistItem:
-    index: int
-    text: str
-    checked: bool
-
-
-def _task_items(node: Any) -> list[Any]:
-    """Every checklist item in the document, in reading order (nested ones included)."""
-    found: list[Any] = []
-    for child in node.children:
-        if isinstance(child, pycrdt.XmlElement):
-            if child.tag == "taskItem":
-                found.append(child)
-            found.extend(_task_items(child))
-    return found
-
-
-def _item_text(item: Any) -> str:
-    """The item's own words (formatting and nested lists left out)."""
-    parts: list[str] = []
-
-    def collect(node: Any) -> None:
-        for child in node.children:
-            if isinstance(child, pycrdt.XmlText):
-                parts.extend(segment for segment, _ in child.diff())
-            elif isinstance(child, pycrdt.XmlElement) and child.tag != "taskList":
-                collect(child)
-
-    collect(item)
-    return "".join(parts).strip()
-
-
-def checklist(doc: pycrdt.Doc[Any]) -> list[ChecklistItem]:
-    fragment = doc.get("default", type=pycrdt.XmlFragment)
-    return [
-        ChecklistItem(i, _item_text(item)[:300], item.attributes.get("checked") is True)
-        for i, item in enumerate(_task_items(fragment))
-    ]
-
-
-async def _load_doc(db: Database, user_id: uuid.UUID, note_id: uuid.UUID) -> pycrdt.Doc[Any]:
-    async with db.user_transaction(user_id) as conn:
-        snapshot, updates = await store.load_state(conn, note_id)
-    doc: pycrdt.Doc[Any] = pycrdt.Doc()
-    for blob in ([snapshot] if snapshot else []) + updates:
-        doc.apply_update(blob)
-    return doc
+# ---------------------------------------------------------------- checkboxes on the project page
 
 
 async def project_checklists(
     db: Database, session: CurrentSession, project_id: uuid.UUID
-) -> list[tuple[NoteRow, list[ChecklistItem]]]:
+) -> list[tuple[NoteRow, list[tuple[int, str, bool]]]]:
     """Notes in the project that have checkboxes, with their items."""
-    notes = await notes_for_project(db, session, project_id)
-    result = []
-    for note in notes[:MAX_CHECKLIST_NOTES]:
-        room = rooms._rooms.get(note.id)
-        doc = room.doc if room else await _load_doc(db, session.user.id, note.id)
-        items = checklist(doc)
-        if items:
-            result.append((note, items))
+    async with db.user_transaction(session.user.id) as conn:
+        _require(session, await _access(conn, project_id), write=False)
+        notes = await store.notes_for_project(conn, project_id)
+        result = []
+        for note in notes[:MAX_CHECKLIST_NOTES]:
+            items = content.checklist(await _document(conn, note.id))
+            if items:
+                result.append((note, items))
     return result
 
 
@@ -489,48 +204,16 @@ async def set_checked(
     async with db.user_transaction(session.user.id) as conn:
         note, access = await _note_access(conn, note_id)
         _require(session, access, write=True)
-
-    markdown = ""
-
-    async def change(doc: pycrdt.Doc[Any]) -> bytes | None:
-        items = _task_items(doc.get("default", type=pycrdt.XmlFragment))
-        if index >= len(items) or _item_text(items[index])[:300] != text:
-            raise ChecklistChangedError("This checklist changed. Reload and try again.")
-        if (items[index].attributes.get("checked") is True) == checked:
-            return None
-        before = doc.get_state()
-        items[index].attributes["checked"] = checked
-        nonlocal markdown
-        markdown = to_markdown(doc)[:MAX_TEXT_CONTENT]
-        return doc.get_update(before)
-
-    async def persist(update: bytes) -> None:
-        async with db.user_transaction(session.user.id) as conn:
-            await store.append_update(
-                conn,
-                note_id=note.id,
-                project_id=note.project_id,
-                user_id=session.user.id,
-                update=update,
-            )
-            await store.set_text(conn, note.id, markdown)
-
-    # Hold the loader (so nobody can open the note halfway) and, if it's open, its room.
-    async with rooms._loading:
-        room = rooms._rooms.get(note_id)
-        if room is not None:
-            async with room.lock:
-                update = await change(room.doc)
-                if update is not None:
-                    await persist(update)
-                    room.size += len(update)
-        else:
-            update = await change(await _load_doc(db, session.user.id, note_id))
-            if update is not None:
-                await persist(update)
-    if update is None:
-        return
-    if room is not None:
-        await _broadcast(room, pycrdt.create_update_message(update), exclude=None)
-    log.info("note checklist ticked", extra={"note_id": str(note.id), "bytes": len(update)})
+        try:
+            document = content.with_checked(await _document(conn, note_id), index, text, checked)
+        except ContentError as exc:
+            raise ChecklistChangedError(str(exc)) from None
+        await store.save(
+            conn,
+            note_id,
+            expected_version=None,
+            title=note.title,
+            content=document,
+            text_content=content.to_markdown(document),
+        )
     live.publish(note.project_id, "notes")

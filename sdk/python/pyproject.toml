@@ -1,7 +1,7 @@
 [project]
 name = "planhaven-sdk"
 version = "1.0.0"
-description = "The Planhaven plugin API: the only interface plugins may use (ARCHITECTURE.md §14)."
+description = "The PlanHaven plugin API: the only interface plugins may use (ARCHITECTURE.md §14)."
 license = "Apache-2.0"
 requires-python = ">=3.14"
 dependencies = ["pydantic>=2.12"]

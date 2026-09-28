@@ -1,5 +1,5 @@
-# CrowdSec acquisition for Planhaven. Add to your CrowdSec acquis.d/ and adjust the path to
-# where Planhaven's /config is mounted.
+# CrowdSec acquisition for PlanHaven. Add to your CrowdSec acquis.d/ and adjust the path to
+# where PlanHaven's /config is mounted.
 filenames:
   - /path/to/appdata/planhaven/logs/security.log
 labels:

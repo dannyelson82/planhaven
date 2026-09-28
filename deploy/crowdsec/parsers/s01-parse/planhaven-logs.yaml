@@ -1,8 +1,8 @@
-# Parses Planhaven's security.log (one JSON object per line).
+# Parses PlanHaven's security.log (one JSON object per line).
 onsuccess: next_stage
 filter: "evt.Parsed.program == 'planhaven'"
 name: planhaven/planhaven-logs
-description: "Parse Planhaven security log events"
+description: "Parse PlanHaven security log events"
 statics:
   - meta: service
     value: planhaven

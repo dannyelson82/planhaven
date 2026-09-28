@@ -14,7 +14,7 @@ The maintainer asked for two things:
    phone when it's time, and ask for proof, such as a photo, when they mark it done.
 2. **Personal time management:** the maintainer works a two-weeks-on, two-weeks-off rotation
    far from home and has ADHD. Balancing rest with home projects is hard, and many projects
-   end up half finished. Planhaven should help plan and pace the time at home.
+   end up half finished. PlanHaven should help plan and pace the time at home.
 
 ## Decision
 
@@ -39,11 +39,11 @@ The maintainer asked for two things:
 ### Time planner (phase 0.4)
 
 - **Availability:** each user can define a **work rotation** (e.g. 14 days on, 14 off, from an
-  anchor date) plus one-off away periods. Planhaven knows which days are "home days".
+  anchor date) plus one-off away periods. PlanHaven knows which days are "home days".
 - **Capacity, rest first:** per home day, the user sets how much time is available for
   projects and chores; rest days are protected and planned first. The planner never fills
   more than the capacity.
-- **Home-stretch plan:** before each home period, Planhaven proposes a realistic plan from
+- **Home-stretch plan:** before each home period, PlanHaven proposes a realistic plan from
   due dates, priorities and capacity. The user adjusts and accepts it; planned blocks appear in
   the ICS calendar feed (A§13.2) and as reminders.
 - **Finishing over starting (ADHD-friendly):**

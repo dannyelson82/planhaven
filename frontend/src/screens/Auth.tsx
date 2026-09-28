@@ -216,7 +216,7 @@ export function InviteScreen() {
   }
   const email = check.data?.email ?? f.email
   return (
-    <AuthPage title="Join Planhaven">
+    <AuthPage title="Join PlanHaven">
       <Form
         onSubmit={(e) => {
           e.preventDefault()

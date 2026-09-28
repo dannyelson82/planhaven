@@ -18,7 +18,6 @@ from app.db import jobs as job_store
 from app.db import rate_limits
 from app.db.database import Database
 from app.services import attachments as attachment_service
-from app.services import notes as note_service
 from app.services import trash as trash_service
 from app.services.attachments import BlobStore
 from app.workers.registry import JobContext, get_handler
@@ -66,7 +65,6 @@ class Worker:
             await conn.execute(
                 text("DELETE FROM idempotency_keys WHERE created_at < now() - interval '7 days'")
             )
-        await note_service.compact_notes(self.db)
         await trash_service.purge(self.db)
         if self.blobs is not None:
             await attachment_service.purge_blobs(self.db, self.blobs)

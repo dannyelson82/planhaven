@@ -12,11 +12,11 @@ unless a commercial license is bought).
 
 Relevant constraints:
 
-- Planhaven is a self-hosted household app, distributed as a Docker image and an Unraid
+- PlanHaven is a self-hosted household app, distributed as a Docker image and an Unraid
   Community Applications template. There is no hosted service to protect.
 - Plugins run in-process in v1 (A§14) and import the Python SDK. Their authors should not face
   licensing surprises.
-- The name "Planhaven" should stay protected independently of the code license.
+- The name "PlanHaven" should stay protected independently of the code license.
 
 Licenses of the planned dependencies, checked on PyPI and npm on 2026-09-27:
 
@@ -28,7 +28,7 @@ Licenses of the planned dependencies, checked on PyPI and npm on 2026-09-27:
 
 ## Options considered
 
-1. **AGPL-3.0.** Anyone offering a modified Planhaven as a network service must publish their
+1. **AGPL-3.0.** Anyone offering a modified PlanHaven as a network service must publish their
    changes. Allows PyMuPDF. But in-process plugins would likely have to be AGPL (unless the
    SDK is licensed separately), many companies forbid AGPL contributions, and relicensing
    later needs every contributor's consent. The threat it guards against, a closed hosted

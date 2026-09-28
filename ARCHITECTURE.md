@@ -1,11 +1,11 @@
-# Planhaven — Architecture
+# PlanHaven — Architecture
 
 > **Status:** Draft v0.1 · **Last updated:** 2026-09-26
 > **Tagline:** From idea to done.
 > Companion documents: [`SECURITY.md`](SECURITY.md) (threat model and security controls),
 > `docs/plugin-api.md` (to be written), `docs/adr/` (decision records).
 
-This document describes what Planhaven is, how it is built, and why. It is the reference that
+This document describes what PlanHaven is, how it is built, and why. It is the reference that
 code and pull requests are checked against. When the code and this document disagree, one of
 them is wrong and must be fixed in the same pull request.
 
@@ -13,7 +13,7 @@ them is wrong and must be fixed in the same pull request.
 
 ## 1. Purpose and scope
 
-Planhaven is a self-hosted web app for managing personal and household projects from the first
+PlanHaven is a self-hosted web app for managing personal and household projects from the first
 idea through to completion. It is designed for a household or small group of trusted people
 running it on their own hardware (primarily Unraid), exposed to the internet behind a reverse
 proxy.
@@ -40,8 +40,8 @@ Representative projects it must handle well:
 - Track projects through a lifecycle: **Idea → Planning → Ready → In progress → Done → Archived**.
 - Store tasks, lists (shopping, parts, checklists), notes, and attachments per project.
 - Multi-user: every user starts with a clean slate; projects are shared explicitly.
-- Real-time collaboration: several people edit the same note at once, and list changes
-  appear on every device within seconds (§8.5).
+- Live updates: list, task and note changes appear on every device within seconds (§8.5).
+  Co-editing the same note at once is paused (ADR 0016).
 - Work equally well on a phone and a desktop browser: one responsive web app (§13.5).
 - Sync shopping lists and tasks to iPhone (Reminders via Shortcuts, Calendar via ICS feed,
   Web Push notifications, installable PWA).
@@ -97,7 +97,7 @@ flowchart LR
     end
     subgraph Home network
         RP[Reverse proxy<br/>NPM / SWAG / Traefik<br/>TLS termination]
-        subgraph PL[Planhaven container]
+        subgraph PL[PlanHaven container]
             API[App server<br/>API · UI · MCP · OAuth]
             W[Worker<br/>jobs · extraction · embeddings]
             DB[(PostgreSQL<br/>+ pgvector)]
@@ -267,8 +267,8 @@ planhaven/
 ├── docker/                  # Dockerfile, s6-overlay service definitions
 ├── deploy/
 │   ├── proxy/               # tested proxy settings: nginx-proxy-manager (others later)
-│   ├── crowdsec/            # parser + scenario for Planhaven security log
-│   └── fail2ban/            # filter + jail for Planhaven security log
+│   ├── crowdsec/            # parser + scenario for PlanHaven security log
+│   └── fail2ban/            # filter + jail for PlanHaven security log
 ├── unraid/                  # Community Applications template XML + icon
 ├── shortcuts/               # Apple Shortcut(s) for Reminders sync + setup guide
 └── docs/
@@ -414,18 +414,18 @@ and re-indexing. This keeps side effects reliable and gives plugins a stable eve
 
 ### 8.5 Real-time collaboration
 
-Decided in ADR 0011; built with notes in phase 0.2.
+Decided in ADR 0011; live note co-editing paused by ADR 0016.
 
-- Notes are **Yjs CRDT documents**: edits from any device, including offline ones, merge
-  automatically. A Markdown rendering is derived for search, AI and export.
-- Clients connect over an authenticated **WebSocket** (`/api/v1/collab/{doc_id}`) using the
-  standard Yjs sync and awareness protocol; the server side uses `pycrdt`.
-- The same connection mechanism pushes live updates for lists and tasks.
-- Updates are stored as RLS-protected rows with attribution, and compacted into snapshots by
-  a worker job.
-- Authorization is checked at connect and re-checked on membership changes (revoked members
-  are disconnected); viewers can watch but their updates are rejected. Details: SECURITY.md
-  §7.15.
+- Notes are edited in the browser and saved when the person taps **Done** (`PUT
+  /api/v1/notes/{id}` with `If-Match`). A save that would overwrite someone else's newer
+  save is refused (409). Leaving with unsaved changes asks first.
+- The document is stored as TipTap JSON, rebuilt by the server from an allowlist; a Markdown
+  copy is derived from it for previews, search, AI and export.
+- Notes saved by the earlier live editor (Yjs updates) are converted when read.
+- An authenticated, read-only **WebSocket** (`/api/v1/live/projects/{id}`) tells open pages
+  when lists, tasks or notes in the project changed, so they refresh within seconds.
+- Authorization is checked at connect and re-checked every 15 seconds and on membership
+  changes (removed members are disconnected). Details: SECURITY.md §7.15.
 
 ---
 
@@ -516,7 +516,7 @@ mode (ADR 0012).
 
 ### 12.2 OAuth authorization server
 
-Planhaven includes its own authorization server so connectors like Claude's custom connectors
+PlanHaven includes its own authorization server so connectors like Claude's custom connectors
 work without external identity infrastructure:
 
 - Metadata: `/.well-known/oauth-authorization-server` and protected-resource metadata for `/mcp`.
@@ -640,7 +640,7 @@ accepted risk.
 
 ### 14.2 The boundary rule
 
-Plugins interact with Planhaven **only** through the `PluginContext` object passed to them.
+Plugins interact with PlanHaven **only** through the `PluginContext` object passed to them.
 
 - Everything crossing the boundary is plain, serializable data (Pydantic models / JSON types).
   No SQLAlchemy objects, DB sessions, request objects, or file handles.
@@ -826,10 +826,11 @@ Every phase ships meeting `SECURITY.md` §11.
 | 0013 | Household chores with proof of completion; personal time planner; cut-list plugin moved to 0.7 |
 | 0014 | UI toolkit: React Aria Components with Tailwind CSS |
 | 0015 | External share links with per-component permissions |
+| 0016 | Notes saved on Done; live co-editing paused |
 
 ### 19.2 Open questions
 
-- ~~Final project name~~ — decided: Planhaven (pending trademark and domain checks).
+- ~~Final project name~~ — decided: PlanHaven (pending trademark and domain checks).
 - ~~License~~ — decided: Apache-2.0, with a dependency license policy (ADR 0010).
 - ~~UI component library~~ — decided: React Aria Components + Tailwind CSS (ADR 0014).
 - **Native apps (later).** The PWA stays the first mobile app (ADR 0006). Native iPhone and

@@ -12,8 +12,33 @@ function subscribe(listener: () => void): () => void {
   }
 }
 
-export function navigate(path: string): void {
+// A page with unsaved work can hold navigation (links, the menu, the browser's back button)
+// until the person decides. The guard returns true to let the navigation happen.
+type Guard = (to: string) => boolean
+let guard: Guard | null = null
+let lastPath = typeof window === 'undefined' ? '/' : window.location.pathname
+
+export function setNavigationGuard(next: Guard | null): void {
+  guard = next
+}
+
+if (typeof window !== 'undefined') {
+  // Registered before any page subscribes, so it runs first on the browser's back/forward.
+  window.addEventListener('popstate', () => {
+    const to = window.location.pathname
+    if (guard && !guard(to)) {
+      // Stay: put the current page back in the address bar before anything re-renders.
+      window.history.pushState(null, '', lastPath)
+      return
+    }
+    lastPath = to
+  })
+}
+
+export function navigate(path: string, options: { force?: boolean } = {}): void {
+  if (!options.force && guard && !guard(path)) return
   window.history.pushState(null, '', path)
+  lastPath = window.location.pathname
   listeners.forEach((l) => l())
 }
 

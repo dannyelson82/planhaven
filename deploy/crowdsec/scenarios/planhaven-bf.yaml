@@ -1,7 +1,7 @@
 # Bans an address after repeated failed sign-ins, second-factor failures or rate-limit hits.
 type: leaky
 name: planhaven/planhaven-bf
-description: "Detect brute force against Planhaven sign-in"
+description: "Detect brute force against PlanHaven sign-in"
 filter: "evt.Meta.log_type in ['planhaven_login_failed', 'planhaven_mfa_failed', 'planhaven_rate_limited'] && evt.Meta.source_ip != ''"
 groupby: evt.Meta.source_ip
 capacity: 10

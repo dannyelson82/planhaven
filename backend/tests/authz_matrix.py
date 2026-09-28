@@ -74,11 +74,11 @@ MATRIX: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/lists/{list_id}/items"): "verified",
     ("PATCH", "/api/v1/list-items/{item_id}"): "verified",
     ("DELETE", "/api/v1/list-items/{item_id}"): "verified",
-    # Notes: verified, then project role (tests/db/test_collab.py)
+    # Notes: verified, then project role (tests/db/test_notes.py)
     ("GET", "/api/v1/projects/{project_id}/notes"): "verified",
     ("POST", "/api/v1/projects/{project_id}/notes"): "verified",
     ("GET", "/api/v1/notes/{note_id}"): "verified",
-    ("PATCH", "/api/v1/notes/{note_id}"): "verified",
+    ("PUT", "/api/v1/notes/{note_id}"): "verified",
     ("DELETE", "/api/v1/notes/{note_id}"): "verified",
     ("GET", "/api/v1/projects/{project_id}/note-checklists"): "verified",
     ("POST", "/api/v1/notes/{note_id}/checklist"): "verified",
@@ -160,7 +160,7 @@ BODIES: dict[tuple[str, str], object] = {
     ("POST", "/api/v1/projects/{project_id}/lists"): {"title": "Matrix list"},
     ("POST", "/api/v1/lists/{list_id}/items"): {"text": "Matrix item"},
     ("POST", "/api/v1/projects/{project_id}/notes"): {"title": "Matrix note"},
-    ("PATCH", "/api/v1/notes/{note_id}"): {"title": "Matrix note"},
+    ("PUT", "/api/v1/notes/{note_id}"): {"title": "Matrix note", "content": {"type": "doc"}},
     ("POST", "/api/v1/notes/{note_id}/checklist"): {"index": 0, "text": "x", "checked": True},
     ("POST", "/api/v1/assets"): {"name": "Matrix boat", "kind": "boat"},
     ("PUT", "/api/v1/assets/{asset_id}"): {"name": "Matrix boat", "kind": "boat"},
@@ -238,8 +238,7 @@ SESSION_GUARDS = {"require_session", "require_verified_session", "require_admin"
 
 
 # WebSocket routes authenticate in the handler (Origin + session cookie + second factor,
-# SECURITY.md §7.15) and are exercised in tests/db/test_collab.py.
+# SECURITY.md §7.15) and are exercised in tests/db/test_live.py.
 WEBSOCKETS: dict[str, str] = {
-    "/api/v1/collab/notes/{note_id}": "verified",
     "/api/v1/live/projects/{project_id}": "verified",
 }

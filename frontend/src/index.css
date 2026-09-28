@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Planhaven design tokens. Mobile-first; dark mode follows the system (A§13.5). */
+/* PlanHaven design tokens. Mobile-first; dark mode follows the system (A§13.5). */
 @theme {
   --color-brand-50: oklch(0.97 0.02 160);
   --color-brand-100: oklch(0.93 0.05 160);
@@ -133,38 +133,4 @@
   .note-content ul[data-type='taskList'] li[data-checked='true'] > div {
     @apply text-stone-500 line-through;
   }
-
-  /* Other people's cursors. Colours are fixed classes; see CARET_COLOURS in Notes.tsx. */
-  .collab-caret {
-    position: relative;
-    margin-inline: -1px;
-    border-inline: 1px solid var(--caret);
-    word-break: normal;
-    pointer-events: none;
-  }
-  .collab-caret-label {
-    position: absolute;
-    top: -1.4em;
-    left: -1px;
-    padding: 0 0.3em;
-    border-radius: 0.3em 0.3em 0.3em 0;
-    background: var(--caret);
-    color: white;
-    font-size: 0.75rem;
-    font-weight: 600;
-    line-height: 1.4;
-    white-space: nowrap;
-    user-select: none;
-  }
-  .collab-selection {
-    background: color-mix(in oklch, var(--caret) 25%, transparent);
-  }
-  .collab-c0 { --caret: var(--color-red-600); }
-  .collab-c1 { --caret: var(--color-orange-600); }
-  .collab-c2 { --caret: var(--color-amber-600); }
-  .collab-c3 { --caret: var(--color-emerald-600); }
-  .collab-c4 { --caret: var(--color-cyan-600); }
-  .collab-c5 { --caret: var(--color-blue-600); }
-  .collab-c6 { --caret: var(--color-violet-600); }
-  .collab-c7 { --caret: var(--color-pink-600); }
 }

@@ -1,6 +1,7 @@
 # ADR 0011: Real-time collaborative editing with a CRDT (Yjs) over authenticated WebSockets
 
-- **Status:** Accepted
+- **Status:** Accepted; live note co-editing paused by [ADR 0016](0016-notes-save-on-done.md)
+  (live updates for lists, tasks and note cards remain)
 - **Date:** 2026-09-27
 - **Changes:** ARCHITECTURE.md §1.2, which listed real-time co-editing as a non-goal.
 

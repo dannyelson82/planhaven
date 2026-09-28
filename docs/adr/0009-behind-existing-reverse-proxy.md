@@ -7,13 +7,13 @@
 
 Self-hosters typically already run a reverse proxy (Nginx Proxy Manager, SWAG, Traefik) that
 terminates TLS for all their apps, and often a forward-auth layer (Authelia, Authentik proxy
-auth, Cloudflare Access) in front of some of them. Planhaven must be reachable by
+auth, Cloudflare Access) in front of some of them. PlanHaven must be reachable by
 non-browser clients that can't complete interactive login redirects: the Apple Shortcut, the
 calendar app and MCP connectors (ADR 0006, ADR 0007).
 
 ## Options considered
 
-1. **Use the operator's reverse proxy for TLS; Planhaven handles its own auth.** Fits
+1. **Use the operator's reverse proxy for TLS; PlanHaven handles its own auth.** Fits
    existing setups; all clients work. The app must be safe even if the proxy is
    misconfigured.
 2. **Bundle TLS (built-in ACME) in the container.** Self-contained. Conflicts with the
@@ -25,7 +25,7 @@ calendar app and MCP connectors (ADR 0006, ADR 0007).
 
 - The container serves plain HTTP on port 8080. TLS is terminated at the operator's reverse
   proxy (A§4.4).
-- **Forward-auth must not be placed in front of Planhaven** (S§9). Planhaven's native auth
+- **Forward-auth must not be placed in front of PlanHaven** (S§9). PlanHaven's native auth
   (mandatory 2FA, passkeys) is the auth layer; optional OIDC login covers single sign-on
   (S§7.1).
 - Forwarded headers are trusted only from `TRUSTED_PROXIES`. In `PUBLIC_MODE` (the default)
@@ -35,7 +35,7 @@ calendar app and MCP connectors (ADR 0006, ADR 0007).
 
 ## Consequences
 
-- Internet exposure depends on Planhaven's own authentication, so its auth, rate limiting and
+- Internet exposure depends on PlanHaven's own authentication, so its auth, rate limiting and
   lockout (S§7.1, S§7.11) must be production-grade from phase 0.1.
 - Edge banning uses the app's security log (`/config/logs/security.log`) via fail2ban or
   CrowdSec.

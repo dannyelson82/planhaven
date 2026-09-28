@@ -1,7 +1,7 @@
 """Structured JSON logging with redaction (SECURITY.md §7.12).
 
 Passwords, tokens, cookies and secrets must never reach the logs. Two layers enforce that:
-fields with sensitive names are replaced, and anything that looks like a Planhaven token or a
+fields with sensitive names are replaced, and anything that looks like a PlanHaven token or a
 bearer credential is masked wherever it appears in a message or field value.
 """
 

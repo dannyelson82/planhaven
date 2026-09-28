@@ -29,7 +29,7 @@ async def enroll_totp(client: httpx2.AsyncClient, csrf: str) -> tuple[str, list[
     secret = enroll.json()["secret"]
     uri = urlparse(enroll.json()["otpauth_uri"])
     assert uri.scheme == "otpauth"
-    assert parse_qs(uri.query)["issuer"] == ["Planhaven"]
+    assert parse_qs(uri.query)["issuer"] == ["PlanHaven"]
     confirm = await client.post(
         "/api/v1/auth/mfa/totp/confirm", headers=headers, json={"code": pyotp.TOTP(secret).now()}
     )

@@ -3,7 +3,7 @@
 > **Status:** Done (v0.1.0) · **Started / finished:** 2026-09-27
 > Scope: ARCHITECTURE.md §18. Exit criteria: every item in SECURITY.md §11.
 
-**Goal:** a Planhaven that can be installed on Unraid and safely exposed to the internet, doing
+**Goal:** a PlanHaven that can be installed on Unraid and safely exposed to the internet, doing
 only the basics: secure sign-in, then projects and tasks. Security controls are built first;
 features come last.
 

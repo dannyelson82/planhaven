@@ -1,5 +1,5 @@
 #!/bin/sh
-# Shared helpers for Planhaven startup scripts.
+# Shared helpers for PlanHaven startup scripts.
 set -eu
 
 PUID="${PUID:-99}"

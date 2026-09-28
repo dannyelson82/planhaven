@@ -175,11 +175,11 @@ check_mode "$backup" 600 "$pg_uid"
 echo "ok: backup written and private to the database user"
 
 before="$(sudo sha256sum "$work/config/secrets/master.key")"
-banners_before="$(docker logs "$name" 2>&1 | grep -c 'Planhaven setup: no admin account' || true)"
+banners_before="$(docker logs "$name" 2>&1 | grep -c 'PlanHaven setup: no admin account' || true)"
 docker restart -t 30 "$name" >/dev/null
 wait_ready
 after="$(sudo sha256sum "$work/config/secrets/master.key")"
-banners_after="$(docker logs "$name" 2>&1 | grep -c 'Planhaven setup: no admin account' || true)"
+banners_after="$(docker logs "$name" 2>&1 | grep -c 'PlanHaven setup: no admin account' || true)"
 [[ "$banners_after" == "$banners_before" ]] || fail "setup token printed again after an admin exists"
 [[ "$before" == "$after" ]] || fail "master key changed on restart"
 echo "ok: restart keeps secrets and database"

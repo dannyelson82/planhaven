@@ -9,13 +9,13 @@ from sqlalchemy import text
 
 from app.db.database import Database
 from app.services import trash as trash_service
-from tests.db import test_collab
+from tests.db import team as setup
 from tests.db.conftest import _settings
-from tests.db.test_collab import U
+from tests.db.team import U
 
 pytestmark = pytest.mark.db
 
-team = test_collab.team  # the shared fixture: owner, viewer, stranger, project, note
+team = setup.team  # the shared fixture: owner, viewer, stranger, project, note
 
 type Team = tuple[U, U, U, str, str]
 

@@ -65,7 +65,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       {/* In-app links change the page without reloading the whole app. */}
-      <RouterProvider navigate={navigate}>
+      <RouterProvider navigate={(path) => navigate(path)}>
         <Root />
       </RouterProvider>
     </QueryClientProvider>
@@ -107,7 +107,7 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
     case 'list':
       return <ListScreen id={route.id} />
     case 'note':
-      return <NoteScreen id={route.id} me={{ id: session.user.id, name: session.user.display_name }} />
+      return <NoteScreen id={route.id} />
     case 'assets':
       return <AssetsScreen />
     case 'asset':
@@ -134,13 +134,21 @@ function Unreachable({ retry }: { retry: () => void }) {
     return () => window.removeEventListener('online', retry)
   }, [retry])
   return (
-    <AuthPage title="Can't reach Planhaven">
+    <AuthPage title="Can't reach PlanHaven">
       <div className="space-y-4">
         <p>You seem to be offline, or the server isn't answering. This page tries again when you're back online.</p>
         <Button className="w-full" onPress={retry}>Try again</Button>
       </div>
     </AuthPage>
   )
+}
+
+/** The running version at the bottom of every page (owner request: see at a glance that an
+ * update arrived). Signed-in only; the server never tells strangers its version. */
+function VersionFooter() {
+  const about = useQuery({ queryKey: ['about'], queryFn: () => api<{ version: string }>('GET', '/api/v1/about'), staleTime: 60_000 })
+  if (!about.data) return null
+  return <p className="mt-8 text-center text-xs text-stone-500">PlanHaven {about.data.version}</p>
 }
 
 const NAV = [
@@ -158,7 +166,7 @@ function Shell({ session, children }: { session: Session; children: ReactNode })
   return (
     <div className="min-h-dvh md:flex">
       <nav aria-label="Main" className="hidden w-56 shrink-0 flex-col gap-1 border-r border-stone-200 p-4 md:flex dark:border-stone-800">
-        <p className="mb-4 font-bold text-brand-700 dark:text-brand-100">Planhaven</p>
+        <p className="mb-4 font-bold text-brand-700 dark:text-brand-100">PlanHaven</p>
         {[...NAV, ...(session.user.is_admin ? [{ to: '/admin', label: 'Admin' }] : [])].map((n) => (
           <Link key={n.to} to={n.to} className={`rounded-xl px-3 py-2 ${active(n.to) ? 'bg-brand-100 font-semibold text-brand-700 dark:bg-stone-800 dark:text-brand-100' : ''}`}>
             {n.label}
@@ -181,6 +189,7 @@ function Shell({ session, children }: { session: Session; children: ReactNode })
           </div>
         )}
         {children}
+        <VersionFooter />
       </main>
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 flex border-t border-stone-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden dark:border-stone-800 dark:bg-stone-950/95">
         {NAV.map((n) => (

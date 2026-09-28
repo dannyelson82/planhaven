@@ -18,19 +18,13 @@
   "dependencies": {
     "@tanstack/react-query": "5.103.1",
     "@tiptap/core": "3.31.3",
-    "@tiptap/extension-collaboration": "3.31.3",
-    "@tiptap/extension-collaboration-caret": "3.31.3",
     "@tiptap/extension-list": "3.31.3",
     "@tiptap/pm": "3.31.3",
     "@tiptap/react": "3.31.3",
     "@tiptap/starter-kit": "3.31.3",
-    "@tiptap/y-tiptap": "3.0.9",
-    "lib0": "0.2.117",
     "react": "19.3.0",
     "react-aria-components": "1.21.1",
-    "react-dom": "19.3.0",
-    "y-protocols": "1.0.7",
-    "yjs": "13.6.32"
+    "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

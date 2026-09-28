@@ -8,13 +8,13 @@ from tests.conftest import make_settings
 
 def _client(tmp_path: Path) -> TestClient:
     (tmp_path / "static").mkdir()
-    (tmp_path / "index.html").write_text("<!doctype html><title>Planhaven</title>")
+    (tmp_path / "index.html").write_text("<!doctype html><title>PlanHaven</title>")
     (tmp_path / "static" / "app-abc123.js").write_text("console.log(1)")
     (tmp_path / "secret.txt").write_text("outside assets")
     (tmp_path / "icons").mkdir()
     (tmp_path / "icons" / "icon-192.png").write_bytes(b"\x89PNG fake")
     (tmp_path / "sw.js").write_text("self.addEventListener('fetch', () => {})")
-    (tmp_path / "manifest.webmanifest").write_text('{"name": "Planhaven"}')
+    (tmp_path / "manifest.webmanifest").write_text('{"name": "PlanHaven"}')
     return TestClient(create_app(make_settings(frontend_dir=str(tmp_path))))
 
 
@@ -23,7 +23,7 @@ def test_serves_index_for_app_paths(tmp_path: Path) -> None:
     for path in ("/", "/projects", "/projects/123/tasks", "/invite", "/assets", "/assets/1"):
         response = client.get(path)
         assert response.status_code == 200, path
-        assert "Planhaven" in response.text
+        assert "PlanHaven" in response.text
         assert response.headers["cache-control"] == "no-cache"
         assert "content-security-policy" in response.headers
 

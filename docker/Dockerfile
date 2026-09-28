@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Planhaven all-in-one image (ADR 0002): s6-overlay supervising PostgreSQL + pgvector and the app.
+# PlanHaven all-in-one image (ADR 0002): s6-overlay supervising PostgreSQL + pgvector and the app.
 # Build from the repository root:  docker build -f docker/Dockerfile .
 # Base images are pinned by digest; Dependabot proposes updates.
 
@@ -69,7 +69,7 @@ ARG PLANHAVEN_VERSION=dev
 ENV PLANHAVEN_VERSION=${PLANHAVEN_VERSION}
 ARG PG_MAJOR
 
-LABEL org.opencontainers.image.title="Planhaven" \
+LABEL org.opencontainers.image.title="PlanHaven" \
       org.opencontainers.image.description="Self-hosted project manager: from idea to done." \
       org.opencontainers.image.source="https://github.com/dannyelson82/planhaven" \
       org.opencontainers.image.licenses="Apache-2.0"

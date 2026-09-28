@@ -138,5 +138,5 @@ jobs:
             --certificate-oidc-issuer https://token.actions.githubusercontent.com
           \`\`\`
           NOTES
-          gh release create "$REF" --repo "${{ github.repository }}" --title "Planhaven $REF" \
+          gh release create "$REF" --repo "${{ github.repository }}" --title "PlanHaven $REF" \
             --notes-file notes.md --verify-tag sbom.spdx.json

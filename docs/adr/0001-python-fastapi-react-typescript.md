@@ -5,7 +5,7 @@
 
 ## Context
 
-Planhaven needs a web API, a PWA frontend, document extraction (PDF, Office, OCR), local and
+PlanHaven needs a web API, a PWA frontend, document extraction (PDF, Office, OCR), local and
 commercial AI integration, an MCP server and an OAuth 2.1 authorization server. It is built
 and maintained by a very small team, so a mature ecosystem with active security maintenance
 matters more than raw performance (A§2 principle 6).
