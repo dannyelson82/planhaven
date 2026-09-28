@@ -250,8 +250,11 @@ read-only, feed-only, and defaults to "titles only" content. Tokens are never lo
     metadata (colour profile kept) in a separate process that sets its own CPU, memory,
     file-size and open-file limits before reading input, with an empty environment, a
     30-second timeout, a 50-megapixel cap and only the JPEG, PNG, GIF and WebP decoders.
-    It still runs as the app's user until the 0.5 extraction sandbox (§7.6). HEIC is
-    refused unless the uploader chooses to keep metadata. Only these re-encoded images and
+    It still runs as the app's user until the 0.5 extraction sandbox (§7.6). iPhone (HEIC)
+    photos are first decoded to JPEG by libheif's separate command-line decoder (Debian
+    package, decoder plugin only; the build fails if the GPL x265 encoder is present) under
+    `prlimit` (CPU, memory, file size, open files, no core dumps) with an empty environment
+    and a 30-second timeout, then cleaned like any other photo. Only these re-encoded images and
     their thumbnails are ever shown inline; everything else is a download.
   - Served files carry `Content-Security-Policy: default-src 'none'; sandbox`.
   - Archives never auto-extracted.

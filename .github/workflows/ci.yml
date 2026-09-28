@@ -51,6 +51,7 @@ jobs:
     env:
       PLANHAVEN_DB_HOST: localhost
       PLANHAVEN_DB_PORT: "5432"
+      PLANHAVEN_REQUIRE_HEIC: "1"  # the HEIC test must run here, not skip
     defaults:
       run:
         working-directory: backend
@@ -61,6 +62,10 @@ jobs:
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           working-directory: backend
+      - name: Install the HEIC decoder (as in the image; decoder plugin only)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends libheif-examples libheif-plugin-libde265
       - name: Bootstrap roles and database (same SQL as the container)
         run: |
           psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -q \

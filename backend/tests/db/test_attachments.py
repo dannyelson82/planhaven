@@ -1,11 +1,14 @@
 """Attachments end to end: upload pipeline, roles, and safe download headers (S§7.5)."""
 
 import io
+import os
+from pathlib import Path
 from typing import Any
 
 import pytest
 from PIL import Image
 
+from app.files import images
 from app.services import attachments as attachment_service
 from app.services import limits
 from tests.db import test_collab
@@ -102,3 +105,35 @@ def test_uploads_are_rate_limited(team: Team, monkeypatch: pytest.MonkeyPatch) -
     r = _upload(owner, pid, b"two\n", "b.txt")
     assert r.status_code == 429
     assert "retry-after" in r.headers
+
+
+@pytest.mark.skipif(
+    images.heic_tool() is None and not os.environ.get("PLANHAVEN_REQUIRE_HEIC"),
+    reason="HEIC decoder (libheif) not installed",
+)
+def test_iphone_photos_become_jpeg_without_location(team: Team) -> None:
+    owner, _, _, pid, _ = team
+    heic = (Path(__file__).parent.parent / "fixtures" / "iphone-photo.heic").read_bytes()
+    r = _upload(owner, pid, heic, "IMG_0001.HEIC")
+    assert r.status_code == 201, r.text
+    a = r.json()
+    assert (a["filename"], a["content_type"], a["has_thumbnail"]) == (
+        "IMG_0001.jpg",
+        "image/jpeg",
+        True,
+    )
+    data = owner.get(f"/api/v1/attachments/{a['id']}/download").content
+    with Image.open(io.BytesIO(data)) as im:
+        assert im.format == "JPEG"
+        assert im.size == (64, 48)
+        assert not im.getexif().get_ifd(0x8825)  # no GPS
+    assert b"Exif" not in data
+
+    # Keeping the location keeps the original file; the thumbnail still works.
+    kept = _upload(owner, pid, heic, "IMG_0002.HEIC", keep_metadata="true").json()
+    assert (kept["filename"], kept["metadata_kept"], kept["has_thumbnail"]) == (
+        "IMG_0002.heic",
+        True,
+        True,
+    )
+    assert owner.get(f"/api/v1/attachments/{kept['id']}/download").content == heic
