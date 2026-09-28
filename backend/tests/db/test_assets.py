@@ -1,11 +1,16 @@
 """Assets: shared like projects; projects link to assets you can see (ADR 0005)."""
 
+import asyncio
 from typing import Any
 
 import pytest
 
+from app.db import attachments as attachment_store
+from app.db.database import Database
 from tests.db import test_collab
+from tests.db.conftest import _settings
 from tests.db.test_collab import U
+from tests.test_files import jpeg_with_gps
 
 pytestmark = pytest.mark.db
 
@@ -119,3 +124,48 @@ def test_deleting_an_asset_unlinks_it_from_view(team: Team) -> None:
     assert _req(owner, "DELETE", f"/api/v1/assets/{aid}").status_code == 204
     assert owner.get(f"/api/v1/assets/{aid}").status_code == 404
     assert owner.get(f"/api/v1/projects/{pid}").json()["asset_id"] is None
+
+
+def test_asset_photo(team: Team) -> None:
+    owner, viewer, stranger, _, _ = team
+    aid = owner.post("/api/v1/assets", headers=owner.h, json=BOAT).json()["id"]
+    owner._cookie()
+    r = owner.client.put(
+        f"/api/v1/assets/{aid}/photo",
+        headers={**owner.h, "content-type": "application/octet-stream"},
+        content=jpeg_with_gps(),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["has_photo"] is True
+    owner.post(
+        f"/api/v1/assets/{aid}/members",
+        headers=owner.h,
+        json={"user_id": viewer.id, "role": "viewer"},
+    )
+    photo = viewer.get(f"/api/v1/assets/{aid}/photo")
+    assert photo.status_code == 200
+    assert b"Exif" not in photo.content  # location removed
+    assert "sandbox" in photo.headers["content-security-policy"]
+    assert (
+        viewer.get(f"/api/v1/assets/{aid}/photo/thumbnail").headers["content-type"] == "image/webp"
+    )
+    assert stranger.get(f"/api/v1/assets/{aid}/photo").status_code == 404
+    viewer._cookie()
+    r = viewer.client.put(f"/api/v1/assets/{aid}/photo", headers=viewer.h, content=jpeg_with_gps())
+    assert r.status_code == 403
+    owner._cookie()
+    r = owner.client.put(f"/api/v1/assets/{aid}/photo", headers=owner.h, content=b"%PDF-1.7\n")
+    assert r.status_code == 415
+
+    # The blob purge keeps files an asset uses.
+    async def referenced() -> set[str]:
+        db = Database(_settings())
+        try:
+            async with db.system_transaction() as conn:
+                return await attachment_store.referenced_blobs(conn)
+        finally:
+            await db.dispose()
+
+    assert len(asyncio.run(referenced())) >= 2
+    assert _req(owner, "DELETE", f"/api/v1/assets/{aid}/photo").status_code == 204
+    assert owner.get(f"/api/v1/assets/{aid}/photo").status_code == 404

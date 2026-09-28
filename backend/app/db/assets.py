@@ -21,6 +21,9 @@ class AssetRow:
     updated_at: datetime
     version: int
     projects: int
+    photo_sha256: str | None = None
+    photo_thumb_sha256: str | None = None
+    photo_type: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,7 +52,8 @@ async def list_assets(conn: AsyncConnection) -> list[AssetRow]:
             SELECT a.id, a.name, a.kind, a.details, a.notes, app.asset_role(a.id) AS role,
                    a.updated_at, a.version,
                    (SELECT count(*) FROM projects p WHERE p.asset_id = a.id
-                      AND p.deleted_at IS NULL) AS projects
+                      AND p.deleted_at IS NULL) AS projects,
+                   a.photo_sha256, a.photo_thumb_sha256, a.photo_type
             FROM assets a WHERE a.deleted_at IS NULL
             ORDER BY a.name LIMIT 500
         """)
@@ -64,7 +68,8 @@ async def get_asset(conn: AsyncConnection, asset_id: uuid.UUID) -> AssetRow | No
                 SELECT a.id, a.name, a.kind, a.details, a.notes, app.asset_role(a.id) AS role,
                        a.updated_at, a.version,
                        (SELECT count(*) FROM projects p WHERE p.asset_id = a.id
-                          AND p.deleted_at IS NULL) AS projects
+                          AND p.deleted_at IS NULL) AS projects,
+                       a.photo_sha256, a.photo_thumb_sha256, a.photo_type
                 FROM assets a WHERE a.id = :id AND a.deleted_at IS NULL
             """),
             {"id": asset_id},
@@ -164,5 +169,23 @@ async def set_project_asset(
             WHERE id = :p AND deleted_at IS NULL
         """),
         {"p": project_id, "a": asset_id},
+    )
+    return result.rowcount == 1
+
+
+async def set_photo(
+    conn: AsyncConnection,
+    asset_id: uuid.UUID,
+    photo: str | None,
+    thumb: str | None,
+    content_type: str | None,
+) -> bool:
+    result = await conn.execute(
+        text("""
+            UPDATE assets SET photo_sha256 = :p, photo_thumb_sha256 = :t, photo_type = :ct,
+                              updated_at = now(), version = version + 1
+            WHERE id = :id AND deleted_at IS NULL
+        """),
+        {"id": asset_id, "p": photo, "t": thumb, "ct": content_type},
     )
     return result.rowcount == 1

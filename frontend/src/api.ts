@@ -100,9 +100,9 @@ export function stageLabel(stage: string): string {
 }
 
 /** Upload a file as the raw request body (the server detects its type from the bytes). */
-export async function uploadFile<T>(path: string, file: Blob): Promise<T> {
+export async function uploadFile<T>(path: string, file: Blob, method: 'POST' | 'PUT' = 'POST'): Promise<T> {
   const response = await fetch(path, {
-    method: 'POST',
+    method,
     credentials: 'same-origin',
     headers: { Accept: 'application/json', 'Content-Type': 'application/octet-stream', ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) },
     body: file,

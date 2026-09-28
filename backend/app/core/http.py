@@ -195,7 +195,10 @@ async def _send_problem(send: Send, status: int, title: str) -> None:
     await send({"type": "http.response.body", "body": body})
 
 
-_UPLOAD_PATH = re.compile(r"/api/v1/projects/[0-9a-fA-F-]{36}/attachments")
+# File uploads (raw body): project attachments (POST) and asset photos (PUT).
+_UPLOAD_PATH = re.compile(
+    r"/api/v1/(projects/[0-9a-fA-F-]{36}/attachments|assets/[0-9a-fA-F-]{36}/photo)"
+)
 
 
 class BodySizeLimitMiddleware:
@@ -209,7 +212,7 @@ class BodySizeLimitMiddleware:
 
     def _limit(self, scope: Scope) -> int:
         # File uploads (raw body) get the MAX_UPLOAD_MB limit; everything else the JSON limit.
-        if scope.get("method") == "POST" and _UPLOAD_PATH.fullmatch(scope.get("path", "")):
+        if scope.get("method") in ("POST", "PUT") and _UPLOAD_PATH.fullmatch(scope.get("path", "")):
             return self.upload_max_bytes
         return self.max_bytes
 

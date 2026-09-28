@@ -101,6 +101,8 @@ async def referenced_blobs(conn: AsyncConnection) -> set[str]:
         text("""
             SELECT blob_sha256 FROM attachments
             UNION SELECT thumb_sha256 FROM attachments WHERE thumb_sha256 IS NOT NULL
+            UNION SELECT photo_sha256 FROM assets WHERE photo_sha256 IS NOT NULL
+            UNION SELECT photo_thumb_sha256 FROM assets WHERE photo_thumb_sha256 IS NOT NULL
         """)
     )
     return {r[0] for r in rows}
