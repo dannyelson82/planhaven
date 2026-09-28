@@ -45,6 +45,8 @@ class ListOut(BaseModel):
     total_items: int
     updated_at: datetime
     version: int
+    estimated_cents: int | None
+    remaining_cents: int | None
 
 
 class ItemIn(Strict):

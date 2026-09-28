@@ -96,13 +96,16 @@ async def delete_attachment(conn: AsyncConnection, attachment_id: uuid.UUID) -> 
 
 
 async def referenced_blobs(conn: AsyncConnection) -> set[str]:
-    """Every blob any attachment (including deleted ones in the trash) uses. System context."""
+    """Every blob any attachment (including deleted ones in the trash), asset photo or contact
+    photo uses. System context."""
     rows = await conn.execute(
         text("""
             SELECT blob_sha256 FROM attachments
             UNION SELECT thumb_sha256 FROM attachments WHERE thumb_sha256 IS NOT NULL
             UNION SELECT photo_sha256 FROM assets WHERE photo_sha256 IS NOT NULL
             UNION SELECT photo_thumb_sha256 FROM assets WHERE photo_thumb_sha256 IS NOT NULL
+            UNION SELECT photo_sha256 FROM contacts WHERE photo_sha256 IS NOT NULL
+            UNION SELECT photo_thumb_sha256 FROM contacts WHERE photo_thumb_sha256 IS NOT NULL
         """)
     )
     return {r[0] for r in rows}

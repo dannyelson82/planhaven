@@ -1,12 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
-import { api } from '../api.ts'
+import { useRef, useState } from 'react'
+import { api, uploadFile } from '../api.ts'
+import { cachedGet } from '../offline.ts'
 import { formatCents, parseAmount, type QuoteStatus, STATUS_LABEL } from '../money.ts'
 import { Button, Card, ErrorText, Field, Link } from '../ui.tsx'
 import type { Contact, Quote } from './Contacts.tsx'
+import type { ListSummary } from './Lists.tsx'
 
 type Cost = { id: string; description: string; amount_cents: number; spent_on: string; quote_id: string | null }
 type FileItem = { id: string; filename: string }
+
+/** Upload a document (an estimate, a receipt) to the project's files; returns it. */
+function uploadToProject(projectId: string, file: File): Promise<FileItem> {
+  const params = new URLSearchParams({ filename: file.name || 'document' })
+  return uploadFile<FileItem>(`/api/v1/projects/${projectId}/attachments?${params}`, file)
+}
+const DOCUMENT_TYPES = 'application/pdf,image/*,.heic,.heif'
 
 const select = 'min-h-11 min-w-0 rounded-xl border border-stone-300 bg-white px-2 dark:border-stone-700 dark:bg-stone-900'
 
@@ -28,6 +37,11 @@ export function ProjectMoney({ projectId, canEdit }: { projectId: string; canEdi
   const removeQuote = useMutation({ mutationFn: (q: Quote) => api('DELETE', `/api/v1/quotes/${q.id}`), onSettled: refresh })
   const removeCost = useMutation({ mutationFn: (c: Cost) => api('DELETE', `/api/v1/costs/${c.id}`), onSettled: refresh })
   const total = (costs.data ?? []).reduce((sum, c) => sum + c.amount_cents, 0)
+  // Budget: accepted quotes plus the estimated prices on shopping and parts lists.
+  const lists = useQuery({ queryKey: ['lists', projectId], queryFn: () => cachedGet<ListSummary[]>(`/api/v1/projects/${projectId}/lists`) })
+  const quoted = (quotes.data ?? []).filter((q) => q.status === 'accepted').reduce((sum, q) => sum + (q.amount_cents ?? 0), 0)
+  const listed = (lists.data ?? []).filter((l) => l.kind !== 'checklist').reduce((sum, l) => sum + (l.estimated_cents ?? 0), 0)
+  const planned = quoted + listed
 
   return (
     <section aria-label="Quotes and costs" className="space-y-3">
@@ -45,6 +59,7 @@ export function ProjectMoney({ projectId, canEdit }: { projectId: string; canEdi
                   {q.attachment_id && <> · <a href={`/api/v1/attachments/${q.attachment_id}/download`} download className="text-brand-700 dark:text-brand-100">{q.attachment_name ?? 'document'}</a></>}
                 </span>
               </span>
+              {canEdit && !q.attachment_id && <AttachEstimate projectId={projectId} quote={q} onDone={refresh} />}
               {canEdit ? (
                 <select aria-label={`Status of ${q.title}`} className={select} value={q.status}
                   onChange={(e) => setStatus.mutate({ q, status: e.target.value as QuoteStatus })}>
@@ -59,6 +74,20 @@ export function ProjectMoney({ projectId, canEdit }: { projectId: string; canEdi
         ))}
       </ul>
       {canEdit && <AddQuote projectId={projectId} onAdded={refresh} />}
+
+      {(planned > 0 || total > 0) && (
+        <dl aria-label="Budget" className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 rounded-2xl bg-white p-4 ring-1 ring-stone-200 dark:bg-stone-900 dark:ring-stone-800">
+          <dt className="text-stone-600 dark:text-stone-400">Accepted quotes</dt><dd className="text-right tabular-nums">{formatCents(quoted)}</dd>
+          <dt className="text-stone-600 dark:text-stone-400">Lists (estimated)</dt><dd className="text-right tabular-nums">{formatCents(listed)}</dd>
+          <dt className="font-semibold">Planned</dt><dd className="text-right font-semibold tabular-nums" aria-label="Planned total">{formatCents(planned)}</dd>
+          <dt className="text-stone-600 dark:text-stone-400">Spent</dt><dd className="text-right tabular-nums">{formatCents(total)}</dd>
+          {total > planned ? (
+            <><dt className="font-semibold text-red-700 dark:text-red-400">Over by</dt><dd className="text-right font-semibold tabular-nums text-red-700 dark:text-red-400">{formatCents(total - planned)}</dd></>
+          ) : (
+            <><dt className="font-semibold">Left</dt><dd className="text-right font-semibold tabular-nums" aria-label="Left to spend">{formatCents(planned - total)}</dd></>
+          )}
+        </dl>
+      )}
 
       <div className="space-y-2 pt-2">
         <div className="flex items-baseline justify-between">
@@ -96,6 +125,12 @@ function AddQuote({ projectId, onAdded }: { projectId: string; onAdded: () => Pr
   const files = useQuery({ queryKey: ['attachments', projectId], queryFn: () => api<FileItem[]>('GET', `/api/v1/projects/${projectId}/attachments`), enabled: open })
   const cents = amount.trim() ? parseAmount(amount) : null
   const amountOk = !amount.trim() || (cents !== null && cents >= 0)
+  const client = useQueryClient()
+  const pick = useRef<HTMLInputElement>(null)
+  const upload = useMutation({
+    mutationFn: (file: File) => uploadToProject(projectId, file),
+    onSuccess: async (file) => { await client.invalidateQueries({ queryKey: ['attachments', projectId] }); setFileId(file.id) },
+  })
   const add = useMutation({
     mutationFn: () => api('POST', `/api/v1/projects/${projectId}/quotes`, {
       title, contact_id: contactId || null, amount_cents: cents, attachment_id: fileId || null,
@@ -116,12 +151,20 @@ function AddQuote({ projectId, onAdded }: { projectId: string; onAdded: () => Pr
           <div className="w-36"><Field label="Amount (CAD)" inputMode="numeric" maxLength={16} value={amount} onChange={setAmount}
             description={amountOk ? 'Leave empty if requested' : 'Like 1850.00'} /></div>
         </div>
-        {(files.data ?? []).length > 0 && (
-          <select aria-label="Document" className={`${select} w-full`} value={fileId} onChange={(e) => setFileId(e.target.value)}>
-            <option value="">No document</option>
-            {(files.data ?? []).map((f) => <option key={f.id} value={f.id}>{f.filename}</option>)}
-          </select>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {(files.data ?? []).length > 0 && (
+            <select aria-label="Document" className={`${select} min-w-0 flex-1`} value={fileId} onChange={(e) => setFileId(e.target.value)}>
+              <option value="">No document</option>
+              {(files.data ?? []).map((f) => <option key={f.id} value={f.id}>{f.filename}</option>)}
+            </select>
+          )}
+          <Button variant="secondary" onPress={() => pick.current?.click()} isDisabled={upload.isPending}>
+            {upload.isPending ? 'Uploading…' : 'Upload the estimate'}
+          </Button>
+          <input ref={pick} type="file" accept={DOCUMENT_TYPES} hidden aria-label="Choose the estimate file"
+            onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ''; if (file) upload.mutate(file) }} />
+        </div>
+        <ErrorText error={upload.error} />
         <ErrorText error={add.error} />
         <div className="flex gap-2">
           <Button type="submit" isDisabled={!title.trim() || !amountOk || add.isPending}>Add quote</Button>
@@ -157,5 +200,28 @@ function AddCost({ projectId, quotes, onAdded }: { projectId: string; quotes: Qu
       <ErrorText error={add.error} />
       <Button type="submit" variant="secondary" isDisabled={!description.trim() || cents === null || add.isPending}>Add cost</Button>
     </form>
+  )
+}
+
+/** A quote without its document yet: upload the estimate and link it. */
+function AttachEstimate({ projectId, quote, onDone }: { projectId: string; quote: Quote; onDone: () => Promise<unknown> }) {
+  const client = useQueryClient()
+  const pick = useRef<HTMLInputElement>(null)
+  const attach = useMutation({
+    mutationFn: async (file: File) => {
+      const doc = await uploadToProject(projectId, file)
+      await api('PATCH', `/api/v1/quotes/${quote.id}`, { attachment_id: doc.id }, { 'If-Match': `"${quote.version}"` })
+    },
+    onSettled: async () => { await client.invalidateQueries({ queryKey: ['attachments', projectId] }); await onDone() },
+  })
+  return (
+    <>
+      <Button variant="ghost" onPress={() => pick.current?.click()} isDisabled={attach.isPending}>
+        {attach.isPending ? 'Uploading…' : 'Attach estimate'}
+      </Button>
+      <input ref={pick} type="file" accept={DOCUMENT_TYPES} hidden aria-label={`Choose the estimate for ${quote.title}`}
+        onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ''; if (file) attach.mutate(file) }} />
+      <ErrorText error={attach.error} />
+    </>
   )
 }

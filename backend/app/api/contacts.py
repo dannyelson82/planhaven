@@ -5,12 +5,15 @@ from datetime import date, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Header, HTTPException, Request, Response
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api import deps
+from app.api.attachments import _file
 from app.api.deps import SessionDep
 from app.api.projects import _etag, _version
 from app.api.sharing import AddMember, MemberOut, RoleChange
+from app.services import attachments as attachment_service
 from app.services import contacts as service
 from app.services import costs as cost_service
 from app.services import sharing as sharing_service
@@ -62,6 +65,7 @@ class ContactOut(BaseModel):
     role: str | None
     updated_at: datetime
     version: int
+    has_photo: bool = False
     quotes: list[QuoteOut] | None = None
 
 
@@ -104,6 +108,7 @@ class CostOut(BaseModel):
 
 def _contact(c: service.ContactRow, quotes: list[service.QuoteRow] | None = None) -> ContactOut:
     out = ContactOut.model_validate(c, from_attributes=True)
+    out.has_photo = c.photo_sha256 is not None
     if quotes is not None:
         out.quotes = [QuoteOut.model_validate(q, from_attributes=True) for q in quotes]
     return out
@@ -163,6 +168,49 @@ async def delete_contact(contact_id: uuid.UUID, session: SessionDep, request: Re
     await service.delete_contact(
         deps.database(request), session, contact_id, deps.client_ip(request)
     )
+
+
+@router.put("/contacts/{contact_id}/photo")
+async def set_photo(contact_id: uuid.UUID, session: SessionDep, request: Request) -> ContactOut:
+    """The photo is the raw request body, like attachments."""
+    try:
+        contact = await service.set_photo(
+            deps.database(request),
+            deps.blobs(request),
+            session,
+            contact_id,
+            chunks=request.stream(),
+            max_bytes=deps.settings(request).max_upload_mb * 1024 * 1024,
+            ip=deps.client_ip(request),
+        )
+    except attachment_service.UploadTooLargeError:
+        raise HTTPException(413, "This file is larger than the upload limit.") from None
+    except attachment_service.UnsupportedFileError as exc:
+        raise HTTPException(415, str(exc)) from None
+    return _contact(contact)
+
+
+@router.delete("/contacts/{contact_id}/photo", status_code=204)
+async def remove_photo(contact_id: uuid.UUID, session: SessionDep, request: Request) -> None:
+    await service.remove_photo(deps.database(request), session, contact_id)
+
+
+@router.get("/contacts/{contact_id}/photo")
+async def photo(contact_id: uuid.UUID, session: SessionDep, request: Request) -> FileResponse:
+    sha, content_type = await service.photo(
+        deps.database(request), session, contact_id, thumbnail=False
+    )
+    return _file(request, sha, content_type, "inline", "photo")
+
+
+@router.get("/contacts/{contact_id}/photo/thumbnail")
+async def photo_thumbnail(
+    contact_id: uuid.UUID, session: SessionDep, request: Request
+) -> FileResponse:
+    sha, content_type = await service.photo(
+        deps.database(request), session, contact_id, thumbnail=True
+    )
+    return _file(request, sha, content_type, "inline", "thumbnail.webp")
 
 
 @router.get("/contacts/{contact_id}/members")

@@ -1,13 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { Checkbox } from 'react-aria-components'
 import { api } from '../api.ts'
+import { formatCents, parseAmount } from '../money.ts'
 import { navigate } from '../router.ts'
 import { useLiveProject } from '../live.ts'
 import { Button, Card, ErrorText, Field, Form, Link } from '../ui.tsx'
 import { cachedGet, sendOrQueue, updateOfflineCopy } from '../offline.ts'
 
-export type ListSummary = { id: string; project_id: string; title: string; kind: Kind; open_items: number; total_items: number; version: number }
+export type ListSummary = {
+  id: string; project_id: string; title: string; kind: Kind; open_items: number; total_items: number; version: number
+  estimated_cents: number | null; remaining_cents: number | null
+}
 type Kind = 'shopping' | 'parts' | 'checklist'
 type Item = { id: string; text: string; quantity: string | null; unit: string | null; price_cents: number | null; checked: boolean; version: number }
 type ListDetail = ListSummary & { items: Item[] }
@@ -32,7 +36,7 @@ export function ProjectLists({ projectId, canEdit }: { projectId: string; canEdi
           <li key={l.id}>
             <Card>
               <Link to={`/lists/${l.id}`} className="block font-semibold">{l.title}</Link>
-              <p className="text-sm text-stone-500">{KIND_LABEL[l.kind]} · {l.open_items} to get of {l.total_items}</p>
+              <p className="text-sm text-stone-500">{KIND_LABEL[l.kind]} · {l.open_items} to get of {l.total_items}{l.remaining_cents !== null && ` · about ${formatCents(l.remaining_cents)} to go`}</p>
             </Card>
           </li>
         ))}
@@ -55,6 +59,11 @@ export function ProjectLists({ projectId, canEdit }: { projectId: string; canEdi
 function quantityText(i: Item): string {
   const q = i.quantity ? String(Number(i.quantity)) : ''
   return [q, i.unit].filter(Boolean).join(' ')
+}
+
+/** Estimated price for the line: price each x quantity (1 when there's no quantity). */
+function lineCents(i: Item): number {
+  return Math.round((i.price_cents ?? 0) * (i.quantity ? Number(i.quantity) : 1))
 }
 
 /** One list: made for a phone in one hand in a store. */
@@ -122,6 +131,7 @@ export function ListScreen({ id }: { id: string }) {
   const undo = useMutation({
     mutationFn: (i: Item) => api('POST', `/api/v1/lists/${id}/items`, {
       text: i.text, ...(i.quantity ? { quantity: i.quantity } : {}), ...(i.unit ? { unit: i.unit } : {}),
+      ...(i.price_cents !== null ? { price_cents: i.price_cents } : {}),
     }, { 'Idempotency-Key': crypto.randomUUID() }),
     onSuccess: () => setDeleted(null),
     onSettled: refresh,
@@ -134,9 +144,20 @@ export function ListScreen({ id }: { id: string }) {
       navigate(`/projects/${projectId}`)
     },
   })
+  const saving = useRef<Promise<unknown>>(Promise.resolve())
   const save = useMutation({
-    mutationFn: ({ i, text, qty }: { i: Item; text: string; qty: string }) =>
-      api('PATCH', `/api/v1/list-items/${i.id}`, { text, quantity: qty.trim() || null }, { 'If-Match': `"${i.version}"` }),
+    // One save at a time, each with the version the previous one returned: two boxes of a row
+    // changed in quick succession aren't refused as someone else's change.
+    mutationFn: ({ i, text, qty, price }: { i: Item; text: string; qty: string; price: number | null }) => {
+      const run = saving.current.catch(() => undefined).then(async () => {
+        const latest = client.getQueryData<ListDetail>(['list', id])?.items.find((x) => x.id === i.id)
+        const updated = await api<Item>('PATCH', `/api/v1/list-items/${i.id}`, { text, quantity: qty.trim() || null, price_cents: price },
+          { 'If-Match': `"${latest?.version ?? i.version}"` })
+        client.setQueryData<ListDetail>(['list', id], (d) => d && { ...d, items: d.items.map((x) => x.id === updated.id ? updated : x) })
+      })
+      saving.current = run
+      return run
+    },
     onSettled: refresh,
   })
   // Edit mode: the list's name can be changed (saved when you leave the box).
@@ -162,6 +183,12 @@ export function ListScreen({ id }: { id: string }) {
         )}
         <Button variant={editing ? 'primary' : 'secondary'} onPress={() => setEditing(!editing)}>{editing ? 'Done' : 'Edit'}</Button>
       </div>
+      {l.kind !== 'checklist' && l.estimated_cents !== null && (
+        <p className="text-stone-600 dark:text-stone-400">
+          Estimated <span className="font-semibold tabular-nums">{formatCents(l.estimated_cents)}</span>
+          {' · '}<span className="tabular-nums">{formatCents(l.remaining_cents ?? 0)}</span> still to get
+        </p>
+      )}
       {deleted && (
         <p role="status" className="flex items-center justify-between gap-2 rounded-xl bg-stone-100 p-2 pl-3 dark:bg-stone-800">
           <span className="min-w-0 truncate">Deleted “{deleted.text}”</span>
@@ -176,12 +203,12 @@ export function ListScreen({ id }: { id: string }) {
         <ErrorText error={add.error} />
         <Button type="submit">Add</Button>
       </Form>
-      <ItemList items={open} editing={editing} onToggle={(i) => toggle.mutate(i)} onDelete={(i) => remove.mutate(i)} onSave={(i, text, qty) => save.mutate({ i, text, qty })} />
+      <ItemList items={open} editing={editing} priced={l.kind !== 'checklist'} onToggle={(i) => toggle.mutate(i)} onDelete={(i) => remove.mutate(i)} onSave={(i, text, qty, price) => save.mutate({ i, text, qty, price })} />
       {open.length === 0 && <p className="text-stone-500">All done!</p>}
       {done.length > 0 && (
         <>
           <p className="pt-2 text-sm font-medium text-stone-500">In the cart ({done.length})</p>
-          <ItemList items={done} editing={editing} onToggle={(i) => toggle.mutate(i)} onDelete={(i) => remove.mutate(i)} onSave={(i, text, qty) => save.mutate({ i, text, qty })} />
+          <ItemList items={done} editing={editing} priced={l.kind !== 'checklist'} onToggle={(i) => toggle.mutate(i)} onDelete={(i) => remove.mutate(i)} onSave={(i, text, qty, price) => save.mutate({ i, text, qty, price })} />
         </>
       )}
       {editing && (
@@ -197,14 +224,14 @@ export function ListScreen({ id }: { id: string }) {
   )
 }
 
-type Handlers = { onToggle: (i: Item) => void; onDelete: (i: Item) => void; onSave: (i: Item, text: string, qty: string) => void }
+type Handlers = { onToggle: (i: Item) => void; onDelete: (i: Item) => void; onSave: (i: Item, text: string, qty: string, price: number | null) => void }
 
-function ItemList({ items, editing, onToggle, onDelete, onSave }: { items: Item[]; editing: boolean } & Handlers) {
+function ItemList({ items, editing, priced, onToggle, onDelete, onSave }: { items: Item[]; editing: boolean; priced: boolean } & Handlers) {
   if (items.length === 0) return null
   if (editing) {
     return (
       <ul className="divide-y divide-stone-200 rounded-2xl bg-white ring-1 ring-stone-200 dark:divide-stone-800 dark:bg-stone-900 dark:ring-stone-800">
-        {items.map((i) => <EditRow key={`${i.id}-${i.version}`} item={i} onDelete={onDelete} onSave={onSave} />)}
+        {items.map((i) => <EditRow key={i.id} item={i} priced={priced} onDelete={onDelete} onSave={onSave} />)}
       </ul>
     )
   }
@@ -218,6 +245,7 @@ function ItemList({ items, editing, onToggle, onDelete, onSave }: { items: Item[
             </span>
             <span className={`min-w-0 flex-1 text-lg ${i.checked ? 'text-stone-500 line-through' : ''}`}>{i.text}</span>
             {quantityText(i) && <span className="text-sm text-stone-500">{quantityText(i)}</span>}
+            {priced && i.price_cents !== null && <span className="text-sm tabular-nums text-stone-500">{formatCents(lineCents(i))}</span>}
             {i.id.startsWith('pending-') && <span className="text-xs text-amber-700 dark:text-amber-400">not sent yet</span>}
           </Checkbox>
         </li>
@@ -226,25 +254,48 @@ function ItemList({ items, editing, onToggle, onDelete, onSave }: { items: Item[
   )
 }
 
-/** Edit mode: change the name or quantity (saved when you leave the box), or delete. */
-function EditRow({ item, onDelete, onSave }: { item: Item } & Pick<Handlers, 'onDelete' | 'onSave'>) {
-  const [text, setText] = useState(item.text)
-  const [qty, setQty] = useState(item.quantity ? String(Number(item.quantity)) : '')
+/** Edit mode: change the name, quantity or estimated price each (saved when you leave the
+ * box), or delete. */
+function EditRow({ item, priced, onDelete, onSave }: { item: Item; priced: boolean } & Pick<Handlers, 'onDelete' | 'onSave'>) {
+  const saved = {
+    text: item.text,
+    qty: item.quantity ? String(Number(item.quantity)) : '',
+    price: item.price_cents === null ? '' : (item.price_cents / 100).toFixed(2),
+  }
+  const [text, setText] = useState(saved.text)
+  const [qty, setQty] = useState(saved.qty)
+  const [price, setPrice] = useState(saved.price)
+  // A newer saved copy arrived (e.g. after saving another box of this row): take it for the
+  // boxes not being changed, keep what's being typed in the others.
+  const [base, setBase] = useState(saved)
+  if (base.text !== saved.text || base.qty !== saved.qty || base.price !== saved.price) {
+    if (text === base.text) setText(saved.text)
+    if (qty === base.qty) setQty(saved.qty)
+    if (price === base.price) setPrice(saved.price)
+    setBase(saved)
+  }
+  const cents = price.trim() ? parseAmount(price) : null
+  const priceOk = !price.trim() || (cents !== null && cents >= 0)
   const pending = item.id.startsWith('pending-')
   const commit = () => {
-    const original = item.quantity ? String(Number(item.quantity)) : ''
-    if (text.trim() && (text !== item.text || qty !== original)) onSave(item, text.trim(), qty)
+    if (text.trim() && priceOk && (text !== saved.text || qty !== saved.qty || price !== saved.price)) onSave(item, text.trim(), qty, cents)
   }
   const input = 'min-w-0 rounded-xl border border-stone-300 bg-white px-3 py-2.5 dark:border-stone-700 dark:bg-stone-900'
+  const enter = (e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') e.currentTarget.blur() }
   return (
-    <li className="flex items-center gap-2 px-3 py-2">
+    <li className="flex flex-wrap items-center gap-2 px-3 py-2">
       <input aria-label={`Name of ${item.text}`} value={text} maxLength={500} disabled={pending}
-        onChange={(e) => setText(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
-        className={`${input} flex-1`} />
+        onChange={(e) => setText(e.target.value)} onBlur={commit} onKeyDown={enter}
+        className={`${input} basis-full sm:flex-1 sm:basis-auto`} />
       <input aria-label={`Quantity of ${item.text}`} value={qty} inputMode="decimal" maxLength={12} disabled={pending}
-        onChange={(e) => setQty(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+        onChange={(e) => setQty(e.target.value)} onBlur={commit} onKeyDown={enter}
         className={`${input} w-20`} placeholder="Qty" />
-      <Button variant="danger-ghost" aria-label={`Delete ${item.text}`} isDisabled={pending}
+      {priced && (
+        <input aria-label={`Price each of ${item.text}`} value={price} inputMode="decimal" maxLength={16} disabled={pending}
+          aria-invalid={!priceOk} onChange={(e) => setPrice(e.target.value)} onBlur={commit} onKeyDown={enter}
+          className={`${input} w-28 ${priceOk ? '' : 'border-red-600'}`} placeholder="$ each" />
+      )}
+      <Button variant="danger-ghost" aria-label={`Delete ${item.text}`} isDisabled={pending} className="ml-auto"
         onPress={() => onDelete({ ...item, text: text.trim() || item.text, quantity: qty.trim() || null })}>✕</Button>
     </li>
   )

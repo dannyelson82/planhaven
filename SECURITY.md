@@ -265,6 +265,8 @@ read-only, feed-only, and defaults to "titles only" content. Tokens are never lo
     their thumbnails are ever shown inline; everything else is a download.
   - Served files carry `Content-Security-Policy: default-src 'none'; sandbox`.
   - Archives never auto-extracted.
+  - Asset and contact photos go through the same cleaning and are served the same way, to
+    people who can see the asset or contact; only editors can change them.
 
 ### 7.6 Extraction sandbox
 

@@ -1,11 +1,16 @@
 """Contacts shared one by one; quotes and costs on projects (phase 0.2, M5)."""
 
+import asyncio
 from typing import Any
 
 import pytest
 
+from app.db import attachments as attachment_store
+from app.db.database import Database
 from tests.db import team as setup
+from tests.db.conftest import _settings
 from tests.db.team import U
+from tests.test_files import jpeg_with_gps
 
 pytestmark = pytest.mark.db
 
@@ -113,3 +118,52 @@ def test_quotes_and_costs(team: Team) -> None:
     assert _req(owner, "POST", f"/api/v1/trash/quote/{quote['id']}/restore").status_code == 204
     assert _req(owner, "DELETE", f"/api/v1/contacts/{cid}").status_code == 204
     assert _req(owner, "POST", f"/api/v1/trash/contact/{cid}/restore").status_code == 204
+
+
+def test_contact_photo(team: Team) -> None:
+    owner, viewer, stranger, _, _ = team
+    cid = owner.post("/api/v1/contacts", headers=owner.h, json=PLUMBER).json()["id"]
+    assert owner.get(f"/api/v1/contacts/{cid}").json()["has_photo"] is False
+    r = _req(
+        owner,
+        "PUT",
+        f"/api/v1/contacts/{cid}/photo",
+        content=jpeg_with_gps(),
+        headers={"content-type": "application/octet-stream"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["has_photo"] is True
+    _req(
+        owner,
+        "POST",
+        f"/api/v1/contacts/{cid}/members",
+        json={"user_id": viewer.id, "role": "viewer"},
+    )
+    photo = viewer.get(f"/api/v1/contacts/{cid}/photo")
+    assert photo.status_code == 200
+    assert b"Exif" not in photo.content  # location removed
+    assert "sandbox" in photo.headers["content-security-policy"]
+    thumb = viewer.get(f"/api/v1/contacts/{cid}/photo/thumbnail")
+    assert thumb.headers["content-type"] == "image/webp"
+    assert stranger.get(f"/api/v1/contacts/{cid}/photo").status_code == 404
+    assert (
+        _req(viewer, "PUT", f"/api/v1/contacts/{cid}/photo", content=jpeg_with_gps()).status_code
+        == 403
+    )
+    assert _req(viewer, "DELETE", f"/api/v1/contacts/{cid}/photo").status_code == 403
+    pdf = _req(owner, "PUT", f"/api/v1/contacts/{cid}/photo", content=b"%PDF-1.7\n")
+    assert pdf.status_code == 415
+
+    # The blob purge keeps files a contact uses.
+    async def referenced() -> set[str]:
+        db = Database(_settings())
+        try:
+            async with db.system_transaction() as conn:
+                return await attachment_store.referenced_blobs(conn)
+        finally:
+            await db.dispose()
+
+    assert len(asyncio.run(referenced())) >= 2  # the photo and its thumbnail
+    assert _req(owner, "DELETE", f"/api/v1/contacts/{cid}/photo").status_code == 204
+    assert owner.get(f"/api/v1/contacts/{cid}/photo").status_code == 404
+    assert owner.get(f"/api/v1/contacts/{cid}").json()["has_photo"] is False

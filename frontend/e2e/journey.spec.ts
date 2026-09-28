@@ -6,6 +6,7 @@ import { ADMIN, totp, watchForProblems } from './helpers.ts'
 // factor, projects and tasks, signing out and back in. Saves the signed-in state for the
 // layout tests.
 test('first boot to first project', async ({ page }) => {
+  test.setTimeout(90_000) // the whole journey, start to finish; it grows with each feature
   const problems = watchForProblems(page)
   const setupToken = process.env.SETUP_TOKEN
   test.skip(!setupToken, 'SETUP_TOKEN not provided')
@@ -71,6 +72,10 @@ test('first boot to first project', async ({ page }) => {
   await page.getByRole('button', { name: 'Edit' }).click()
   await page.getByLabel('Quantity of Hose clamps').fill('4')
   await page.getByLabel('Quantity of Hose clamps').press('Enter')
+  // An estimated price each: the list adds it up (4 x 2.50).
+  await page.getByLabel('Price each of Hose clamps').fill('2.50')
+  await page.getByLabel('Price each of Hose clamps').press('Enter')
+  await expect(page.getByText(/Estimated \$10\.00/)).toBeVisible()
   await page.getByRole('button', { name: 'Delete Hose clamps' }).click()
   await expect(page.getByText('Deleted “Hose clamps”')).toBeVisible()
   await page.getByRole('button', { name: 'Undo' }).click()
@@ -93,6 +98,12 @@ test('first boot to first project', async ({ page }) => {
   await page.getByRole('button', { name: 'Tap again to delete this list' }).click()
   await expect(page.getByRole('heading', { name: 'Winterize boat' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Scrap pile' })).toHaveCount(0)
+  // It's in this project's own trash.
+  await page.getByRole('link', { name: "This project's trash" }).click()
+  await expect(page.getByRole('heading', { name: 'Trash: Winterize boat' })).toBeVisible()
+  await expect(page.getByText('Scrap pile')).toBeVisible()
+  await page.getByRole('link', { name: '← Back to project' }).click()
+  await expect(page.getByRole('heading', { name: 'Winterize boat' })).toBeVisible()
 
   // The oil change needs the hose clamps from the list; the task says so until they're got.
   await page.getByRole('button', { name: 'Edit Change oil' }).click()
@@ -195,6 +206,12 @@ test('first boot to first project', async ({ page }) => {
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByRole('link', { name: 'Call' })).toHaveAttribute('href', 'tel:5550100')
   await expect(page.getByLabel('Website')).toHaveValue('https://www.davepipes.example')
+  // A photo of the contact (an iPhone HEIC photo works).
+  await page.getByTestId('contact-photo-input').setInputFiles({
+    name: 'IMG_0002.HEIC', mimeType: 'image/heic',
+    buffer: fs.readFileSync(new URL('../../backend/tests/fixtures/iphone-photo.heic', import.meta.url)),
+  })
+  await expect(page.getByRole('img', { name: 'Dave Pipes' })).toBeVisible({ timeout: 20_000 })
   // The contact's card has Call too.
   await page.goto('/contacts')
   await expect(page.getByRole('link', { name: 'Call 555-0100' })).toHaveAttribute('href', 'tel:5550100')
@@ -204,12 +221,20 @@ test('first boot to first project', async ({ page }) => {
   await page.getByLabel('Contact', { exact: true }).selectOption({ label: 'Dave Pipes' })
   await page.getByLabel('Amount (CAD)').first().fill('1,850')
   await page.getByRole('button', { name: 'Add quote' }).click()
+  // The estimate itself goes with the quote.
+  await page.getByLabel('Choose the estimate for Rebuild water pump').setInputFiles({
+    name: 'estimate.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF\n'),
+  })
+  await expect(page.getByRole('region', { name: 'Quotes and costs' }).getByRole('link', { name: 'estimate.pdf' })).toBeVisible()
   await page.getByLabel('Status of Rebuild water pump').selectOption('accepted')
   await page.getByLabel('Money spent on').fill('Water pump kit')
   await page.getByLabel('Amount (CAD)').fill('1850')
   await page.getByLabel('Paid for quote').selectOption({ label: 'Rebuild water pump' })
   await page.getByRole('button', { name: 'Add cost' }).click()
   await expect(page.getByLabel('Total spent')).toHaveText(/1,850\.00/)
+  // Budget: the accepted quote plus the list's estimate, against what was spent.
+  await expect(page.getByLabel('Planned total')).toHaveText(/1,860\.00/)
+  await expect(page.getByLabel('Left to spend')).toHaveText(/10\.00/)
 
   // Sharing dialog lists the owner.
   await page.getByRole('button', { name: 'Share' }).click()

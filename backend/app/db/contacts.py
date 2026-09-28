@@ -23,6 +23,9 @@ class ContactRow:
     role: str | None
     updated_at: datetime
     version: int
+    photo_sha256: str | None = None
+    photo_thumb_sha256: str | None = None
+    photo_type: str | None = None
 
 
 async def role(conn: AsyncConnection, contact_id: uuid.UUID) -> str | None:
@@ -34,7 +37,8 @@ async def list_contacts(conn: AsyncConnection) -> list[ContactRow]:
     rows = await conn.execute(
         text("""
             SELECT id, name, company, kind, phone, email, website, notes,
-                   app.contact_role(id) AS role, updated_at, version
+                   app.contact_role(id) AS role, updated_at, version,
+                   photo_sha256, photo_thumb_sha256, photo_type
             FROM contacts WHERE deleted_at IS NULL ORDER BY name LIMIT 1000
         """)
     )
@@ -46,7 +50,8 @@ async def get_contact(conn: AsyncConnection, contact_id: uuid.UUID) -> ContactRo
         await conn.execute(
             text("""
                 SELECT id, name, company, kind, phone, email, website, notes,
-                       app.contact_role(id) AS role, updated_at, version
+                       app.contact_role(id) AS role, updated_at, version,
+                   photo_sha256, photo_thumb_sha256, photo_type
                 FROM contacts WHERE id = :id AND deleted_at IS NULL
             """),
             {"id": contact_id},
@@ -97,3 +102,21 @@ async def delete_contact(conn: AsyncConnection, contact_id: uuid.UUID) -> None:
         ),
         {"id": contact_id},
     )
+
+
+async def set_photo(
+    conn: AsyncConnection,
+    contact_id: uuid.UUID,
+    photo: str | None,
+    thumb: str | None,
+    content_type: str | None,
+) -> bool:
+    result = await conn.execute(
+        text("""
+            UPDATE contacts SET photo_sha256 = :p, photo_thumb_sha256 = :t, photo_type = :ct,
+                                updated_at = now(), version = version + 1
+            WHERE id = :id AND deleted_at IS NULL
+        """),
+        {"id": contact_id, "p": photo, "t": thumb, "ct": content_type},
+    )
+    return result.rowcount == 1
