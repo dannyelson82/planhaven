@@ -14,6 +14,7 @@ from app import authz
 from app.db import admin as notify_store
 from app.db import assets as asset_store
 from app.db import auth as audit
+from app.db import contacts as contact_store
 from app.db import projects as project_store
 from app.db import sharing as store
 from app.db.database import Database
@@ -23,7 +24,7 @@ ROLES = ("owner", "editor", "viewer")
 
 Member = store.MemberRow
 DirectoryEntry = store.DirectoryRow
-Kind = Literal["project", "asset"]
+Kind = Literal["project", "asset", "contact"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +36,7 @@ class _Actions:
 _ACTIONS: dict[str, _Actions] = {
     "project": _Actions(authz.Action.PROJECT_VIEW, authz.Action.PROJECT_SHARE),
     "asset": _Actions(authz.Action.ASSET_VIEW, authz.Action.ASSET_SHARE),
+    "contact": _Actions(authz.Action.CONTACT_VIEW, authz.Action.CONTACT_SHARE),
 }
 
 
@@ -49,9 +51,12 @@ async def _access(
         if kind == "project":
             access = authz.ProjectAccess(await project_store.role(conn, resource_id))
             exists = await project_store.get_project(conn, resource_id) is not None
-        else:
+        elif kind == "asset":
             access = authz.ProjectAccess(await asset_store.role(conn, resource_id))
             exists = await asset_store.get_asset(conn, resource_id) is not None
+        else:
+            access = authz.ProjectAccess(await contact_store.role(conn, resource_id))
+            exists = await contact_store.get_contact(conn, resource_id) is not None
     return access if exists else authz.ProjectAccess(None)  # deleted
 
 
@@ -83,10 +88,14 @@ async def _notify_added(
             title = await project_store.title(conn, resource_id)
             payload = {"project_id": str(resource_id), "title": title}
             event = "shared_with_you"
-        else:
+        elif kind == "asset":
             asset = await asset_store.get_asset(conn, resource_id)
             payload = {"asset_id": str(resource_id), "title": asset.name if asset else ""}
             event = "asset_shared_with_you"
+        else:
+            contact = await contact_store.get_contact(conn, resource_id)
+            payload = {"contact_id": str(resource_id), "title": contact.name if contact else ""}
+            event = "contact_shared_with_you"
         await notify_store.notify(
             conn, user_id, event, {**payload, "role": role, "by": session.user.display_name}
         )
@@ -136,7 +145,7 @@ def _where(kind: Kind, resource_id: uuid.UUID) -> dict[str, Any]:
     """Audit fields naming the project, or the asset (in details)."""
     if kind == "project":
         return {"project_id": resource_id}
-    return {"details": json.dumps({"asset_id": str(resource_id)})}
+    return {"details": json.dumps({f"{kind}_id": str(resource_id)})}
 
 
 def _owner_rule(exc: Exception, kind: Kind) -> None:

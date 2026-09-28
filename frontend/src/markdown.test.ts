@@ -28,3 +28,15 @@ describe('notes', () => {
     expect(toMarkdown(doc)).toBe('## Deck\n\nUse **cedar**\n\n- [x] Measure\n- [ ] Buy screws\n\n- a')
   })
 })
+
+describe('money', async () => {
+  const { formatCents, parseAmount } = await import('./money.ts')
+  it('reads and shows amounts in cents', () => {
+    expect(parseAmount('1,850.50')).toBe(185050)
+    expect(parseAmount('$12')).toBe(1200)
+    expect(parseAmount('-3.5')).toBe(-350)
+    expect(parseAmount('abc')).toBeNull()
+    expect(parseAmount('1.234')).toBeNull()
+    expect(formatCents(185050)).toContain('1,850.50')
+  })
+})

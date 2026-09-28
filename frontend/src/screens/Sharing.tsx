@@ -14,7 +14,7 @@ const ROLE_LABEL: Record<Role, string> = { owner: 'Owner', editor: 'Can edit', v
 const select =
   'min-h-11 rounded-xl border border-stone-300 bg-white px-2 dark:border-stone-700 dark:bg-stone-900'
 
-type Kind = 'project' | 'asset'
+type Kind = 'project' | 'asset' | 'contact'
 
 /** Members of a project or asset; owners can add people, change roles and remove them. */
 export function ShareButton({ kind, id, isOwner, myId }: { kind: Kind; id: string; isOwner: boolean; myId: string }) {

@@ -5,7 +5,7 @@ import { watchForProblems } from './helpers.ts'
 test('layout fits the screen and navigation is where the thumb or mouse is', async ({ page }, info) => {
   const problems = watchForProblems(page)
   const phone = info.project.name === 'phone'
-  for (const path of ['/projects', '/assets', '/account']) {
+  for (const path of ['/projects', '/assets', '/contacts', '/account']) {
     await page.goto(path)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     const overflow = await page.evaluate(

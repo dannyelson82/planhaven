@@ -74,6 +74,11 @@ class Action(StrEnum):
     ASSET_EDIT = "asset.edit"
     ASSET_MANAGE = "asset.manage"
     ASSET_SHARE = "asset.share"
+    # Contacts (contractors, suppliers): shared one by one, same roles
+    CONTACT_VIEW = "contact.view"
+    CONTACT_EDIT = "contact.edit"
+    CONTACT_MANAGE = "contact.manage"
+    CONTACT_SHARE = "contact.share"
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +105,10 @@ RULES: dict[Action, Rule] = {
     Action.ASSET_EDIT: Rule(),
     Action.ASSET_MANAGE: Rule(),
     Action.ASSET_SHARE: Rule(recent=True),
+    Action.CONTACT_VIEW: Rule(),
+    Action.CONTACT_EDIT: Rule(),
+    Action.CONTACT_MANAGE: Rule(),
+    Action.CONTACT_SHARE: Rule(recent=True),
 }
 
 # Which project roles allow each project action (ARCHITECTURE.md §7.5). Mirrored by the
@@ -113,6 +122,10 @@ PROJECT_ROLES: dict[Action, frozenset[str]] = {
     Action.ASSET_EDIT: frozenset({"owner", "editor"}),
     Action.ASSET_MANAGE: frozenset({"owner"}),
     Action.ASSET_SHARE: frozenset({"owner"}),
+    Action.CONTACT_VIEW: frozenset({"owner", "editor", "viewer"}),
+    Action.CONTACT_EDIT: frozenset({"owner", "editor"}),
+    Action.CONTACT_MANAGE: frozenset({"owner"}),
+    Action.CONTACT_SHARE: frozenset({"owner"}),
 }
 
 

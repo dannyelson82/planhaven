@@ -51,6 +51,20 @@ _QUERIES: dict[str, dict[str, str]] = {
         "set_role": "UPDATE asset_members SET role = :role WHERE asset_id = :r AND user_id = :u",
         "remove": "DELETE FROM asset_members WHERE asset_id = :r AND user_id = :u",
     },
+    "contact": {
+        "members": """
+            SELECT m.user_id, u.display_name, u.email, m.role
+            FROM contact_members m JOIN users u ON u.id = m.user_id
+            WHERE m.contact_id = :r
+            ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'editor' THEN 1 ELSE 2 END,
+                     u.display_name
+        """,
+        "add": "INSERT INTO contact_members (contact_id, user_id, role) VALUES (:r, :u, :role) "
+        "ON CONFLICT (contact_id, user_id) DO NOTHING",
+        "set_role": "UPDATE contact_members SET role = :role "
+        "WHERE contact_id = :r AND user_id = :u",
+        "remove": "DELETE FROM contact_members WHERE contact_id = :r AND user_id = :u",
+    },
 }
 
 

@@ -3,16 +3,18 @@ import { useState } from 'react'
 import { api } from '../api.ts'
 import { Button, Card, ErrorText, Link } from '../ui.tsx'
 
-type Kind = 'project' | 'task' | 'list' | 'note' | 'attachment' | 'asset'
+type Kind = 'project' | 'task' | 'list' | 'note' | 'attachment' | 'quote' | 'cost' | 'asset' | 'contact'
 type Item = { kind: Kind; id: string; title: string; project_id: string | null; project_title: string | null; deleted_at: string }
 
 const KIND_LABEL: Record<Kind, string> = {
-  project: 'Project', task: 'Task', list: 'List', note: 'Note', attachment: 'File', asset: 'Asset',
+  project: 'Project', task: 'Task', list: 'List', note: 'Note', attachment: 'File',
+  quote: 'Quote', cost: 'Cost', asset: 'Asset', contact: 'Contact',
 }
 
 function restoredPath(i: Item): string {
   if (i.kind === 'project') return `/projects/${i.id}`
   if (i.kind === 'asset') return `/assets/${i.id}`
+  if (i.kind === 'contact') return `/contacts/${i.id}`
   if (i.kind === 'list') return `/lists/${i.id}`
   if (i.kind === 'note') return `/notes/${i.id}`
   return `/projects/${i.project_id}`

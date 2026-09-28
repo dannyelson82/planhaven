@@ -55,8 +55,9 @@ events, browser tests at phone and desktop widths, threat-model check.
 
 - [x] Assets (vehicle, boat, house, …) with metadata, shareable; projects link to an asset;
       an asset's projects form its service history
-- [ ] Contacts (contractors, suppliers), quotes (requested / received / accepted /
-      declined, with a document), cost entries per project
+- [x] Contacts (contractors, suppliers), shared one by one like assets; quotes (requested /
+      received / accepted / declined, with a document), cost entries per project; amounts in
+      Canadian dollars by default
 
 ## Milestone 6: Phone and offline (v0.2.0)
 

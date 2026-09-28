@@ -11,6 +11,7 @@ from app.api import (
     assets,
     attachments,
     auth,
+    contacts,
     health,
     invites,
     lists,
@@ -58,6 +59,7 @@ ROUTERS = (
     notes.router,
     attachments.router,
     assets.router,
+    contacts.router,
     trash.router,
     spa.router,  # last: catches every path the API didn't
 )
