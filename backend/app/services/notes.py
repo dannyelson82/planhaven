@@ -516,5 +516,5 @@ async def set_checked(
         return
     if room is not None:
         await _broadcast(room, pycrdt.create_update_message(update), exclude=None)
-    log.info("note checklist ticked", extra={"note_id": str(note_id), "bytes": len(update)})
+    log.info("note checklist ticked", extra={"note_id": str(note.id), "bytes": len(update)})
     live.publish(note.project_id, "notes")
