@@ -4,6 +4,8 @@ Sharing goes through app.services.sharing with kind="contact". A contact's page 
 quotes on projects the viewer can see.
 """
 
+import asyncio
+import contextlib
 import uuid
 from collections.abc import AsyncIterator
 from typing import Any
@@ -14,6 +16,7 @@ from app.db import contacts as store
 from app.db import costs as cost_store
 from app.db.database import Database
 from app.services import attachments as attachment_service
+from app.services import vcard
 from app.services.auth import CurrentSession
 from app.services.projects import ConflictError
 
@@ -148,3 +151,80 @@ async def photo(
     if thumbnail:
         return contact.photo_thumb_sha256, "image/webp"
     return contact.photo_sha256, contact.photo_type or "image/jpeg"
+
+
+# ---------------------------------------------------------------- contact cards (.vcf)
+
+
+async def _one_chunk(data: bytes) -> AsyncIterator[bytes]:
+    yield data
+
+
+async def import_card(
+    db: Database,
+    blobs: attachment_service.BlobStore,
+    session: CurrentSession,
+    data: bytes,
+    *,
+    kind: str,
+    max_photo_bytes: int,
+    ip: str | None,
+) -> ContactRow:
+    """A new contact from a contact card shared from a phone (vcard.VCardError if it isn't
+    one). Its photo, if any, is cleaned like any upload; a photo that can't be used is left
+    out rather than failing the import."""
+    card = vcard.parse(data)
+    contact = await create_contact(
+        db,
+        session,
+        {
+            "name": card.name,
+            "company": card.company,
+            "kind": kind,
+            "phone": card.phone,
+            "email": card.email,
+            "website": card.website,
+            "notes": card.notes,
+        },
+        ip,
+    )
+    if card.photo:
+        with contextlib.suppress(
+            attachment_service.UploadTooLargeError, attachment_service.UnsupportedFileError
+        ):
+            contact = await set_photo(
+                db,
+                blobs,
+                session,
+                contact.id,
+                chunks=_one_chunk(card.photo),
+                max_bytes=max_photo_bytes,
+                ip=ip,
+            )
+    return contact
+
+
+async def export_card(
+    db: Database,
+    blobs: attachment_service.BlobStore,
+    session: CurrentSession,
+    contact_id: uuid.UUID,
+) -> tuple[str, str]:
+    """(file name, vCard text) for saving the contact to a phone, with its (cleaned) photo."""
+    contact, _ = await get_contact(db, session, contact_id)
+    photo = None
+    if contact.photo_sha256:
+        path = blobs.path(contact.photo_sha256)
+        size = await asyncio.to_thread(lambda: path.stat().st_size)
+        if size <= vcard.MAX_PHOTO_BYTES:
+            photo = await asyncio.to_thread(path.read_bytes)
+    card = vcard.Card(
+        name=contact.name,
+        company=contact.company,
+        phone=contact.phone,
+        email=contact.email,
+        website=contact.website,
+        notes=contact.notes,
+        photo=photo,
+    )
+    return f"{contact.name}.vcf", vcard.build(card, contact.photo_type)

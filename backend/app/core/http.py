@@ -195,9 +195,11 @@ async def _send_problem(send: Send, status: int, title: str) -> None:
     await send({"type": "http.response.body", "body": body})
 
 
-# File uploads (raw body): project attachments (POST) and asset photos (PUT).
+# File uploads (raw body): project attachments (POST), asset and contact photos (PUT), and
+# contact cards (POST /contacts/import). Every other body gets the (small) JSON limit.
 _UPLOAD_PATH = re.compile(
-    r"/api/v1/(projects/[0-9a-fA-F-]{36}/attachments|assets/[0-9a-fA-F-]{36}/photo)"
+    r"/api/v1/(projects/[0-9a-fA-F-]{36}/attachments|(assets|contacts)/[0-9a-fA-F-]{36}/photo"
+    r"|contacts/import)"
 )
 
 

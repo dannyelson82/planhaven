@@ -13,6 +13,12 @@ Three kinds: **Shopping**, **Parts** and **Checklist**. Made for a phone in one 
 1. Type in **Add item**, optionally a **Qty**, tap **Add**.
 2. Tap an item to check it off; it moves to **In the cart**. Tap again to undo.
 
+## Suggestions while typing
+
+When you type an item you've added before (on any list you can see), PlanHaven suggests it
+under **Add item**: tap the suggestion to fill in the name, the quantity and (on shopping and
+parts lists) the price you gave it last time. **Price each** shows under the box.
+
 ## Edit mode
 
 Tap **Edit** at the top of the list:

@@ -283,3 +283,32 @@ async def remember(
         ),
         {"u": user_id, "k": key, "s": scope, "r": resource_id},
     )
+
+
+@dataclass(frozen=True, slots=True)
+class Suggestion:
+    text: str
+    quantity: Decimal | None
+    unit: str | None
+    price_cents: int | None
+
+
+async def suggestions(conn: AsyncConnection, query: str, limit: int) -> list[Suggestion]:
+    """Items added before (on any list this person can see), matching the words typed so far:
+    one per name, with its most recent quantity and price, best matches first."""
+    pattern = "%" + query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    rows = await conn.execute(
+        text("""
+            SELECT text, quantity, unit, price_cents FROM (
+                SELECT DISTINCT ON (lower(i.text)) i.text, i.quantity, i.unit, i.price_cents,
+                       lower(i.text) LIKE lower(:starts) ESCAPE '\\' AS starts, i.updated_at
+                FROM list_items i JOIN lists l ON l.id = i.list_id AND l.deleted_at IS NULL
+                WHERE i.deleted_at IS NULL AND i.text ILIKE :pattern ESCAPE '\\'
+                ORDER BY lower(i.text), i.updated_at DESC
+            ) found
+            ORDER BY starts DESC, updated_at DESC
+            LIMIT :limit
+        """),
+        {"pattern": pattern, "starts": pattern[1:], "limit": limit},
+    )
+    return [Suggestion(r.text, r.quantity, r.unit, r.price_cents) for r in rows]

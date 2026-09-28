@@ -266,3 +266,25 @@ def test_unhandled_error_is_logged_without_message(
     assert "RuntimeError" in entry
     assert "secret detail" not in entry
     assert "phv_pat_" not in entry
+
+
+ID = "01a0e7bd-1966-744c-8bdd-6c09370f1826"
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "upload"),
+    [
+        ("POST", f"/api/v1/projects/{ID}/attachments", True),
+        ("PUT", f"/api/v1/assets/{ID}/photo", True),
+        ("PUT", f"/api/v1/contacts/{ID}/photo", True),  # phone photos are several MB
+        ("POST", "/api/v1/contacts/import", True),
+        ("POST", f"/api/v1/projects/{ID}/notes", False),
+        ("PUT", f"/api/v1/notes/{ID}", False),
+        ("POST", f"/api/v1/contacts/{ID}/photo/../../import", False),
+    ],
+)
+def test_only_file_uploads_get_the_upload_limit(method: str, path: str, upload: bool) -> None:
+    from app.core.http import BodySizeLimitMiddleware
+
+    middleware = BodySizeLimitMiddleware(app=None, max_bytes=100, upload_max_bytes=10_000)  # type: ignore[arg-type]
+    assert middleware._limit({"method": method, "path": path}) == (10_000 if upload else 100)

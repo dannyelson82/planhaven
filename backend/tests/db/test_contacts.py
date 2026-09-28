@@ -1,12 +1,14 @@
 """Contacts shared one by one; quotes and costs on projects (phase 0.2, M5)."""
 
 import asyncio
+import base64
 from typing import Any
 
 import pytest
 
 from app.db import attachments as attachment_store
 from app.db.database import Database
+from app.services import vcard
 from tests.db import team as setup
 from tests.db.conftest import _settings
 from tests.db.team import U
@@ -167,3 +169,43 @@ def test_contact_photo(team: Team) -> None:
     assert _req(owner, "DELETE", f"/api/v1/contacts/{cid}/photo").status_code == 204
     assert owner.get(f"/api/v1/contacts/{cid}/photo").status_code == 404
     assert owner.get(f"/api/v1/contacts/{cid}").json()["has_photo"] is False
+
+
+def test_contact_cards_from_and_to_a_phone(team: Team) -> None:
+    owner, viewer, stranger, _, _ = team
+    photo = base64.b64encode(jpeg_with_gps()).decode()
+    card = (
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nN:Pipes;Dave;;;\r\nFN:Dave Pipes\r\nORG:Pipes & Co;\r\n"
+        "TEL;type=CELL:555-0100\r\nEMAIL:dave@example.com\r\nURL:www.davepipes.example\r\n"
+        f"PHOTO;ENCODING=b;TYPE=JPEG:{photo}\r\nEND:VCARD\r\n"
+    )
+    r = _req(
+        owner,
+        "POST",
+        "/api/v1/contacts/import",
+        params={"kind": "supplier"},
+        content=card.encode(),
+        headers={"content-type": "application/octet-stream"},
+    )
+    assert r.status_code == 201, r.text
+    made = r.json()
+    assert (made["name"], made["company"], made["kind"]) == ("Dave Pipes", "Pipes & Co", "supplier")
+    assert (made["phone"], made["website"]) == ("555-0100", "https://www.davepipes.example")
+    assert made["has_photo"] is True
+    assert b"Exif" not in owner.get(f"/api/v1/contacts/{made['id']}/photo").content
+
+    # Saved to a phone: the same details and the cleaned photo.
+    out = owner.get(f"/api/v1/contacts/{made['id']}/vcard")
+    assert out.status_code == 200
+    assert out.headers["content-type"].startswith("text/vcard")
+    assert "attachment" in out.headers["content-disposition"]
+    back = vcard.parse(out.content)
+    assert (back.name, back.company, back.email) == ("Dave Pipes", "Pipes & Co", "dave@example.com")
+    assert back.photo is not None
+    assert b"Exif" not in back.photo
+    assert viewer.get(f"/api/v1/contacts/{made['id']}/vcard").status_code == 404
+    assert stranger.get(f"/api/v1/contacts/{made['id']}/vcard").status_code == 404
+
+    bad = _req(owner, "POST", "/api/v1/contacts/import", content=b"not a card")
+    assert bad.status_code == 422
+    assert "contact card" in bad.json()["detail"]

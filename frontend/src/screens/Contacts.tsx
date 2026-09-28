@@ -110,8 +110,54 @@ export function ContactsScreen() {
         </select>
         <Button type="submit" variant="secondary" isDisabled={create.isPending}>Add contact</Button>
       </form>
+      <ImportContact kind={kind} />
       <ErrorText error={create.error ?? contacts.error} />
     </div>
+  )
+}
+
+type PickedContact = { name?: string[]; email?: string[]; tel?: string[] }
+type ContactsManager = { select: (props: string[], options?: { multiple?: boolean }) => Promise<PickedContact[]> }
+
+/** A contact from the phone: a contact card (.vcf) shared or saved from its Contacts app, or
+ * (Android) picked straight from the phone's contacts. */
+function ImportContact({ kind }: { kind: Kind }) {
+  const pick = useRef<HTMLInputElement>(null)
+  const phoneContacts = (navigator as Navigator & { contacts?: ContactsManager }).contacts
+  const fromFile = useMutation({
+    mutationFn: (file: File) => uploadFile<Contact>(`/api/v1/contacts/import?kind=${kind}`, file),
+    onSuccess: (c) => navigate(`/contacts/${c.id}`),
+  })
+  const fromPicker = useMutation({
+    mutationFn: async () => {
+      const [picked] = await phoneContacts!.select(['name', 'email', 'tel'], { multiple: false })
+      if (!picked?.name?.[0]) return null
+      return api<Contact>('POST', '/api/v1/contacts', {
+        name: picked.name[0].slice(0, 200), kind,
+        phone: (picked.tel?.[0] ?? '').slice(0, 50), email: (picked.email?.[0] ?? '').slice(0, 254),
+      })
+    },
+    onSuccess: (c) => { if (c) navigate(`/contacts/${c.id}`) },
+  })
+  return (
+    <Card className="space-y-2">
+      <h2 className="font-semibold">From your phone</h2>
+      <p className="text-sm text-stone-600 dark:text-stone-400">
+        In your phone's Contacts, share the contact (iPhone: Share Contact, then Save to Files), then choose that file here.
+        The type chosen above is used.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="secondary" onPress={() => pick.current?.click()} isDisabled={fromFile.isPending}>
+          {fromFile.isPending ? 'Importing…' : 'Import a contact card'}
+        </Button>
+        {phoneContacts && (
+          <Button variant="secondary" onPress={() => fromPicker.mutate()} isDisabled={fromPicker.isPending}>Pick from phone contacts</Button>
+        )}
+      </div>
+      <input ref={pick} type="file" accept=".vcf,text/vcard,text/x-vcard" hidden aria-label="Choose a contact card"
+        onChange={(e) => { const file = e.currentTarget.files?.[0]; e.currentTarget.value = ''; if (file) fromFile.mutate(file) }} />
+      <ErrorText error={fromFile.error ?? fromPicker.error} />
+    </Card>
   )
 }
 
@@ -233,12 +279,12 @@ function ContactDetail({ contact, myId, photo }: { contact: Contact; myId: strin
               ))}
           </dl>
         )}
-        {(contact.phone || contact.email) && (
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
             {contact.phone && <a href={telHref(contact.phone)} className="inline-flex min-h-11 items-center rounded-xl px-4 font-medium text-brand-700 ring-1 ring-stone-300 dark:text-brand-100 dark:ring-stone-700">Call</a>}
             {contact.email && <a href={`mailto:${contact.email}`} className="inline-flex min-h-11 items-center rounded-xl px-4 font-medium text-brand-700 ring-1 ring-stone-300 dark:text-brand-100 dark:ring-stone-700">Email</a>}
+            {/* A contact card (.vcf): the phone offers to add it to its contacts. */}
+            <a href={`/api/v1/contacts/${contact.id}/vcard`} download className="inline-flex min-h-11 items-center rounded-xl px-4 font-medium text-brand-700 ring-1 ring-stone-300 dark:text-brand-100 dark:ring-stone-700">Save to phone</a>
           </div>
-        )}
         <ErrorText error={save.error ?? remove.error} />
       </Card>
       <section aria-label="Quotes" className="space-y-2">

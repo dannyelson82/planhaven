@@ -390,3 +390,36 @@ test('recording a purchase from a list, with a receipt', async ({ page }, info) 
   await expect(costs.getByRole('listitem').filter({ hasText: `Trip (${name})` })).toContainText(/Harbour Hardware · 3 items · receipt/)
   expect(problems).toEqual([])
 })
+
+// Contacts from and to a phone (contact cards), and suggestions while typing a list item.
+test('a contact card from the phone, and item suggestions', async ({ page }, info) => {
+  const problems = watchForProblems(page)
+  const name = `Sue Sparks ${info.project.name}`
+  await page.goto('/contacts')
+  await page.getByLabel('Choose a contact card').setInputFiles({
+    name: 'Sue.vcf', mimeType: 'text/vcard',
+    buffer: Buffer.from(`BEGIN:VCARD\r\nVERSION:3.0\r\nFN:${name}\r\nORG:Sparks Electric\r\nTEL:555-0142\r\nEND:VCARD\r\n`),
+  })
+  await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible()
+  await expect(page.getByLabel('Company')).toHaveValue('Sparks Electric')
+  const card = await page.request.get((await page.getByRole('link', { name: 'Save to phone' }).getAttribute('href'))!)
+  expect(await card.text()).toContain(`FN:${name}`)
+
+  // Suggestions: items added before on any list, with their quantity and price.
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Winterize boat' }).click()
+  const pid = page.url().split('/').pop()
+  const csrf = (await (await page.request.get('/api/v1/auth/session')).json()).csrf_token
+  const list = await (await page.request.post(`/api/v1/projects/${pid}/lists`, {
+    data: { title: `Next trip (${info.project.name})`, kind: 'shopping' }, headers: { 'X-CSRF-Token': csrf, Origin: new URL(page.url()).origin },
+  })).json()
+  await page.goto(`/lists/${list.id}`)
+  await page.getByLabel('Add item').fill('hose')
+  await page.getByRole('button', { name: 'Use suggestion: Hose clamps' }).click()
+  await expect(page.getByLabel('Add item')).toHaveValue('Hose clamps')
+  await expect(page.getByLabel('Qty')).toHaveValue('4')
+  await expect(page.getByText('Price each: $2.50')).toBeVisible()
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(page.locator('label', { hasText: 'Hose clamps' })).toContainText('$10.00')
+  expect(problems).toEqual([])
+})

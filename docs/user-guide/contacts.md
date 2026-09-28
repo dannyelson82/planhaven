@@ -8,6 +8,24 @@ Contractors, suppliers, anyone you deal with. Each contact is **private to you**
 2. Fill in company, phone, email, website and notes, then tap **Save**.
    A website can be typed as `www.example.com`; `https://` is added for you.
 
+## From your phone
+
+**iPhone:**
+1. In the Contacts app, open the person, tap **Share Contact**, then **Save to Files**.
+2. In PlanHaven, on **Contacts**, choose the type (Contractor, Supplier, Other) next to **New contact**.
+3. Under **From your phone**, tap **Import a contact card** and pick the file you saved.
+
+**Android:** share the contact as a file (.vcf) the same way, or tap **Pick from phone
+contacts** to choose one straight from your phone (Chrome).
+
+The name, company, phone, email, website, notes and photo come along (the photo is cleaned
+like any upload).
+
+## To your phone
+
+On the contact's page tap **Save to phone**. Your phone downloads a contact card; open it to add
+the person to your phone's contacts (with their photo).
+
 ## Photo
 
 On the contact's page tap **Add a photo** (iPhone photos work; location is removed).

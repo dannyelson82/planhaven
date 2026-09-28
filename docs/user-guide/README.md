@@ -20,4 +20,4 @@ updates its page in the same pull request.
 12. [Your account and security](account-and-security.md)
 13. [Admin](admin.md): inviting people, reset links
 
-Written for PlanHaven 0.2.12.
+Written for PlanHaven 0.2.13.

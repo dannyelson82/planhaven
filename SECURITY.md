@@ -267,6 +267,9 @@ read-only, feed-only, and defaults to "titles only" content. Tokens are never lo
   - Archives never auto-extracted.
   - Asset and contact photos go through the same cleaning and are served the same way, to
     people who can see the asset or contact; only editors can change them.
+  - Contact cards (.vcf) are read by PlanHaven's own small reader with limits (3 MB, 5,000
+    lines, the first card only, known fields only); websites are kept only if http(s); an
+    embedded photo is cleaned like any upload; a photo given as a link is never fetched.
 
 ### 7.6 Extraction sandbox
 
