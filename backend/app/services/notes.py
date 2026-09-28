@@ -234,6 +234,22 @@ class Rooms:
                 self._closing.add(task)
                 task.add_done_callback(self._closing.discard)
 
+    def membership_changed(
+        self, project_id: uuid.UUID, user_id: uuid.UUID, role: str | None
+    ) -> None:
+        """Apply a sharing change to this person's open notes in the project at once:
+        removed means disconnected; a new role changes whether their edits are accepted.
+        (Connections also re-check every RECHECK_SECONDS.)"""
+        for room, peer in self.peers_of(user_id):
+            if room.project_id != project_id:
+                continue
+            if role is None:
+                task = asyncio.ensure_future(peer.close(4403, "access removed"))
+                self._closing.add(task)
+                task.add_done_callback(self._closing.discard)
+            else:
+                peer.can_write = role in ("owner", "editor")
+
     def peers_of(self, user_id: uuid.UUID) -> list[tuple[Room, Peer]]:
         return [(r, p) for r in self._rooms.values() for p in r.peers if p.user_id == user_id]
 

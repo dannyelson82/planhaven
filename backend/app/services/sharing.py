@@ -19,6 +19,7 @@ from app.db import projects as project_store
 from app.db import sharing as store
 from app.db.database import Database
 from app.services.auth import CurrentSession
+from app.services.notes import rooms as note_rooms
 
 ROLES = ("owner", "editor", "viewer")
 
@@ -183,6 +184,8 @@ async def change_role(
     except Exception as exc:
         _owner_rule(exc, kind)
         raise
+    if kind == "project":
+        note_rooms.membership_changed(resource_id, user_id, role)
 
 
 async def remove_member(
@@ -214,3 +217,5 @@ async def remove_member(
     except Exception as exc:
         _owner_rule(exc, kind)
         raise
+    if kind == "project":
+        note_rooms.membership_changed(resource_id, user_id, None)

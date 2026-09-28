@@ -17,6 +17,7 @@ from app import authz
 from app.api import deps
 from app.api.deps import SessionDep
 from app.api.projects import _etag, _version
+from app.core import security_log
 from app.services import live
 from app.services import notes as service
 from app.services.auth import CurrentSession
@@ -185,6 +186,16 @@ async def _collaborate(
                     raise CollabCloseError(4403, "access removed")
                 last_check = time.monotonic()
     except CollabCloseError as exc:
+        # Refusals (read-only, too big, too fast, malformed, access removed) are security
+        # events; never with the update itself.
+        security_log.event(
+            "collab_refused",
+            ip=None,
+            user_id=session.user.id,
+            note_id=str(note.id),
+            code=exc.code,
+            reason=exc.reason,
+        )
         await _safe_close(websocket, exc.code, exc.reason)
     except WebSocketDisconnect:
         pass

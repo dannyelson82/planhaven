@@ -67,4 +67,5 @@ events, browser tests at phone and desktop widths, threat-model check.
       idempotency keys; conflicts shown; caches cleared on sign-out (A§13.4). Tasks are
       read-only offline for now; list items can be added and checked off.
 - [x] Trash: soft-deleted items restorable for 30 days, then purged by a worker job
-- [ ] Phase security review against S§11; release v0.2.0
+- [x] Phase security review against S§11 (`docs/releases/v0.2.0-security-review.md`);
+      release v0.2.0 once the maintainer approves

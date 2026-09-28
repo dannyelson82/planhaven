@@ -3,6 +3,8 @@
 Uses Starlette's TestClient (it speaks WebSocket); a pycrdt document plays the browser."""
 
 import asyncio
+import logging
+import time
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
@@ -18,6 +20,7 @@ from app.db.database import OWNER_ROLE, Database
 from app.main import create_app
 from app.services import auth as auth_service
 from app.services import live
+from app.services import notes as note_service
 from tests.db.conftest import _settings
 
 pytestmark = pytest.mark.db
@@ -175,8 +178,11 @@ def test_edits_are_shared_saved_and_attributed(team: tuple[U, U, U, str, str]) -
         assert str(doc_c.get("t", type=pycrdt.Text)) == "Run 12V to the dock"
 
 
-def test_viewers_cannot_edit(team: tuple[U, U, U, str, str]) -> None:
+def test_viewers_cannot_edit(
+    team: tuple[U, U, U, str, str], caplog: pytest.LogCaptureFixture
+) -> None:
     _, viewer, _, _, nid = team
+    caplog.set_level(logging.INFO, logger="planhaven.security")
     with viewer.ws(f"/api/v1/collab/notes/{nid}") as ws:
         doc: pycrdt.Doc[Any] = pycrdt.Doc()
         _sync(ws, doc)
@@ -184,6 +190,8 @@ def test_viewers_cannot_edit(team: tuple[U, U, U, str, str]) -> None:
         with pytest.raises(WebSocketDisconnect) as closed:
             ws.receive_bytes()
         assert closed.value.code == 4403
+    # The attempt is a security event (never with the update's content).
+    assert "collab_refused" in [getattr(r, "event", None) for r in caplog.records]
 
 
 @pytest.mark.parametrize("who", ["anonymous", "foreign-origin", "stranger"])
@@ -260,3 +268,49 @@ def test_note_rest_roles(team: tuple[U, U, U, str, str]) -> None:
     )
     listed = owner.get(f"/api/v1/projects/{pid}/notes").json()
     assert listed[0]["text_content"] == "Run 12V to the dock"
+
+
+def test_message_rate_limit_closes_the_connection(
+    team: tuple[U, U, U, str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    owner, _, _, _, nid = team
+    monkeypatch.setattr(note_service, "MESSAGES_PER_WINDOW", 3)
+    with owner.ws(f"/api/v1/collab/notes/{nid}") as ws:
+        _sync(ws, pycrdt.Doc())
+        for _ in range(10):
+            ws.send_bytes(b"\x01\x00")  # tiny awareness messages
+        with pytest.raises(WebSocketDisconnect) as closed:
+            ws.receive_bytes()
+        assert closed.value.code == 4429
+
+
+def test_sharing_changes_apply_to_open_notes_at_once(team: tuple[U, U, U, str, str]) -> None:
+    owner, viewer, _, pid, nid = team
+    # Promoted while connected: the next edit is accepted.
+    with viewer.ws(f"/api/v1/collab/notes/{nid}") as ws:
+        doc: pycrdt.Doc[Any] = pycrdt.Doc()
+        _sync(ws, doc)
+        owner._cookie()
+        r = owner.client.patch(
+            f"/api/v1/projects/{pid}/members/{viewer.id}", headers=owner.h, json={"role": "editor"}
+        )
+        assert r.status_code == 204, r.text
+        ws.send_bytes(_edit(doc, "now allowed"))
+        ws.send_bytes(pycrdt.create_sync_message(doc))  # answered only if the edit was accepted
+        ws.receive_bytes()
+    with owner.ws(f"/api/v1/collab/notes/{nid}") as ws:
+        check: pycrdt.Doc[Any] = pycrdt.Doc()
+        _sync(ws, check)
+        assert "now allowed" in str(check.get("t", type=pycrdt.Text))
+
+    # Removed while connected: disconnected straight away, not at the next periodic check.
+    with viewer.ws(f"/api/v1/collab/notes/{nid}") as ws:
+        _sync(ws, pycrdt.Doc())
+        owner._cookie()
+        r = owner.client.delete(f"/api/v1/projects/{pid}/members/{viewer.id}", headers=owner.h)
+        assert r.status_code == 204, r.text
+        started = time.monotonic()
+        with pytest.raises(WebSocketDisconnect) as closed:
+            ws.receive_bytes()
+        assert closed.value.code == 4403
+        assert time.monotonic() - started < 5

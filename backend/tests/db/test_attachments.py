@@ -6,6 +6,8 @@ from typing import Any
 import pytest
 from PIL import Image
 
+from app.services import attachments as attachment_service
+from app.services import limits
 from tests.db import test_collab
 from tests.db.test_collab import U
 from tests.test_files import jpeg_with_gps
@@ -90,3 +92,13 @@ def test_html_is_never_served_as_html(team: Team) -> None:
     assert owner.get(f"/api/v1/attachments/{a['id']}/view").status_code == 404
     d = owner.get(f"/api/v1/attachments/{a['id']}/download")
     assert d.headers["content-type"] == "application/octet-stream"
+
+
+def test_uploads_are_rate_limited(team: Team, monkeypatch: pytest.MonkeyPatch) -> None:
+    owner, _, _, pid, _ = team
+    tight = limits.Limit("upload-user-test", capacity=1, per_second=1 / 3600)
+    monkeypatch.setattr(attachment_service, "UPLOAD_USER", tight)
+    assert _upload(owner, pid, b"one\n", "a.txt").status_code == 201
+    r = _upload(owner, pid, b"two\n", "b.txt")
+    assert r.status_code == 429
+    assert "retry-after" in r.headers
