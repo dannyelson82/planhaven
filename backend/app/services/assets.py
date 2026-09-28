@@ -6,6 +6,7 @@ notes. Its linked projects are its service history. Sharing works like projects
 """
 
 import uuid
+from collections.abc import AsyncIterator
 from typing import Any
 
 from app import authz
@@ -13,6 +14,7 @@ from app.db import assets as store
 from app.db import auth as audit
 from app.db import projects as project_store
 from app.db.database import Database
+from app.services import attachments as attachment_service
 from app.services import live
 from app.services.auth import CurrentSession
 from app.services.projects import ConflictError
@@ -135,3 +137,51 @@ async def link_project(
             authz.require(session.principal, authz.Action.ASSET_VIEW, asset_access)
         await store.set_project_asset(conn, project_id, asset_id)
     live.publish(project_id, "project")
+
+
+async def set_photo(
+    db: Database,
+    blobs: attachment_service.BlobStore,
+    session: CurrentSession,
+    asset_id: uuid.UUID,
+    *,
+    chunks: AsyncIterator[bytes],
+    max_bytes: int,
+    ip: str | None,
+) -> AssetRow:
+    """Replace the asset's photo (editors). Cleaned like any photo: no location."""
+    async with db.user_transaction(session.user.id) as conn:
+        _, access = await _access(conn, asset_id)
+        authz.require(session.principal, authz.Action.ASSET_EDIT, access)
+    photo, thumb, content_type = await attachment_service.receive_photo(
+        db, blobs, session, chunks=chunks, max_bytes=max_bytes, ip=ip
+    )
+    async with db.user_transaction(session.user.id) as conn:
+        _, access = await _access(conn, asset_id)
+        authz.require(session.principal, authz.Action.ASSET_EDIT, access)
+        await store.set_photo(conn, asset_id, photo, thumb, content_type)
+        asset = await store.get_asset(conn, asset_id)
+    if asset is None:
+        raise authz.NotFoundError("Not found.")
+    return asset
+
+
+async def remove_photo(db: Database, session: CurrentSession, asset_id: uuid.UUID) -> None:
+    async with db.user_transaction(session.user.id) as conn:
+        _, access = await _access(conn, asset_id)
+        authz.require(session.principal, authz.Action.ASSET_EDIT, access)
+        await store.set_photo(conn, asset_id, None, None, None)
+
+
+async def photo(
+    db: Database, session: CurrentSession, asset_id: uuid.UUID, *, thumbnail: bool
+) -> tuple[str, str]:
+    """(blob, content type) of the asset's photo or its thumbnail, for people who can see it."""
+    async with db.user_transaction(session.user.id) as conn:
+        asset, access = await _access(conn, asset_id)
+        authz.require(session.principal, authz.Action.ASSET_VIEW, access)
+    if asset.photo_sha256 is None or asset.photo_thumb_sha256 is None:
+        raise authz.NotFoundError("No photo.")
+    if thumbnail:
+        return asset.photo_thumb_sha256, "image/webp"
+    return asset.photo_sha256, asset.photo_type or "image/jpeg"

@@ -182,3 +182,42 @@ async def purge_blobs(db: Database, blobs: BlobStore) -> int:
     async with db.system_transaction() as conn:
         referenced = await store.referenced_blobs(conn)
     return await asyncio.to_thread(blobs.purge, referenced)
+
+
+async def receive_photo(
+    db: Database,
+    blobs: BlobStore,
+    session: CurrentSession,
+    *,
+    chunks: AsyncIterator[bytes],
+    max_bytes: int,
+    ip: str | None,
+) -> tuple[str, str, str]:
+    """A photo for something other than a project (an asset's picture): the same pipeline,
+    always without metadata. Returns (image blob, thumbnail blob, content type). The caller
+    checks permissions first."""
+    await limits.check(
+        db,
+        [(UPLOAD_USER, limits.key(UPLOAD_USER, session.user.id))],
+        ip=ip,
+        user_id=session.user.id,
+    )
+    with blobs.temp_file() as tmp:
+        try:
+            received = await blobs.receive(chunks, tmp, max_bytes)
+        except TooLargeError:
+            raise UploadTooLargeError from None
+        file_type = sniff.detect(received.head, "photo", received.size)
+        if file_type is None or file_type.kind != "image":
+            raise UnsupportedFileError("Choose a photo (JPEG, PNG, WebP, GIF or iPhone HEIC).")
+        data = await asyncio.to_thread(Path(tmp).read_bytes)
+    try:
+        if file_type is sniff.HEIC:
+            data = await images.heic_to_jpeg(data, blobs.incoming)
+            file_type = sniff.JPEG
+        cleaned, thumbnail = await images.clean(data, keep_metadata=False)
+    except images.ImageError:
+        raise UnsupportedFileError("This image couldn't be read.") from None
+    photo = await asyncio.to_thread(blobs.put, cleaned)
+    thumb = await asyncio.to_thread(blobs.put, thumbnail)
+    return photo, thumb, file_type.mime

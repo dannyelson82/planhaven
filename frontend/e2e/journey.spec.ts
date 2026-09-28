@@ -151,6 +151,14 @@ test('first boot to first project', async ({ page }) => {
   await page.getByLabel('Hull ID', { exact: true }).fill('SERA1234B626')
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled()
+  // A photo of the boat (an iPhone HEIC), shown on the asset's card.
+  await page.getByTestId('asset-photo-input').setInputFiles({
+    name: 'boat.HEIC', mimeType: 'image/heic',
+    buffer: fs.readFileSync(new URL('../../backend/tests/fixtures/iphone-photo.heic', import.meta.url)),
+  })
+  await expect(page.getByRole('button', { name: 'Change photo' })).toBeVisible()
+  await page.getByRole('link', { name: '← All assets' }).click()
+  await expect.poll(() => page.locator('img[src*="/photo/thumbnail"]').first().evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
   await page.goto(projectUrl)
   await page.getByLabel('For', { exact: true }).selectOption({ label: 'Sea Ray 240' })
   await page.getByRole('link', { name: 'Open' }).click()

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
-import { api, stageLabel } from '../api.ts'
+import { useRef, useState } from 'react'
+import { api, stageLabel, uploadFile } from '../api.ts'
 import { navigate } from '../router.ts'
 import { Button, Card, ErrorText, Field, Link } from '../ui.tsx'
 import { ShareButton } from './Sharing.tsx'
@@ -16,6 +16,7 @@ type Asset = {
   role: 'owner' | 'editor' | 'viewer' | null
   projects: number
   version: number
+  has_photo: boolean
   history?: { id: string; title: string; stage: string; updated_at: string }[] | null
 }
 
@@ -66,9 +67,17 @@ export function AssetsScreen() {
       <ul className="grid gap-2 sm:grid-cols-2">
         {(assets.data ?? []).map((a) => (
           <li key={a.id}>
-            <Card>
-              <Link to={`/assets/${a.id}`} className="block font-semibold">{a.name}</Link>
-              <p className="text-sm text-stone-500">{KIND_LABEL[a.kind]} · {a.projects === 1 ? '1 project' : `${a.projects} projects`}</p>
+            <Card className="flex items-center gap-3">
+              {a.has_photo ? (
+                <img src={`/api/v1/assets/${a.id}/photo/thumbnail?v=${a.version}`} alt="" loading="lazy"
+                  className="size-16 shrink-0 rounded-xl bg-stone-200 object-cover dark:bg-stone-800" />
+              ) : (
+                <span aria-hidden className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-xs text-stone-500 dark:bg-stone-800">{KIND_LABEL[a.kind]}</span>
+              )}
+              <span className="min-w-0">
+                <Link to={`/assets/${a.id}`} className="block truncate font-semibold">{a.name}</Link>
+                <span className="block text-sm text-stone-500">{KIND_LABEL[a.kind]} · {a.projects === 1 ? '1 project' : `${a.projects} projects`}</span>
+              </span>
             </Card>
           </li>
         ))}
@@ -89,11 +98,23 @@ export function AssetScreen({ id, myId }: { id: string; myId: string }) {
   const asset = useQuery({ queryKey: ['asset', id], queryFn: () => api<Asset>('GET', `/api/v1/assets/${id}`) })
   if (asset.error) return <ErrorText error={asset.error} />
   if (!asset.data) return <p className="text-stone-500">Loading…</p>
-  // key: start the form over when the asset changes on the server.
-  return <AssetDetail key={asset.data.version} asset={asset.data} myId={myId} />
+  const a = asset.data
+  return (
+    <div className="space-y-4">
+      <Link to="/assets" className="text-sm text-brand-700 dark:text-brand-100">← All assets</Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">{a.name}</h1>
+        <ShareButton kind="asset" id={a.id} isOwner={a.role === 'owner'} myId={myId} />
+      </div>
+      {/* Outside the keyed form, so a photo picked while the form refreshes isn't lost. */}
+      <AssetPhoto asset={a} canEdit={a.role === 'owner' || a.role === 'editor'} />
+      {/* key: start the form over when the asset changes on the server. */}
+      <AssetDetail key={a.version} asset={a} />
+    </div>
+  )
 }
 
-function AssetDetail({ asset, myId }: { asset: Asset; myId: string }) {
+function AssetDetail({ asset }: { asset: Asset }) {
   const client = useQueryClient()
   const canEdit = asset.role === 'owner' || asset.role === 'editor'
   const [name, setName] = useState(asset.name)
@@ -117,11 +138,6 @@ function AssetDetail({ asset, myId }: { asset: Asset; myId: string }) {
 
   return (
     <div className="space-y-4">
-      <Link to="/assets" className="text-sm text-brand-700 dark:text-brand-100">← All assets</Link>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">{asset.name}</h1>
-        <ShareButton kind="asset" id={asset.id} isOwner={asset.role === 'owner'} myId={myId} />
-      </div>
 
       <Card className="space-y-3">
         {canEdit ? (
@@ -217,6 +233,38 @@ export function ProjectAssetPicker({ projectId, assetId, assetName, canEdit }: {
       </select>
       {assetId && <Link to={`/assets/${assetId}`} className="text-brand-700 dark:text-brand-100">Open</Link>}
       <ErrorText error={link.error} />
+    </div>
+  )
+}
+
+/** The asset's photo: shown large on its page and small on its card. */
+function AssetPhoto({ asset, canEdit }: { asset: Asset; canEdit: boolean }) {
+  const client = useQueryClient()
+  const input = useRef<HTMLInputElement>(null)
+  const refresh = () => Promise.all([
+    client.invalidateQueries({ queryKey: ['asset', asset.id] }),
+    client.invalidateQueries({ queryKey: ['assets'] }),
+  ])
+  const upload = useMutation({ mutationFn: (file: File) => uploadFile(`/api/v1/assets/${asset.id}/photo`, file, 'PUT'), onSettled: refresh })
+  const remove = useMutation({ mutationFn: () => api('DELETE', `/api/v1/assets/${asset.id}/photo`), onSettled: refresh })
+  if (!asset.has_photo && !canEdit) return null
+  return (
+    <div className="space-y-2">
+      {asset.has_photo && (
+        <img src={`/api/v1/assets/${asset.id}/photo?v=${asset.version}`} alt={asset.name}
+          className="max-h-72 w-full rounded-2xl bg-stone-200 object-cover dark:bg-stone-800" />
+      )}
+      {canEdit && (
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onPress={() => input.current?.click()} isDisabled={upload.isPending}>
+            {upload.isPending ? 'Uploading…' : asset.has_photo ? 'Change photo' : 'Add a photo'}
+          </Button>
+          {asset.has_photo && <Button variant="danger-ghost" onPress={() => remove.mutate()} isDisabled={remove.isPending}>Remove photo</Button>}
+          <input ref={input} type="file" accept="image/*,.heic,.heif" hidden aria-label="Choose a photo" data-testid="asset-photo-input"
+            onChange={(e) => { const f = e.currentTarget.files?.[0]; e.currentTarget.value = ''; if (f) upload.mutate(f) }} />
+        </div>
+      )}
+      <ErrorText error={upload.error ?? remove.error} />
     </div>
   )
 }

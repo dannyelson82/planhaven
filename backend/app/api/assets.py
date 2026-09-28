@@ -5,13 +5,16 @@ from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Header, HTTPException, Request, Response
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api import deps
+from app.api.attachments import _file
 from app.api.deps import SessionDep
 from app.api.projects import _etag, _version
 from app.api.sharing import AddMember, MemberOut, RoleChange
 from app.services import assets as service
+from app.services import attachments as attachment_service
 from app.services import sharing as sharing_service
 from app.services.projects import ConflictError
 from app.services.sharing import SharingError
@@ -52,6 +55,7 @@ class AssetOut(BaseModel):
     projects: int
     updated_at: datetime
     version: int
+    has_photo: bool = False
     history: list[LinkedProjectOut] | None = None
 
 
@@ -71,6 +75,7 @@ def _out(a: service.AssetRow, history: list[service.LinkedProject] | None = None
         projects=a.projects,
         updated_at=a.updated_at,
         version=a.version,
+        has_photo=a.photo_sha256 is not None,
         history=None
         if history is None
         else [
@@ -206,3 +211,46 @@ async def remove_member(
         )
     except SharingError as exc:
         raise HTTPException(409, str(exc)) from None
+
+
+@router.put("/assets/{asset_id}/photo")
+async def set_photo(asset_id: uuid.UUID, session: SessionDep, request: Request) -> AssetOut:
+    """The photo is the raw request body, like attachments."""
+    try:
+        asset = await service.set_photo(
+            deps.database(request),
+            deps.blobs(request),
+            session,
+            asset_id,
+            chunks=request.stream(),
+            max_bytes=deps.settings(request).max_upload_mb * 1024 * 1024,
+            ip=deps.client_ip(request),
+        )
+    except attachment_service.UploadTooLargeError:
+        raise HTTPException(413, "This file is larger than the upload limit.") from None
+    except attachment_service.UnsupportedFileError as exc:
+        raise HTTPException(415, str(exc)) from None
+    return _out(asset)
+
+
+@router.delete("/assets/{asset_id}/photo", status_code=204)
+async def remove_photo(asset_id: uuid.UUID, session: SessionDep, request: Request) -> None:
+    await service.remove_photo(deps.database(request), session, asset_id)
+
+
+@router.get("/assets/{asset_id}/photo")
+async def photo(asset_id: uuid.UUID, session: SessionDep, request: Request) -> FileResponse:
+    sha, content_type = await service.photo(
+        deps.database(request), session, asset_id, thumbnail=False
+    )
+    return _file(request, sha, content_type, "inline", "photo")
+
+
+@router.get("/assets/{asset_id}/photo/thumbnail")
+async def photo_thumbnail(
+    asset_id: uuid.UUID, session: SessionDep, request: Request
+) -> FileResponse:
+    sha, content_type = await service.photo(
+        deps.database(request), session, asset_id, thumbnail=True
+    )
+    return _file(request, sha, content_type, "inline", "thumbnail.webp")
