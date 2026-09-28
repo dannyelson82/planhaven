@@ -4,6 +4,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Literal
+from urllib.parse import quote
 
 from fastapi import APIRouter, Header, HTTPException, Request, Response
 from fastapi.responses import FileResponse
@@ -14,10 +15,12 @@ from app.api.attachments import _file
 from app.api.deps import SessionDep
 from app.api.projects import _etag, _version
 from app.api.sharing import AddMember, MemberOut, RoleChange
+from app.core.http import FILE_CSP
 from app.services import attachments as attachment_service
 from app.services import contacts as service
 from app.services import costs as cost_service
 from app.services import sharing as sharing_service
+from app.services import vcard
 from app.services.costs import LinkError
 from app.services.projects import ConflictError
 from app.services.sharing import SharingError
@@ -239,6 +242,53 @@ async def update_contact(
 async def delete_contact(contact_id: uuid.UUID, session: SessionDep, request: Request) -> None:
     await service.delete_contact(
         deps.database(request), session, contact_id, deps.client_ip(request)
+    )
+
+
+@router.post("/contacts/import", status_code=201)
+async def import_contact(
+    session: SessionDep,
+    request: Request,
+    kind: Literal["contractor", "supplier", "other"] = "contractor",
+) -> ContactOut:
+    """A new contact from a contact card (.vcf) shared from a phone; the file is the raw body."""
+    data = bytearray()
+    async for chunk in request.stream():
+        data += chunk
+        if len(data) > vcard.MAX_BYTES:
+            raise HTTPException(413, "This contact card is too large.")
+    try:
+        contact = await service.import_card(
+            deps.database(request),
+            deps.blobs(request),
+            session,
+            bytes(data),
+            kind=kind,
+            max_photo_bytes=vcard.MAX_PHOTO_BYTES,
+            ip=deps.client_ip(request),
+        )
+    except vcard.VCardError as exc:
+        raise HTTPException(422, str(exc)) from None
+    return _contact(contact)
+
+
+@router.get("/contacts/{contact_id}/vcard")
+async def export_contact(contact_id: uuid.UUID, session: SessionDep, request: Request) -> Response:
+    """The contact as a card (.vcf) to save to a phone."""
+    name, text = await service.export_card(
+        deps.database(request), deps.blobs(request), session, contact_id
+    )
+    ascii_name = name.encode("ascii", "replace").decode().replace("?", "_").replace('"', "_")
+    return Response(
+        content=text,
+        media_type="text/vcard; charset=utf-8",
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}"
+            ),
+            "Content-Security-Policy": FILE_CSP,
+            "Cache-Control": "private, no-store",
+        },
     )
 
 

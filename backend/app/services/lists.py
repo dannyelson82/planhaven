@@ -275,3 +275,17 @@ async def delete_item(
             resource_id=item_id,
         )
     live.publish(before.project_id, "lists")
+
+
+Suggestion = store.Suggestion
+MAX_SUGGESTIONS = 8
+
+
+async def suggestions(db: Database, session: CurrentSession, query: str) -> list[Suggestion]:
+    """Items this person added before, on any list they can see, for the words typed so far."""
+    authz.require(session.principal, authz.Action.USE_APP)
+    query = " ".join(query.split())
+    if not query:
+        return []
+    async with db.user_transaction(session.user.id) as conn:
+        return await store.suggestions(conn, query, MAX_SUGGESTIONS)

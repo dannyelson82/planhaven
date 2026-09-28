@@ -102,6 +102,39 @@ export function ListTile({ projectId, listId }: { projectId: string; listId: str
   )
 }
 
+type Suggestion = { text: string; quantity: string | null; unit: string | null; price_cents: number | null }
+
+/** While typing an item: things added to lists before, with their quantity and price. */
+function ItemSuggestions({ typed, showPrices, onPick }: { typed: string; showPrices: boolean; onPick: (s: Suggestion) => void }) {
+  const [query, setQuery] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(typed.trim()), 200)
+    return () => clearTimeout(t)
+  }, [typed])
+  const found = useQuery({
+    queryKey: ['item-suggestions', query],
+    queryFn: () => api<Suggestion[]>('GET', `/api/v1/list-item-suggestions?q=${encodeURIComponent(query)}`),
+    enabled: query.length >= 2 && navigator.onLine,
+    staleTime: 60_000,
+  })
+  const shown = (found.data ?? []).filter((s) => s.text.toLowerCase() !== typed.trim().toLowerCase())
+  if (typed.trim().length < 2 || shown.length === 0) return null
+  return (
+    <ul aria-label="Suggestions" className="flex flex-wrap gap-2">
+      {shown.map((s) => (
+        <li key={s.text}>
+          <button type="button" onClick={() => onPick(s)} aria-label={`Use suggestion: ${s.text}`}
+            className="min-h-11 rounded-full bg-stone-100 px-3 text-sm hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700">
+            {s.text}
+            {s.quantity && <span className="text-stone-500"> · {String(Number(s.quantity))}</span>}
+            {showPrices && s.price_cents !== null && <span className="text-stone-500"> · {formatCents(s.price_cents)}</span>}
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 /** Estimated price for the line: price each x quantity (1 when there's no quantity). */
 function lineCents(i: Item): number {
   return Math.round((i.price_cents ?? 0) * (i.quantity ? Number(i.quantity) : 1))
@@ -119,6 +152,8 @@ export function ListScreen({ id }: { id: string }) {
   ])
   const [text, setText] = useState('')
   const [qty, setQty] = useState('')
+  // Price from a picked suggestion (shopping and parts lists); typing the name again drops it.
+  const [price, setPrice] = useState<number | null>(null)
   // The boxes clear as soon as you tap Add, so you can type the next item while this one
   // saves; if saving fails, the text comes back.
   // Without a connection, adding and checking off are kept on this device and sent later
@@ -129,20 +164,20 @@ export function ListScreen({ id }: { id: string }) {
     await updateOfflineCopy<ListDetail>(offlineKey, change)
   }
   const add = useMutation({
-    mutationFn: async (item: { text: string; qty: string }) => {
+    mutationFn: async (item: { text: string; qty: string; price: number | null }) => {
       const key = crypto.randomUUID()
       const queued = await sendOrQueue({
         method: 'POST', path: `/api/v1/lists/${id}/items`, headers: { 'Idempotency-Key': key },
         label: `Add “${item.text}”`,
-        body: { text: item.text, ...(item.qty ? { quantity: item.qty } : {}) },
+        body: { text: item.text, ...(item.qty ? { quantity: item.qty } : {}), ...(item.price !== null ? { price_cents: item.price } : {}) },
       })
       if (queued) {
-        const pending: Item = { id: `pending-${key}`, text: item.text, quantity: item.qty || null, unit: null, price_cents: null, checked: false, version: 0 }
+        const pending: Item = { id: `pending-${key}`, text: item.text, quantity: item.qty || null, unit: null, price_cents: item.price, checked: false, version: 0 }
         await showLocally((d) => ({ ...d, items: [...d.items, pending] }))
       }
     },
-    onMutate: () => { setText(''); setQty('') },
-    onError: (_e, item) => { setText(item.text); setQty(item.qty) },
+    onMutate: () => { setText(''); setQty(''); setPrice(null) },
+    onError: (_e, item) => { setText(item.text); setQty(item.qty); setPrice(item.price) },
     onSettled: refresh,
   })
   const toggle = useMutation({
@@ -253,11 +288,14 @@ export function ListScreen({ id }: { id: string }) {
           <Button variant="ghost" onPress={() => undo.mutate(deleted)} isDisabled={undo.isPending}>Undo</Button>
         </p>
       )}
-      <Form onSubmit={(e) => { e.preventDefault(); if (text.trim()) add.mutate({ text, qty }) }}>
+      <Form onSubmit={(e) => { e.preventDefault(); if (text.trim()) add.mutate({ text, qty, price: l.kind === 'checklist' ? null : price }) }}>
         <div className="flex items-end gap-2">
-          <div className="min-w-0 flex-1"><Field label="Add item" isRequired maxLength={500} value={text} onChange={setText} /></div>
+          <div className="min-w-0 flex-1"><Field label="Add item" isRequired maxLength={500} value={text} onChange={(v) => { setText(v); setPrice(null) }} /></div>
           <div className="w-20"><Field label="Qty" inputMode="numeric" maxLength={12} value={qty} onChange={setQty} /></div>
         </div>
+        <ItemSuggestions typed={text} showPrices={l.kind !== 'checklist'}
+          onPick={(s) => { setText(s.text); setQty(s.quantity ? String(Number(s.quantity)) : ''); setPrice(s.price_cents) }} />
+        {price !== null && l.kind !== 'checklist' && <p className="text-sm text-stone-500">Price each: {formatCents(price)} (change it in edit mode)</p>}
         <ErrorText error={add.error} />
         <Button type="submit">Add</Button>
       </Form>

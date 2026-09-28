@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Header, HTTPException, Request, Response
+from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api import deps
@@ -215,3 +215,21 @@ async def update_item(
 @router.delete("/list-items/{item_id}", status_code=204)
 async def delete_item(item_id: uuid.UUID, session: SessionDep, request: Request) -> None:
     await service.delete_item(deps.database(request), session, item_id, deps.client_ip(request))
+
+
+class SuggestionOut(BaseModel):
+    text: str
+    quantity: Decimal | None
+    unit: str | None
+    price_cents: int | None
+
+
+@router.get("/list-item-suggestions")
+async def item_suggestions(
+    session: SessionDep,
+    request: Request,
+    q: Annotated[str, Query(min_length=1, max_length=100)],
+) -> list[SuggestionOut]:
+    """Suggestions while typing an item: things added to lists before, with quantity and price."""
+    rows = await service.suggestions(deps.database(request), session, q)
+    return [SuggestionOut.model_validate(r, from_attributes=True) for r in rows]

@@ -110,8 +110,10 @@ as they're found rather than hunted now.
       can" with an icon; quotes and costs as separate tiles
 - [x] v0.2.12: purchases with receipts (Batch 3): store, receipt, item lines, items from
       a list, "Record purchase" on a list (migration 0023)
-- [ ] v0.2.13: contacts import and export (vCard); templates for lists and tasks, private
-      and shareable one by one by their creator; suggestions from past list items
-- [ ] v0.2.14: admin "Enable experimental features" switch (ADR 0012)
+- [x] v0.2.13: contacts import and export (contact cards, .vcf; Android contact picker);
+      suggestions from past list items; fix: large contact photos were refused
+- [ ] v0.2.14: templates for lists and tasks, private and shareable one by one by their
+      creator
+- [ ] v0.2.15: admin "Enable experimental features" switch (ADR 0012)
 - Dropped: reading product details from a pasted link (reliability; server fetching
   arbitrary links)
