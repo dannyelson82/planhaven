@@ -21,3 +21,4 @@ A decision is changed by adding a new ADR that supersedes the old one, not by re
 | [0014](0014-ui-toolkit-react-aria-tailwind.md) | UI toolkit: React Aria Components with Tailwind CSS | Accepted |
 | [0015](0015-external-share-links.md) | External share links with per-component permissions | Accepted |
 | [0016](0016-notes-save-on-done.md) | Notes saved on Done; live co-editing paused | Accepted |
+| [0017](0017-project-page-tiles.md) | Project pages arranged as tiles, per person | Accepted |

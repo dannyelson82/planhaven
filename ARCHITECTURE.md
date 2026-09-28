@@ -827,6 +827,7 @@ Every phase ships meeting `SECURITY.md` §11.
 | 0014 | UI toolkit: React Aria Components with Tailwind CSS |
 | 0015 | External share links with per-component permissions |
 | 0016 | Notes saved on Done; live co-editing paused |
+| 0017 | Project pages arranged as tiles, per person |
 
 ### 19.2 Open questions
 

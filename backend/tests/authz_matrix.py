@@ -81,6 +81,9 @@ MATRIX: dict[tuple[str, str], str] = {
     ("PUT", "/api/v1/notes/{note_id}"): "verified",
     ("DELETE", "/api/v1/notes/{note_id}"): "verified",
     ("GET", "/api/v1/projects/{project_id}/note-cards"): "verified",
+    ("GET", "/api/v1/projects/{project_id}/layout"): "verified",
+    ("PUT", "/api/v1/projects/{project_id}/layout"): "verified",
+    ("DELETE", "/api/v1/projects/{project_id}/layout"): "verified",
     ("POST", "/api/v1/notes/{note_id}/checklist"): "verified",
     # Attachments: verified, then project role (tests/db/test_attachments.py)
     ("GET", "/api/v1/projects/{project_id}/attachments"): "verified",
@@ -149,6 +152,7 @@ MATRIX: dict[tuple[str, str], str] = {
 
 # Bodies that pass validation, so checks inside services (step-up) are reached.
 BODIES: dict[tuple[str, str], object] = {
+    ("PUT", "/api/v1/projects/{project_id}/layout"): {"tiles": [{"kind": "notes"}]},
     ("POST", "/api/v1/auth/password"): {
         "current_password": "definitely not it",
         "new_password": "x" * 20,

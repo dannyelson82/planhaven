@@ -242,3 +242,67 @@ test('ticking on the card, then editing the note, saves without a conflict', asy
   await expect(notes.getByRole('checkbox', { name: `${item} now` })).toBeChecked()
   expect(problems).toEqual([])
 })
+
+// Arranging a project page (tiles): a note at the top, wide, with a photo beside it.
+test('arranging the project page: a note at the top with a file beside it', async ({ page }, info) => {
+  const problems = watchForProblems(page)
+  const desktop = info.project.name === 'desktop'
+  const title = `Pinned (${info.project.name})`
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Winterize boat' }).click()
+  await page.getByRole('button', { name: 'New note' }).click()
+  await page.getByLabel('Note title').fill(title)
+  await page.getByRole('textbox', { name: 'Note', exact: true }).click()
+  await page.keyboard.type('Keep this at the top')
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(page.getByRole('heading', { name: 'Winterize boat' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Arrange' }).click()
+  const back = page.getByRole('button', { name: 'Go back to the shared arrangement' })
+  if (await back.isVisible()) await back.click() // start from the default
+  const tiles = page.getByRole('grid', { name: 'Tiles on this page' })
+  await expect(tiles.getByRole('row')).toHaveCount(5)
+  const pick = page.getByLabel('Give its own tile')
+  const fileLabel = (await pick.locator('option').allTextContents()).find((o) => o.startsWith('File: '))!
+  await pick.selectOption({ label: fileLabel })
+  await page.getByRole('button', { name: 'Add tile' }).click()
+  await pick.selectOption({ label: `Note: ${title}` })
+  await page.getByRole('button', { name: 'Add tile' }).click()
+  // New tiles go to the top: the note, then the file. Drag the file above the note (rows are
+  // dragged by mouse or touch; the ≡ handle is for the keyboard), then the note back above it.
+  await expect(tiles.getByRole('row').first()).toContainText(`Note: ${title}`)
+  await tiles.getByRole('row').filter({ hasText: fileLabel }).dragTo(tiles.getByRole('row').first(), { sourcePosition: { x: 20, y: 20 }, targetPosition: { x: 20, y: 5 } })
+  await expect(tiles.getByRole('row').first()).toContainText(fileLabel)
+  await tiles.getByRole('row').filter({ hasText: `Note: ${title}` }).dragTo(tiles.getByRole('row').first(), { sourcePosition: { x: 20, y: 20 }, targetPosition: { x: 20, y: 5 } })
+  await expect(tiles.getByRole('row').first()).toContainText(`Note: ${title}`)
+  await tiles.getByRole('group', { name: `Width of ${fileLabel}` }).getByRole('button', { name: 'Narrow' }).click()
+  await expect(tiles.getByRole('group', { name: `Width of ${fileLabel}` }).getByRole('button', { name: 'Narrow' })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: 'Done' }).click()
+
+  // Kept after a reload: the note first, the photo beside it on a computer (below on a phone),
+  // both above the tasks; the Notes group no longer repeats the note.
+  await page.reload()
+  const note = page.getByRole('region', { name: `Note: ${title}` })
+  const file = page.getByRole('region', { name: fileLabel })
+  await expect(note).toContainText('Keep this at the top')
+  const [n, f, tasks] = await Promise.all([note.boundingBox(), file.boundingBox(), page.getByRole('region', { name: 'Open tasks' }).boundingBox()])
+  expect(n!.y).toBeLessThan(tasks!.y)
+  if (desktop) {
+    expect(Math.abs(f!.y - n!.y)).toBeLessThan(2)
+    expect(f!.x).toBeGreaterThan(n!.x + n!.width - 1)
+  } else {
+    expect(f!.y).toBeGreaterThan(n!.y + n!.height - 1)
+  }
+  await expect(page.getByRole('region', { name: 'Notes' }).getByText(title)).toHaveCount(0)
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  expect(overflow).toBeLessThanOrEqual(0)
+
+  // Put the note back in its group, then back to the shared arrangement.
+  await page.getByRole('button', { name: 'Arrange' }).click()
+  await tiles.getByRole('button', { name: `Put Note: ${title} back in its group` }).click()
+  await expect(note).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Notes' }).getByText(title)).toBeVisible()
+  await page.getByRole('button', { name: 'Go back to the shared arrangement' }).click()
+  await expect(tiles.getByRole('row')).toHaveCount(5)
+  expect(problems).toEqual([])
+})

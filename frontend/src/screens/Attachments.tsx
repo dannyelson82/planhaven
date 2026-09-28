@@ -19,8 +19,9 @@ function sizeText(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-/** Photos and files on a project page. On a phone, "Take photo" opens the camera. */
-export function ProjectAttachments({ projectId, canEdit }: { projectId: string; canEdit: boolean }) {
+/** Photos and files on a project page (those given their own tile are left out). On a phone,
+ * "Take photo" opens the camera. */
+export function ProjectAttachments({ projectId, canEdit, exclude = [] }: { projectId: string; canEdit: boolean; exclude?: string[] }) {
   const client = useQueryClient()
   const key = ['attachments', projectId]
   const files = useQuery({ queryKey: key, queryFn: () => api<Attachment[]>('GET', `/api/v1/projects/${projectId}/attachments`) })
@@ -47,13 +48,14 @@ export function ProjectAttachments({ projectId, canEdit }: { projectId: string; 
     input.value = ''
     if (list.length) upload.mutate(list)
   }
-  const photos = (files.data ?? []).filter((a) => a.has_thumbnail)
-  const others = (files.data ?? []).filter((a) => !a.has_thumbnail)
+  const listed = (files.data ?? []).filter((a) => !exclude.includes(a.id))
+  const photos = listed.filter((a) => a.has_thumbnail)
+  const others = listed.filter((a) => !a.has_thumbnail)
   return (
     <section aria-label="Photos and files" className="space-y-3">
       <h2 className="text-lg font-semibold">Photos and files</h2>
       {photos.length > 0 && (
-        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+        <ul className="grid grid-cols-3 gap-2 @xl:grid-cols-4 @3xl:grid-cols-6">
           {photos.map((a) => (
             <li key={a.id} className="relative">
               <a href={a.metadata_kept ? `/api/v1/attachments/${a.id}/download` : `/api/v1/attachments/${a.id}/view`} target="_blank" rel="noopener noreferrer">
@@ -100,6 +102,31 @@ export function ProjectAttachments({ projectId, canEdit }: { projectId: string; 
         </div>
       )}
       <ErrorText error={upload.error ?? remove.error ?? files.error} />
+    </section>
+  )
+}
+
+/** One photo or file in its own tile on the project page: a photo shown large. */
+export function FileTile({ projectId, fileId }: { projectId: string; fileId: string }) {
+  const files = useQuery({ queryKey: ['attachments', projectId], queryFn: () => api<Attachment[]>('GET', `/api/v1/projects/${projectId}/attachments`) })
+  const a = files.data?.find((f) => f.id === fileId)
+  if (!a) return null // deleted since, or not shared with this person
+  const href = a.metadata_kept || !a.has_thumbnail ? `/api/v1/attachments/${a.id}/download` : `/api/v1/attachments/${a.id}/view`
+  return (
+    <section aria-label={`File: ${a.filename}`}>
+      <Card className="space-y-2">
+        {a.has_thumbnail && (
+          <a href={href} target="_blank" rel="noopener noreferrer">
+            <img src={`/api/v1/attachments/${a.id}/${a.metadata_kept ? 'thumbnail' : 'view'}`} alt={a.filename} loading="lazy"
+              className="max-h-96 w-full rounded-xl bg-stone-200 object-contain dark:bg-stone-800" />
+          </a>
+        )}
+        <p className="flex items-center gap-2">
+          <a href={href} {...(a.has_thumbnail ? { target: '_blank', rel: 'noopener noreferrer' } : { download: true })}
+            className="min-w-0 flex-1 truncate font-medium text-brand-700 underline-offset-2 hover:underline dark:text-brand-100">{a.filename}</a>
+          <span className="text-sm text-stone-500">{sizeText(a.size)}</span>
+        </p>
+      </Card>
     </section>
   )
 }

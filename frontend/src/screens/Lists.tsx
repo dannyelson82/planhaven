@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
+import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react'
 import { Checkbox } from 'react-aria-components'
 import { api } from '../api.ts'
 import { formatCents, parseAmount } from '../money.ts'
@@ -18,8 +18,8 @@ type ListDetail = ListSummary & { items: Item[] }
 
 const KIND_LABEL: Record<Kind, string> = { shopping: 'Shopping', parts: 'Parts', checklist: 'Checklist' }
 
-/** Lists section on a project page. */
-export function ProjectLists({ projectId, canEdit }: { projectId: string; canEdit: boolean }) {
+/** Lists group on a project page (lists given their own tile are left out). */
+export function ProjectLists({ projectId, canEdit, exclude = [] }: { projectId: string; canEdit: boolean; exclude?: string[] }) {
   const client = useQueryClient()
   const lists = useQuery({ queryKey: ['lists', projectId], queryFn: () => cachedGet<ListSummary[]>(`/api/v1/projects/${projectId}/lists`) })
   const [title, setTitle] = useState('')
@@ -31,14 +31,9 @@ export function ProjectLists({ projectId, canEdit }: { projectId: string; canEdi
   return (
     <section aria-label="Lists" className="space-y-3">
       <h2 className="text-lg font-semibold">Lists</h2>
-      <ul className="grid gap-2 sm:grid-cols-2">
-        {(lists.data ?? []).map((l) => (
-          <li key={l.id}>
-            <Card>
-              <Link to={`/lists/${l.id}`} className="block font-semibold">{l.title}</Link>
-              <p className="text-sm text-stone-500">{KIND_LABEL[l.kind]} · {l.open_items} to get of {l.total_items}{l.remaining_cents !== null && ` · about ${formatCents(l.remaining_cents)} to go`}</p>
-            </Card>
-          </li>
+      <ul className="grid gap-2 @xl:grid-cols-2">
+        {(lists.data ?? []).filter((l) => !exclude.includes(l.id)).map((l) => (
+          <li key={l.id}><ListCard list={l} /></li>
         ))}
       </ul>
       {canEdit && (
@@ -59,6 +54,43 @@ export function ProjectLists({ projectId, canEdit }: { projectId: string; canEdi
 function quantityText(i: Item): string {
   const q = i.quantity ? String(Number(i.quantity)) : ''
   return [q, i.unit].filter(Boolean).join(' ')
+}
+
+function ListCard({ list: l, children }: { list: ListSummary; children?: ReactNode }) {
+  return (
+    <Card>
+      <Link to={`/lists/${l.id}`} className="block font-semibold">{l.title}</Link>
+      <p className="text-sm text-stone-500">{KIND_LABEL[l.kind]} · {l.open_items} to get of {l.total_items}{l.remaining_cents !== null && ` · about ${formatCents(l.remaining_cents)} to go`}</p>
+      {children}
+    </Card>
+  )
+}
+
+/** One list in its own tile on the project page: what's still to get. */
+export function ListTile({ projectId, listId }: { projectId: string; listId: string }) {
+  const lists = useQuery({ queryKey: ['lists', projectId], queryFn: () => cachedGet<ListSummary[]>(`/api/v1/projects/${projectId}/lists`) })
+  const summary = lists.data?.find((l) => l.id === listId)
+  const detail = useQuery({
+    queryKey: ['list', listId, 'tile', summary?.version, summary?.open_items, summary?.total_items],
+    queryFn: () => api<ListDetail>('GET', `/api/v1/lists/${listId}`),
+    enabled: summary !== undefined,
+  })
+  if (!summary) return null // deleted since, or not shared with this person
+  const open = (detail.data?.items ?? []).filter((i) => !i.checked)
+  return (
+    <section aria-label={`List: ${summary.title}`}>
+      <ListCard list={summary}>
+        {open.length > 0 && (
+          <ul className="mt-2 space-y-1">
+            {open.slice(0, 12).map((i) => (
+              <li key={i.id} className="flex gap-2"><span className="min-w-0 flex-1">{i.text}</span><span className="text-sm text-stone-500">{quantityText(i)}</span></li>
+            ))}
+            {open.length > 12 && <li className="text-sm text-stone-500">+{open.length - 12} more</li>}
+          </ul>
+        )}
+      </ListCard>
+    </section>
+  )
 }
 
 /** Estimated price for the line: price each x quantity (1 when there's no quantity). */

@@ -24,14 +24,10 @@ type Note = {
   content?: JSONContent | null
 }
 
-/** Notes section on a project page. */
-export function ProjectNotes({ projectId, canEdit }: { projectId: string; canEdit: boolean }) {
+/** The project's notes and their cards (shared by the Notes group and single-note tiles). */
+function useNoteCards(projectId: string) {
   const client = useQueryClient()
   const notes = useQuery({ queryKey: ['notes', projectId], queryFn: () => api<Note[]>('GET', `/api/v1/projects/${projectId}/notes`) })
-  const create = useMutation({
-    mutationFn: () => api<Note>('POST', `/api/v1/projects/${projectId}/notes`, { title: 'Untitled note' }),
-    onSuccess: async (note) => { await client.invalidateQueries({ queryKey: ['notes', projectId] }); navigate(`/notes/${note.id}`) },
-  })
   // What each card shows: the note's lines in order, with checkboxes that can be ticked here.
   // Keyed by the versions of the notes shown, so the cards are never older than the list.
   const shown = notes.data?.map((n) => `${n.id}:${n.version}`).join(',')
@@ -51,36 +47,67 @@ export function ProjectNotes({ projectId, canEdit }: { projectId: string; canEdi
     ]),
   })
   const cardOf = (noteId: string) => cards.data?.find((c) => c.note_id === noteId)
+  return { notes, tick, cardOf }
+}
+
+/** Notes group on a project page (notes given their own tile are left out). */
+export function ProjectNotes({ projectId, canEdit, exclude = [] }: { projectId: string; canEdit: boolean; exclude?: string[] }) {
+  const client = useQueryClient()
+  const { notes, tick, cardOf } = useNoteCards(projectId)
+  const create = useMutation({
+    mutationFn: () => api<Note>('POST', `/api/v1/projects/${projectId}/notes`, { title: 'Untitled note' }),
+    onSuccess: async (note) => { await client.invalidateQueries({ queryKey: ['notes', projectId] }); navigate(`/notes/${note.id}`) },
+  })
+  const listed = (notes.data ?? []).filter((n) => !exclude.includes(n.id))
   return (
     <section aria-label="Notes" className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">Notes</h2>
         {canEdit && <Button variant="secondary" onPress={() => create.mutate()} isDisabled={create.isPending}>New note</Button>}
       </div>
-      {/* Two stacked columns: short cards don't leave gaps next to tall ones. Newest note first;
-          the order doesn't change when a note is edited or ticked. */}
-      <ul className="gap-2 sm:columns-2">
-        {(notes.data ?? []).map((n) => (
+      {/* Two stacked columns (on a wide tile): short cards don't leave gaps next to tall ones.
+          Newest note first; the order doesn't change when a note is edited or ticked. */}
+      <ul className="gap-2 @xl:columns-2">
+        {listed.map((n) => (
           <li key={n.id} className="mb-2 break-inside-avoid">
-            <Card>
-              <div className="flex items-start gap-1">
-                <Link to={`/notes/${n.id}`} className="block min-w-0 flex-1 py-2 font-semibold">{n.title}</Link>
-                <CopyNote noteId={n.id} />
-                {canEdit && (
-                  <Link to={`/notes/${n.id}`} aria-label="Edit note"
-                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800">
-                    <PencilIcon />
-                  </Link>
-                )}
-              </div>
-              <NoteCardBody card={cardOf(n.id)} note={n} canEdit={canEdit} onTick={(line) => tick.mutate({ noteId: n.id, line })} />
-            </Card>
+            <NoteCardView note={n} card={cardOf(n.id)} canEdit={canEdit} onTick={(line) => tick.mutate({ noteId: n.id, line })} />
           </li>
         ))}
       </ul>
       {notes.data?.length === 0 && <p className="text-sm text-stone-500">No notes yet.</p>}
       <ErrorText error={create.error ?? tick.error ?? notes.error} />
     </section>
+  )
+}
+
+/** One note in its own tile on the project page. */
+export function NoteTile({ projectId, noteId, canEdit }: { projectId: string; noteId: string; canEdit: boolean }) {
+  const { notes, tick, cardOf } = useNoteCards(projectId)
+  const note = notes.data?.find((n) => n.id === noteId)
+  if (!note) return null // deleted since, or not shared with this person
+  return (
+    <section aria-label={`Note: ${note.title}`}>
+      <NoteCardView note={note} card={cardOf(note.id)} canEdit={canEdit} onTick={(line) => tick.mutate({ noteId: note.id, line })} />
+      <ErrorText error={tick.error} />
+    </section>
+  )
+}
+
+function NoteCardView({ note, card, canEdit, onTick }: { note: Note; card: NoteCard | undefined; canEdit: boolean; onTick: (line: CardLine) => void }) {
+  return (
+    <Card>
+      <div className="flex items-start gap-1">
+        <Link to={`/notes/${note.id}`} className="block min-w-0 flex-1 py-2 font-semibold">{note.title}</Link>
+        <CopyNote noteId={note.id} />
+        {canEdit && (
+          <Link to={`/notes/${note.id}`} aria-label="Edit note"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800">
+            <PencilIcon />
+          </Link>
+        )}
+      </div>
+      <NoteCardBody card={card} note={note} canEdit={canEdit} onTick={onTick} />
+    </Card>
   )
 }
 
