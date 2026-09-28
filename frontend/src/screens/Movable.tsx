@@ -1,7 +1,7 @@
 // Dragging tiles and cards straight around a project page while it's being arranged
 // (ADR 0017). React Aria's drag and drop: mouse, touch, and keyboard (Move handle, then Tab to
 // a tile and Enter). Outside Arrange mode these render their children unchanged.
-import { type ReactNode, useContext, useRef } from 'react'
+import { type DragEvent, type ReactNode, useContext, useRef } from 'react'
 import { Button as AriaButton, useDrag, useDrop } from 'react-aria-components'
 import { ArrangeContext } from '../layout.ts'
 
@@ -19,8 +19,14 @@ function DragSource({ dragKey, label, children, className = '' }: { dragKey: str
     hasDragButton: true,
     getItems: () => [{ [TYPE]: dragKey, 'text/plain': label }],
   })
+  // A card sits inside a draggable tile: once the card's drag has started, the tile around it
+  // mustn't take over the drag (it would replace what's being dragged with itself).
+  const onDragStart = (e: DragEvent<HTMLDivElement>) => {
+    dragProps.onDragStart?.(e)
+    e.stopPropagation()
+  }
   return (
-    <div {...dragProps} data-movable={dragKey}
+    <div {...dragProps} onDragStart={onDragStart} data-movable={dragKey}
       className={`relative cursor-grab rounded-2xl outline-2 outline-offset-2 outline-dashed outline-stone-300 dark:outline-stone-700 ${isDragging ? 'opacity-40' : ''} ${className}`}>
       <AriaButton {...dragButtonProps} aria-label={`Move ${label}`}
         className="absolute -left-2 -top-3 z-10 flex min-h-8 items-center gap-1 rounded-full bg-brand-600 px-2 text-sm font-medium text-white shadow">

@@ -14,6 +14,7 @@ import { NoteScreen } from './screens/Notes.tsx'
 import { ProjectScreen } from './screens/Project.tsx'
 import { PurchaseScreen } from './screens/Purchase.tsx'
 import { ProjectsScreen } from './screens/Projects.tsx'
+import { TemplateScreen, TemplatesScreen } from './screens/Templates.tsx'
 import { TrashScreen } from './screens/Trash.tsx'
 
 const HelpScreen = lazy(() => import('./screens/Help.tsx'))
@@ -125,6 +126,10 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
       return session.user.is_admin ? <AdminScreen myId={session.user.id} /> : <p>Page not found.</p>
     case 'trash':
       return <TrashScreen />
+    case 'templates':
+      return <TemplatesScreen />
+    case 'template':
+      return <TemplateScreen id={route.id} myId={session.user.id} />
     case 'help':
       return <Suspense fallback={<p className="text-stone-500">Loading…</p>}><HelpScreen slug={route.slug} /></Suspense>
     case 'project-trash':
@@ -180,7 +185,7 @@ function Shell({ session, children }: { session: Session; children: ReactNode })
     <div className="min-h-dvh md:flex">
       <nav aria-label="Main" className="hidden w-56 shrink-0 flex-col gap-1 border-r border-stone-200 p-4 md:flex dark:border-stone-800">
         <p className="mb-4 font-bold text-brand-700 dark:text-brand-100">PlanHaven</p>
-        {[...NAV, ...(session.user.is_admin ? [{ to: '/admin', label: 'Admin' }] : []), { to: '/help', label: 'Help' }].map((n) => (
+        {[...NAV, { to: '/templates', label: 'Templates' }, ...(session.user.is_admin ? [{ to: '/admin', label: 'Admin' }] : []), { to: '/help', label: 'Help' }].map((n) => (
           <Link key={n.to} to={n.to} className={`rounded-xl px-3 py-2 ${active(n.to) ? 'bg-brand-100 font-semibold text-brand-700 dark:bg-stone-800 dark:text-brand-100' : ''}`}>
             {n.label}
           </Link>

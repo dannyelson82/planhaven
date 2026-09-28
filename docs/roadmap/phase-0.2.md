@@ -114,8 +114,8 @@ as they're found rather than hunted now.
       suggestions from past list items; fix: large contact photos were refused
 - [x] v0.2.14: the user guide in the app (Help), with screenshots for phone and computer
       taken by `e2e/guide.spec.ts`; the add bar stacks on phones
-- [ ] v0.2.15: templates for lists and tasks, private and shareable one by one by their
-      creator
-- [ ] v0.2.16: admin "Enable experimental features" switch (ADR 0012)
+- [x] v0.2.15: templates for lists and tasks, private and shareable one by one by their
+      creator (migration 0024); admin "Enable experimental features" switch with
+      availability and opt-in (ADR 0012, migration 0025); combined into one release
 - Dropped: reading product details from a pasted link (reliability; server fetching
   arbitrary links)

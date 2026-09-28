@@ -1,5 +1,6 @@
 import type { Session } from '../api.ts'
 import { Card, Link } from '../ui.tsx'
+import { MyExperiments } from './Experiments.tsx'
 import { DevicesCard, PasswordCard, SecondFactorCard } from './Security.tsx'
 
 export function AccountScreen({ session }: { session: Session }) {
@@ -17,6 +18,10 @@ export function AccountScreen({ session }: { session: Session }) {
         </Card>
       )}
       <Card className="py-3">
+        <Link to="/templates" className="font-medium text-brand-700 dark:text-brand-100">Templates</Link>
+        <p className="text-sm text-stone-500">Lists and sets of tasks saved for later projects.</p>
+      </Card>
+      <Card className="py-3">
         <Link to="/help" className="font-medium text-brand-700 dark:text-brand-100">Help and user guide</Link>
         <p className="text-sm text-stone-500">How to use every part of PlanHaven, on a phone and on a computer.</p>
       </Card>
@@ -24,6 +29,7 @@ export function AccountScreen({ session }: { session: Session }) {
         <Link to="/trash" className="font-medium text-brand-700 dark:text-brand-100">Trash</Link>
         <p className="text-sm text-stone-500">Bring back something deleted in the last 30 days.</p>
       </Card>
+      <MyExperiments />
       <PasswordCard />
       <SecondFactorCard />
       <DevicesCard />

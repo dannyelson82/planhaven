@@ -9,6 +9,7 @@ import { useLiveProject } from '../live.ts'
 import { ProjectAssetPicker } from './Assets.tsx'
 import { ArrangeContext, moveTile, SPAN, tileKey, useLayout, useTileNames } from '../layout.ts'
 import { AddBar } from './AddBar.tsx'
+import { FromTemplate, SaveAsTemplate } from './Templates.tsx'
 import { ArrangePanel } from './Arrange.tsx'
 import { TileSlot } from './Movable.tsx'
 import { FileTile, ProjectAttachments, UploadFiles } from './Attachments.tsx'
@@ -74,6 +75,7 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
           <TaskList tasks={done} canEdit={canEdit} onToggle={(t) => toggle.mutate(t)} onDelete={(t) => remove.mutate(t)} needsOf={needsOf} />
         </details>
       )}
+      {open.length > 0 && <SaveAsTemplate path={`/api/v1/projects/${id}/tasks/template`} suggested={p.title} label="Save tasks as template" />}
     </div>
   )
 
@@ -112,8 +114,8 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
 
       {canEdit && (
         <AddBar forms={{
-          task: <NewTaskForm projectId={id} />,
-          list: <NewListForm projectId={id} />,
+          task: <><NewTaskForm projectId={id} /><FromTemplate projectId={id} kind="tasks" /></>,
+          list: <><NewListForm projectId={id} /><FromTemplate projectId={id} kind="list" /></>,
           note: <NewNoteForm projectId={id} />,
           file: <UploadFiles projectId={id} />,
           quote: <AddQuote projectId={id} />,

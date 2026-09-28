@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { api } from '../api.ts'
 import { useStepUp } from '../stepupContext.ts'
 import { Button, Card, ErrorText, Field } from '../ui.tsx'
+import { AdminExperiments } from './Experiments.tsx'
 
 type Invite = { id: string; email: string | null; created_at: string; expires_at: string; status: string }
 type User = {
@@ -90,6 +91,7 @@ export function AdminScreen({ myId }: { myId: string }) {
         {(users.data ?? []).map((u) => <UserCard key={u.id} user={u} isMe={u.id === myId} onChanged={refresh} />)}
         <ErrorText error={users.error} />
       </section>
+      <AdminExperiments />
     </div>
   )
 }

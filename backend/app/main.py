@@ -12,6 +12,7 @@ from app.api import (
     attachments,
     auth,
     contacts,
+    experiments,
     health,
     invites,
     layouts,
@@ -26,6 +27,7 @@ from app.api import (
     sharing,
     spa,
     task_needs,
+    templates,
     trash,
 )
 from app.api.errors import install_error_handlers
@@ -50,6 +52,7 @@ from app.services import plugins as plugin_service
 # Every router the app serves. The authorization test matrix reads this list, so a router
 # can't be added without its routes being classified and tested (SECURITY.md §7.4).
 ROUTERS = (
+    experiments.router,
     health.router,
     auth.router,
     mfa.router,
@@ -68,6 +71,7 @@ ROUTERS = (
     assets.router,
     contacts.router,
     task_needs.router,
+    templates.router,
     trash.router,
     spa.router,  # last: catches every path the API didn't
 )

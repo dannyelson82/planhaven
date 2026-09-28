@@ -47,6 +47,11 @@ them off. They show **not sent yet** and are sent by themselves when you're back
 someone changed or deleted the same item meanwhile, PlanHaven tells you which change couldn't
 be saved.
 
+## Save as a template
+
+Tap **Save as template** under the items to reuse this list in later projects, and start a
+new list from a template with **+ List**. See [Templates](templates.md).
+
 ## Record a purchase
 
 After shopping, with items checked off in **In the cart**:

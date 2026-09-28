@@ -17,9 +17,10 @@ its screenshots, in the same change.
 7. [Quotes, costs and purchases](quotes-and-costs.md): estimates, the budget, receipts
 8. [Contacts](contacts.md)
 9. [Assets](assets.md): the boat, the car, the house, and their service history
-10. [Sharing](sharing.md): who can see and change what
-11. [Trash](trash.md)
-12. [Your account and security](account-and-security.md)
-13. [Admin](admin.md): inviting people, reset links
+10. [Templates](templates.md): lists and tasks to reuse in later projects
+11. [Sharing](sharing.md): who can see and change what
+12. [Trash](trash.md)
+13. [Your account and security](account-and-security.md): including experimental features
+14. [Admin](admin.md): inviting people, reset links, experimental features
 
-Written for PlanHaven 0.2.14.
+Written for PlanHaven 0.2.15.

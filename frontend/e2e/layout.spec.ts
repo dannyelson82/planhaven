@@ -316,17 +316,22 @@ test('arranging the project page: a note at the top with a file beside it', asyn
   expect(overflow).toBeLessThanOrEqual(0)
 
   // Straight on the page, while arranging: drag the list card out of its group to just above
-  // the tasks, then drop it back on the Lists group.
+  // the notes, then drop it back on the Lists group.
   await page.getByRole('button', { name: 'Arrange' }).click()
   const listCard = page.locator('[data-movable^="list:"]').filter({ hasText: 'Hardware store' })
-  const tasksTile = page.getByRole('group', { name: 'Tile: Tasks' })
-  await listCard.dragTo(tasksTile, { targetPosition: { x: 40, y: 10 } })
+  // (Dropped on the tile just below its group, so the drag needn't scroll far.)
+  const notesTile = page.getByRole('group', { name: 'Tile: Notes' })
   const listTile = page.getByRole('region', { name: 'List: Hardware store' })
-  await expect(listTile).toBeVisible()
-  expect((await listTile.boundingBox())!.y).toBeLessThan((await tasksTile.boundingBox())!.y)
+  await expect(async () => {
+    if (!(await listTile.count())) await listCard.dragTo(notesTile, { targetPosition: { x: 200, y: 20 } })
+    await expect(listTile).toBeVisible({ timeout: 1000 })
+  }).toPass({ timeout: 10_000 })
+  expect((await listTile.boundingBox())!.y).toBeLessThan((await notesTile.boundingBox())!.y)
   await expect(tiles.getByRole('row').filter({ hasText: 'List: Hardware store' })).toHaveCount(1)
-  await page.getByRole('group', { name: 'Tile: List: Hardware store' }).dragTo(page.getByRole('group', { name: 'Tile: Lists' }), { targetPosition: { x: 40, y: 10 } })
-  await expect(listTile).toHaveCount(0)
+  await expect(async () => {
+    if (await listTile.count()) await page.getByRole('group', { name: 'Tile: List: Hardware store' }).dragTo(page.getByRole('group', { name: 'Tile: Lists' }), { targetPosition: { x: 40, y: 10 } })
+    await expect(listTile).toHaveCount(0, { timeout: 1000 })
+  }).toPass({ timeout: 10_000 })
   await expect(page.getByRole('region', { name: 'Lists' }).getByRole('link', { name: 'Hardware store' })).toBeVisible()
   await page.getByRole('button', { name: 'Done' }).click()
 
@@ -443,5 +448,40 @@ test('the Help pages', async ({ page }, info) => {
   await expect(page.getByRole('heading', { name: 'Quotes, costs and purchases', level: 1 })).toBeVisible()
   await page.getByRole('link', { name: '← All help' }).first().click()
   await expect(page.getByRole('heading', { name: 'PlanHaven user guide' })).toBeVisible()
+  expect(problems).toEqual([])
+})
+
+// Templates: a list saved and used again; a project's tasks saved and added from the add bar.
+test('templates for lists and tasks', async ({ page }, info) => {
+  const problems = watchForProblems(page)
+  const name = `Boat parts (${info.project.name})`
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Winterize boat' }).click()
+  const projectUrl = page.url()
+  await page.getByRole('link', { name: 'Hardware store' }).first().click()
+  await page.getByRole('button', { name: 'Save as template' }).click()
+  await page.getByLabel('Template name').fill(name)
+  await page.getByRole('button', { name: 'Save template' }).click()
+  await expect(page.getByRole('status')).toContainText(`Saved as template “${name}”`)
+  await page.getByRole('status').getByRole('link', { name: 'Open' }).click()
+  await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'In this template' })).toContainText('Hose clamps')
+  // Use it: a new list with the same items and estimated prices.
+  await page.getByLabel('Project').selectOption({ label: 'Winterize boat' })
+  await page.getByRole('button', { name: 'Make this list' }).click()
+  await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible()
+  await expect(page.locator('label', { hasText: 'Hose clamps' })).toBeVisible()
+
+  // Tasks: saved from the project, added again from the + Task drawer.
+  await page.goto(projectUrl)
+  await page.getByRole('button', { name: 'Save tasks as template' }).click()
+  await page.getByLabel('Template name').fill(`Winterize (${info.project.name})`)
+  await page.getByRole('button', { name: 'Save template' }).click()
+  await expect(page.getByRole('status')).toContainText('Saved as template')
+  const before = await page.getByRole('region', { name: 'Open tasks' }).getByRole('checkbox').count()
+  await page.getByRole('toolbar', { name: 'Add to this project' }).getByRole('button', { name: 'Task', exact: true }).click()
+  await page.getByLabel('Task template').selectOption({ label: `Winterize (${info.project.name}) (${before})` })
+  await page.getByRole('button', { name: 'Use template' }).click()
+  await expect(page.getByRole('region', { name: 'Open tasks' }).getByRole('checkbox')).toHaveCount(before * 2)
   expect(problems).toEqual([])
 })
