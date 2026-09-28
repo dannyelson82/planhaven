@@ -206,6 +206,23 @@ export function ListScreen({ id }: { id: string }) {
     mutationFn: (title: string) => api('PATCH', `/api/v1/lists/${id}`, { title }, { 'If-Match': `"${list.data?.version}"` }),
     onSettled: async () => { await refresh(); await client.invalidateQueries({ queryKey: ['lists'] }) },
   })
+  // Checked-off items become a spent entry on the project, with their estimated prices; its
+  // page then takes the store, the receipt and what was actually paid.
+  const record = useMutation({
+    mutationFn: async () => {
+      const d = list.data!
+      const bought = d.items.filter((i) => i.checked && !i.id.startsWith('pending-'))
+      const cost = await api<{ id: string }>('POST', `/api/v1/projects/${d.project_id}/costs`, {
+        description: d.title, amount_cents: bought.reduce((sum, i) => sum + lineCents(i), 0),
+      })
+      await api('POST', `/api/v1/costs/${cost.id}/items`, { list_item_ids: bought.map((i) => i.id) })
+      return cost.id
+    },
+    onSuccess: async (costId) => {
+      await client.invalidateQueries({ queryKey: ['costs'] })
+      navigate(`/costs/${costId}`)
+    },
+  })
   if (list.error) return <ErrorText error={list.error} />
   if (!list.data) return <p className="text-stone-500">Loading…</p>
   const l = list.data
@@ -248,7 +265,12 @@ export function ListScreen({ id }: { id: string }) {
       {open.length === 0 && <p className="text-stone-500">All done!</p>}
       {done.length > 0 && (
         <>
-          <p className="pt-2 text-sm font-medium text-stone-500">In the cart ({done.length})</p>
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+            <p className="text-sm font-medium text-stone-500">In the cart ({done.length})</p>
+            {l.kind !== 'checklist' && !editing && (
+              <Button variant="secondary" onPress={() => record.mutate()} isDisabled={record.isPending}>Record purchase</Button>
+            )}
+          </div>
           <ItemList items={done} editing={editing} priced={l.kind !== 'checklist'} onToggle={(i) => toggle.mutate(i)} onDelete={(i) => remove.mutate(i)} onSave={(i, text, qty, price) => save.mutate({ i, text, qty, price })} />
         </>
       )}
@@ -260,7 +282,7 @@ export function ListScreen({ id }: { id: string }) {
           </Button>
         </div>
       )}
-      <ErrorText error={toggle.error ?? remove.error ?? save.error ?? undo.error ?? removeList.error ?? rename.error} />
+      <ErrorText error={toggle.error ?? remove.error ?? save.error ?? undo.error ?? removeList.error ?? rename.error ?? record.error} />
     </div>
   )
 }

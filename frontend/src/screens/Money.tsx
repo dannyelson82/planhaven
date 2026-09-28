@@ -1,21 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { api, uploadFile } from '../api.ts'
+import { api } from '../api.ts'
+import { DOCUMENT_TYPES, uploadToProject } from '../uploads.ts'
 import { cachedGet } from '../offline.ts'
 import { formatCents, parseAmount, type QuoteStatus, STATUS_LABEL } from '../money.ts'
 import { Button, Card, ErrorText, Field, Link } from '../ui.tsx'
 import type { Contact, Quote } from './Contacts.tsx'
 import type { ListSummary } from './Lists.tsx'
 
-type Cost = { id: string; description: string; amount_cents: number; spent_on: string; quote_id: string | null }
+type Cost = {
+  id: string; description: string; amount_cents: number; spent_on: string; quote_id: string | null
+  store: string; receipt_id: string | null; receipt_name: string | null; item_count: number; version: number
+}
 type FileItem = { id: string; filename: string }
 
-/** Upload a document (an estimate, a receipt) to the project's files; returns it. */
-function uploadToProject(projectId: string, file: File): Promise<FileItem> {
-  const params = new URLSearchParams({ filename: file.name || 'document' })
-  return uploadFile<FileItem>(`/api/v1/projects/${projectId}/attachments?${params}`, file)
-}
-const DOCUMENT_TYPES = 'application/pdf,image/*,.heic,.heif'
 
 const select = 'min-h-11 min-w-0 rounded-xl border border-stone-300 bg-white px-2 dark:border-stone-700 dark:bg-stone-900'
 
@@ -109,9 +107,11 @@ export function ProjectCosts({ projectId, canEdit }: { projectId: string; canEdi
         <ul className="divide-y divide-stone-200 rounded-2xl bg-white ring-1 ring-stone-200 dark:divide-stone-800 dark:bg-stone-900 dark:ring-stone-800">
           {(costs.data ?? []).map((c) => (
             <li key={c.id} className="flex items-center gap-2 px-3 py-1">
-              <span className="min-w-0 flex-1">
-                <span className="block truncate">{c.description}</span>
-                <span className="block text-xs text-stone-500">{new Date(`${c.spent_on}T12:00:00`).toLocaleDateString()}</span>
+              <span className="min-w-0 flex-1 py-1">
+                <Link to={`/costs/${c.id}`} className="block truncate font-medium">{c.description}</Link>
+                <span className="block text-xs text-stone-500">
+                  {[new Date(`${c.spent_on}T12:00:00`).toLocaleDateString(), c.store, c.item_count > 0 && `${c.item_count} item${c.item_count === 1 ? '' : 's'}`, c.receipt_id && 'receipt'].filter(Boolean).join(' · ')}
+                </span>
               </span>
               <span className="tabular-nums">{formatCents(c.amount_cents)}</span>
               {canEdit && <Button variant="ghost" aria-label={`Delete cost ${c.description}`} onPress={() => removeCost.mutate(c)}>✕</Button>}

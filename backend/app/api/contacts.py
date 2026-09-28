@@ -2,11 +2,12 @@
 
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Header, HTTPException, Request, Response
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.api import deps
 from app.api.attachments import _file
@@ -104,6 +105,77 @@ class CostOut(BaseModel):
     amount_cents: int
     spent_on: date
     quote_id: uuid.UUID | None
+    store: str = ""
+    receipt_id: uuid.UUID | None = None
+    receipt_name: str | None = None
+    item_count: int = 0
+    version: int = 1
+
+
+class CostChange(BaseModel):
+    """Only the fields sent are changed."""
+
+    model_config = ConfigDict(extra="forbid")
+    description: Annotated[str, Field(min_length=1, max_length=300)] | None = None
+    amount_cents: Annotated[int, Field(ge=-MAX_CENTS, le=MAX_CENTS)] | None = None
+    spent_on: date | None = None
+    quote_id: uuid.UUID | None = None
+    store: Annotated[str, Field(max_length=200)] | None = None
+    receipt_id: uuid.UUID | None = None
+
+    @model_validator(mode="after")
+    def _required_stay_set(self) -> CostChange:
+        for name in ("description", "amount_cents", "spent_on", "store"):
+            if name in self.model_fields_set and getattr(self, name) is None:
+                raise ValueError(f"{name} can't be empty.")
+        return self
+
+
+Qty = Annotated[Decimal, Field(ge=0, le=Decimal("999999999"), max_digits=12, decimal_places=3)]
+Price = Annotated[int, Field(ge=0, le=1_000_000_000_000)]
+
+
+class CostItemIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    text: Annotated[str, Field(min_length=1, max_length=500)]
+    quantity: Qty | None = None
+    price_cents: Price | None = None
+
+
+class CostItemsIn(BaseModel):
+    """Typed items and/or list items (copied with their estimated prices)."""
+
+    model_config = ConfigDict(extra="forbid")
+    items: Annotated[list[CostItemIn], Field(max_length=200)] = []
+    list_item_ids: Annotated[list[uuid.UUID], Field(max_length=200)] = []
+
+
+class CostItemChange(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    text: Annotated[str, Field(min_length=1, max_length=500)] | None = None
+    quantity: Qty | None = None
+    price_cents: Price | None = None
+
+    @model_validator(mode="after")
+    def _text_stays_set(self) -> CostItemChange:
+        if "text" in self.model_fields_set and self.text is None:
+            raise ValueError("text can't be empty.")
+        return self
+
+
+class CostItemOut(BaseModel):
+    id: uuid.UUID
+    cost_id: uuid.UUID
+    text: str
+    quantity: Decimal | None
+    price_cents: int | None
+    list_item_id: uuid.UUID | None
+    version: int
+
+
+class PurchaseOut(CostOut):
+    items: list[CostItemOut]
+    can_edit: bool
 
 
 def _contact(c: service.ContactRow, quotes: list[service.QuoteRow] | None = None) -> ContactOut:
@@ -338,7 +410,7 @@ async def delete_quote(quote_id: uuid.UUID, session: SessionDep, request: Reques
 @router.get("/projects/{project_id}/costs")
 async def list_costs(project_id: uuid.UUID, session: SessionDep, request: Request) -> list[CostOut]:
     rows = await cost_service.costs_for_project(deps.database(request), session, project_id)
-    return [CostOut.model_validate(c, from_attributes=True) for c in rows]
+    return [_cost(c) for c in rows]
 
 
 @router.post("/projects/{project_id}/costs", status_code=201)
@@ -352,7 +424,7 @@ async def create_cost(
         )
     except LinkError as exc:
         raise HTTPException(422, str(exc)) from None
-    return CostOut.model_validate(cost, from_attributes=True)
+    return _cost(cost)
 
 
 @router.delete("/costs/{cost_id}", status_code=204)
@@ -360,3 +432,96 @@ async def delete_cost(cost_id: uuid.UUID, session: SessionDep, request: Request)
     await cost_service.delete_cost(
         deps.database(request), session, cost_id, deps.client_ip(request)
     )
+
+
+# ------------------------------------------------------------------ purchases (a cost's details)
+
+
+def _cost(c: cost_service.CostRow) -> CostOut:
+    return CostOut.model_validate(c, from_attributes=True)
+
+
+def _items(rows: list[cost_service.CostItemRow]) -> list[CostItemOut]:
+    return [CostItemOut.model_validate(i, from_attributes=True) for i in rows]
+
+
+@router.get("/costs/{cost_id}")
+async def get_purchase(
+    cost_id: uuid.UUID, session: SessionDep, request: Request, response: Response
+) -> PurchaseOut:
+    cost, items, can_edit = await cost_service.get_purchase(
+        deps.database(request), session, cost_id
+    )
+    _etag(response, cost.version)
+    return PurchaseOut(**_cost(cost).model_dump(), items=_items(items), can_edit=can_edit)
+
+
+@router.patch("/costs/{cost_id}")
+async def update_cost(
+    cost_id: uuid.UUID,
+    body: CostChange,
+    session: SessionDep,
+    request: Request,
+    response: Response,
+    if_match: Annotated[str | None, Header()] = None,
+) -> CostOut:
+    try:
+        cost = await cost_service.update_cost(
+            deps.database(request),
+            session,
+            cost_id,
+            _version(if_match),
+            body.model_dump(exclude_unset=True),
+            deps.client_ip(request),
+        )
+    except ConflictError:
+        raise HTTPException(409, "Someone else changed this entry. Reload and try again.") from None
+    except LinkError as exc:
+        raise HTTPException(422, str(exc)) from None
+    _etag(response, cost.version)
+    return _cost(cost)
+
+
+@router.post("/costs/{cost_id}/items", status_code=201)
+async def add_cost_items(
+    cost_id: uuid.UUID, body: CostItemsIn, session: SessionDep, request: Request
+) -> list[CostItemOut]:
+    try:
+        rows = await cost_service.add_items(
+            deps.database(request),
+            session,
+            cost_id,
+            items=[(i.text, i.quantity, i.price_cents) for i in body.items],
+            list_item_ids=body.list_item_ids,
+        )
+    except cost_service.TooManyItemsError as exc:
+        raise HTTPException(422, str(exc)) from None
+    return _items(rows)
+
+
+@router.patch("/cost-items/{item_id}")
+async def update_cost_item(
+    item_id: uuid.UUID,
+    body: CostItemChange,
+    session: SessionDep,
+    request: Request,
+    response: Response,
+    if_match: Annotated[str | None, Header()] = None,
+) -> CostItemOut:
+    try:
+        item = await cost_service.update_item(
+            deps.database(request),
+            session,
+            item_id,
+            _version(if_match),
+            body.model_dump(exclude_unset=True),
+        )
+    except ConflictError:
+        raise HTTPException(409, "Someone else changed this item. Reload and try again.") from None
+    _etag(response, item.version)
+    return CostItemOut.model_validate(item, from_attributes=True)
+
+
+@router.delete("/cost-items/{item_id}", status_code=204)
+async def delete_cost_item(item_id: uuid.UUID, session: SessionDep, request: Request) -> None:
+    await cost_service.delete_item(deps.database(request), session, item_id)

@@ -224,7 +224,11 @@ test('ticking on the card, then editing the note, saves without a conflict', asy
   await expect(notes.getByRole('checkbox', { name: item })).toBeVisible()
   const order = await notes.locator('li.break-inside-avoid').allInnerTexts()
   const box = notes.getByRole('checkbox', { name: item })
-  await box.check()
+  // Wait for the tick to be saved (the checkbox shows it at once).
+  await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/checklist') && r.request().method() === 'POST'),
+    box.check(),
+  ])
   await expect(box).toBeChecked()
   // The text before the list shows in order, as normal text, above the checkbox.
   const card = notes.locator('li.break-inside-avoid', { hasText: title })
@@ -323,5 +327,56 @@ test('arranging the project page: a note at the top with a file beside it', asyn
   await expect(page.getByRole('region', { name: 'Notes' }).getByText(title)).toBeVisible()
   await page.getByRole('button', { name: 'Go back to the shared arrangement' }).click()
   await expect(tiles.getByRole('row')).toHaveCount(6)
+  expect(problems).toEqual([])
+})
+
+// A shopping trip: checked-off list items become a purchase with their estimated prices; the
+// store, what was actually paid and the receipt are added on its page.
+test('recording a purchase from a list, with a receipt', async ({ page }, info) => {
+  const problems = watchForProblems(page)
+  const name = info.project.name
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Winterize boat' }).click()
+  const projectUrl = page.url()
+  const pid = projectUrl.split('/').pop()
+  const csrf = (await (await page.request.get('/api/v1/auth/session')).json()).csrf_token
+  const headers = { 'X-CSRF-Token': csrf, Origin: new URL(projectUrl).origin }
+  const list = await (await page.request.post(`/api/v1/projects/${pid}/lists`, { data: { title: `Trip (${name})`, kind: 'parts' }, headers })).json()
+  for (const item of [{ text: 'Sandpaper', quantity: '3', price_cents: 150 }, { text: 'Varnish', price_cents: 2499 }]) {
+    const added = await (await page.request.post(`/api/v1/lists/${list.id}/items`, { data: item, headers })).json()
+    await page.request.patch(`/api/v1/list-items/${added.id}`, { data: { checked: true }, headers })
+  }
+  await page.goto(`/lists/${list.id}`)
+  await page.getByRole('button', { name: 'Record purchase' }).click()
+
+  // The purchase page: the items came with their estimated prices.
+  await expect(page.getByRole('heading', { name: `Trip (${name})`, level: 1 })).toBeVisible()
+  await expect(page.getByLabel('Items total')).toHaveText(/29\.49/)
+  await expect(page.getByLabel('Amount paid (CAD)')).toHaveValue('29.49')
+  await page.getByLabel('Store').fill('Harbour Hardware')
+  await page.getByLabel('Store').press('Enter')
+  // What the varnish really cost.
+  await page.getByLabel('Price each of Varnish').fill('22.99')
+  await page.getByLabel('Price each of Varnish').press('Enter')
+  await expect(page.getByLabel('Items total')).toHaveText(/27\.49/)
+  // Paid with tax: the difference shows as tax and other.
+  await page.getByLabel('Amount paid (CAD)').fill('31.06')
+  await page.getByLabel('Amount paid (CAD)').press('Enter')
+  await expect(page.getByText('Tax and other')).toBeVisible()
+  await page.getByLabel('Choose the receipt').setInputFiles({ name: `receipt-${name}.pdf`, mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF\n') })
+  await expect(page.getByRole('link', { name: `receipt-${name}.pdf` })).toBeVisible()
+  // One more item typed in.
+  await page.getByLabel('Add an item').fill('Brushes')
+  await page.getByLabel('Price each', { exact: true }).fill('4.00')
+  await page.getByRole('button', { name: 'Add item', exact: true }).click()
+  await expect(page.getByLabel('Items total')).toHaveText(/31\.49/)
+  await page.getByRole('button', { name: 'Use the items total as the amount paid' }).click()
+  await expect(page.getByLabel('Amount paid (CAD)')).toHaveValue('31.49')
+
+  // On the project: one line, with its details.
+  await page.getByRole('link', { name: '← Back to project' }).click()
+  const costs = page.getByRole('region', { name: 'Costs' })
+  await expect(costs.getByRole('link', { name: `Trip (${name})` })).toBeVisible()
+  await expect(costs.getByRole('listitem').filter({ hasText: `Trip (${name})` })).toContainText(/Harbour Hardware · 3 items · receipt/)
   expect(problems).toEqual([])
 })
