@@ -3,8 +3,10 @@
 //  - a copy of what you last saw of lists, open tasks and your project list, so they open
 //    without a connection (a shop with no signal);
 //  - list changes made while offline (add, check off), sent in order when back online.
-// Everything is wiped on sign-out, when the session ends, and when a different person signs
-// in (SECURITY.md §7.12). No passwords, tokens or CSRF values are stored.
+// On sign-out, or when a different person signs in, everything is wiped. When the session
+// just runs out (7 days unused), the saved copies are wiped but list changes not yet sent are
+// kept, so the same person can sign in and send them (SECURITY.md §7.14). No passwords,
+// tokens or CSRF values are stored.
 import { ApiError, api } from './api.ts'
 
 const DB_NAME = 'planhaven-offline'
@@ -105,7 +107,8 @@ export async function flushOutbox(): Promise<{ sent: number; refused: string[] }
         await api(entry.method, entry.path, entry.body, entry.headers)
         sent += 1
       } catch (error) {
-        if (isOffline(error)) break
+        // No connection, or the sign-in ran out: keep this and the rest for later.
+        if (isOffline(error) || (error instanceof ApiError && error.status === 401)) break
         refused.push(entry.label)
       }
       await run(OUTBOX, 'readwrite', (s) => s.delete(entry.id as number))
@@ -121,15 +124,33 @@ export async function offlineUser(): Promise<OfflineUser | null> {
   return (await run<OfflineUser | undefined>(META, 'readonly', (s) => s.get('user')).catch(() => undefined)) ?? null
 }
 
-/** Remember the signed-in person; a different person clears everything first. */
+/** Remember the signed-in person; a different person clears everything first (including
+ * changes someone else left waiting). */
 export async function rememberUser(user: OfflineUser): Promise<void> {
   const previous = await offlineUser()
-  if (previous && previous.id !== user.id) await wipeOfflineData()
+  const waitingFor = await run<string | undefined>(META, 'readonly', (s) => s.get('pending_owner')).catch(() => undefined)
+  if ((previous && previous.id !== user.id) || (waitingFor && waitingFor !== user.id)) await wipeOfflineData()
+  await run(META, 'readwrite', (s) => s.delete('pending_owner')).catch(() => undefined)
   const { id, email, display_name, is_admin } = user
   await run(META, 'readwrite', (s) => s.put({ id, email, display_name, is_admin }, 'user')).catch(() => undefined)
 }
 
-/** Remove everything kept on this device (sign-out, session ended). */
+/** The session ran out: remove the saved copies, but keep list changes not yet sent (and
+ * whose they are) until someone signs in. */
+export async function sessionEnded(): Promise<void> {
+  const user = await offlineUser()
+  const waiting = await pendingChanges()
+  await Promise.all(
+    [CACHE, META].map((store) => run(store, 'readwrite', (s) => s.clear()).catch(() => undefined)),
+  )
+  if (waiting > 0 && user) {
+    await run(META, 'readwrite', (s) => s.put(user.id, 'pending_owner')).catch(() => undefined)
+  } else {
+    await run(OUTBOX, 'readwrite', (s) => s.clear()).catch(() => undefined)
+  }
+}
+
+/** Remove everything kept on this device (sign-out, or another person signing in). */
 export async function wipeOfflineData(): Promise<void> {
   await Promise.all(
     [CACHE, OUTBOX, META].map((store) => run(store, 'readwrite', (s) => s.clear()).catch(() => undefined)),

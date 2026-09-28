@@ -217,5 +217,20 @@ test('first boot to first project', async ({ page }) => {
   await expect(page.getByText('Winterize boat')).toBeVisible()
 
   await page.context().storageState({ path: 'e2e/.auth/state.json' })
+
+  // Offline for longer than the sign-in lasts: a change made offline isn't lost. (The session
+  // is ended by dropping its cookie; the saved state above stays valid for the other tests.)
+  await page.getByRole('link', { name: 'Winterize boat' }).click()
+  await page.getByRole('link', { name: 'Hardware store' }).click()
+  await expect(page.getByRole('heading', { name: 'Hardware store' })).toBeVisible()
+  await page.context().setOffline(true)
+  await page.getByLabel('Add item').fill('Spark plugs')
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(page.getByText('not sent yet')).toBeVisible()
+  await page.context().clearCookies()
+  await page.context().setOffline(false)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+  await expect(page.getByText('1 change made offline is waiting. Sign in to send it.')).toBeVisible()
   expect(problems).toEqual([])
 })
