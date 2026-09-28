@@ -283,7 +283,7 @@ test('first boot to first project', async ({ page }) => {
 
   // Sign out and back in, with the second factor.
   await page.goto('/account')
-  await expect(page.getByText(/^PlanHaven (dev|\d+\.\d+\.\d+)$/)).toBeVisible()
+  await expect(page.getByText(/^PlanHaven (dev|\d+\.\d+\.\d+) · Help$/)).toBeVisible()
   await page.getByRole('button', { name: 'Sign out' }).click()
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
   await page.getByLabel('Email').fill(ADMIN.email)

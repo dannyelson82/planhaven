@@ -13,7 +13,8 @@
     "typecheck": "tsc -b",
     "lint": "oxlint --deny-warnings",
     "test": "vitest run",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "guide-shots": "GUIDE_SHOTS=1 playwright test e2e/journey.spec.ts e2e/guide.spec.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "5.103.1",

@@ -5,6 +5,8 @@ projects unless those are shared with them.
 
 ## Invite someone
 
+![Admin: people and invites](screens/desktop/admin.jpg)
+
 1. Tap **Invite someone**, optionally enter **Their email (optional)**, then **Make invite link**.
 2. **Copy link** (or **Share…**) and send it to them. Anyone with the link can join, so send it privately.
 3. They open it and create their account (see [Getting started](getting-started.md)).

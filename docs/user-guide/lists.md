@@ -10,6 +10,8 @@ Three kinds: **Shopping**, **Parts** and **Checklist**. Made for a phone in one 
 
 ## Add and check off items
 
+![A shopping list: items to get, the cart, and Record purchase](screens/desktop/list.jpg)
+
 1. Type in **Add item**, optionally a **Qty**, tap **Add**.
 2. Tap an item to check it off; it moves to **In the cart**. Tap again to undo.
 
@@ -22,6 +24,8 @@ parts lists) the price you gave it last time. **Price each** shows under the box
 ## Edit mode
 
 Tap **Edit** at the top of the list:
+
+![Edit mode: name, quantity and price each, and delete](screens/desktop/list-edit.jpg)
 
 - Change an item's name, quantity or **price each** (shopping and parts lists). Changes are saved when you leave the box.
 - Rename the list in **List name**.

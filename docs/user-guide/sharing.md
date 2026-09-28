@@ -12,7 +12,9 @@ your household (people with an account on this PlanHaven).
    - **Can edit**: can add and change things too.
 4. The list of **Members** shows who has access. Change someone's role, or **Remove** them.
 
-Only the owner can share. Anyone can **Leave** something shared with them.
+Only the owner can share.
+
+![Sharing a project](screens/desktop/share.jpg) Anyone can **Leave** something shared with them.
 
 ## What people see
 

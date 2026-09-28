@@ -19,6 +19,8 @@ WORKDIR /src/frontend
 COPY frontend/package.json frontend/package-lock.json frontend/.npmrc ./
 RUN npm ci
 COPY frontend/ ./
+# The user guide is shown on the Help page (imported at build time from ../docs/user-guide).
+COPY docs/user-guide/ /src/docs/user-guide/
 RUN npm run build
 
 # ------------------------------------------------------------------ backend virtualenv

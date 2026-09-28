@@ -12,6 +12,8 @@ details and service history.
 
 ## Service history
 
+![An asset: details, photo and service history](screens/desktop/asset.jpg)
+
 Link projects to the asset (on the project, with the asset picker under the title). The
 asset's page lists them: everything done to it, in one place.
 

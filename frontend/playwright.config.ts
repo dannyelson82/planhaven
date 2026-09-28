@@ -16,7 +16,7 @@ export default defineConfig({
     { name: 'journey', testMatch: /journey\.spec\.ts/, use: { ...devices['Desktop Chrome'] } },
     {
       name: 'phone',
-      testMatch: /layout\.spec\.ts/,
+      testMatch: /(layout|guide)\.spec\.ts/,
       dependencies: ['journey'],
       use: {
         ...devices['Desktop Chrome'],
@@ -28,7 +28,7 @@ export default defineConfig({
     },
     {
       name: 'desktop',
-      testMatch: /layout\.spec\.ts/,
+      testMatch: /(layout|guide)\.spec\.ts/,
       dependencies: ['journey'],
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 }, storageState: 'e2e/.auth/state.json' },
     },

@@ -2,6 +2,8 @@
 
 Open **Account**.
 
+![Account](screens/desktop/account.jpg)
+
 ## Passkeys and recovery codes
 
 - **Add a passkey on this device**: sign in with Face ID, Touch ID or a fingerprint here.
@@ -19,4 +21,5 @@ phone was lost.
 
 ## Signing out
 
-The **Sign out** button is in the menu (at the bottom on a phone, on the left on a computer).
+- **On a phone:** **Sign out** is at the right end of the menu at the bottom.
+- **On a computer:** **Sign out** is at the bottom of the menu on the left.

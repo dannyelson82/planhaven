@@ -25,8 +25,10 @@ and/or adds an ADR in the same PR.
   anything that changes ARCHITECTURE.md or SECURITY.md.
 - **Keep the user guide current.** Every feature added, changed or removed updates
   `docs/user-guide/` in the same PR (removed features are taken out of it): plain words,
-  numbered steps, button names exactly as on screen. The guide is meant to be shown in the
-  app later.
+  numbered steps, button names exactly as on screen, "On a phone" / "On a computer"
+  sections where they differ. It's shown in the app (Help). When a screen changes, re-take
+  the screenshots (`GUIDE_SHOTS=1 planhaven-e2e e2e/journey.spec.ts e2e/guide.spec.ts`, or
+  `npm run guide-shots` against a fresh instance) and add new ones to `e2e/guide.spec.ts`.
 - **Keep changes small**: one logical change per commit and per PR. Write clear
   Conventional Commit messages that say what changed and why.
 - **Never commit secrets**: no keys, tokens, passwords, `.env` files, or real credentials,
@@ -117,6 +119,7 @@ npm test              # tests (Vitest)
 npm run lint          # lint (oxlint, warnings fail)
 npm run typecheck     # strict TypeScript
 npm run build         # production build to dist/
+npm run guide-shots   # re-take the user guide screenshots (docs/user-guide/screens/)
 npm run e2e           # Playwright browser tests; needs a running instance
                       # (PLAYWRIGHT_BASE_URL, SETUP_TOKEN for a fresh one)
 npm install -D <pkg>  # add a dependency: review license (ADR 0010) and CVEs first

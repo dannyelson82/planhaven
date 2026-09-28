@@ -4,6 +4,8 @@ Contractors, suppliers, anyone you deal with. Each contact is **private to you**
 
 ## Add a contact
 
+![Contacts: search, the list, and importing from a phone](screens/desktop/contacts.jpg)
+
 1. On **Contacts**, type the name in **New contact**, choose the type (Contractor, Supplier, Other), tap **Add contact**.
 2. Fill in company, phone, email, website and notes, then tap **Save**.
    A website can be typed as `www.example.com`; `https://` is added for you.
@@ -22,6 +24,8 @@ The name, company, phone, email, website, notes and photo come along (the photo 
 like any upload).
 
 ## To your phone
+
+![A contact: Call, Email and Save to phone](screens/desktop/contact.jpg)
 
 On the contact's page tap **Save to phone**. Your phone downloads a contact card; open it to add
 the person to your phone's contacts (with their photo).
