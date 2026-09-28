@@ -202,6 +202,7 @@ class Room:
     last_editor: uuid.UUID | None = None
     text_dirty: bool = False
     text_task: asyncio.Task[None] | None = None
+    text_writing: bool = False
 
 
 PUBLISH_EVERY = 2.0
@@ -221,7 +222,11 @@ def _schedule_text(room: Room) -> None:
 
 async def _save_text_later(room: Room) -> None:
     await asyncio.sleep(TEXT_DELAY)
-    await _write_text(room)
+    room.text_writing = True
+    try:
+        await _write_text(room)
+    finally:
+        room.text_writing = False
 
 
 async def _write_text(room: Room) -> None:
@@ -241,10 +246,16 @@ async def _write_text(room: Room) -> None:
 async def flush_text() -> None:
     """On shutdown: write every pending text copy now instead of after the delay."""
     for room in list(_text_pending):
-        if room.text_task is not None and not room.text_task.done():
-            room.text_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await room.text_task
+        task = room.text_task
+        if task is not None and not task.done():
+            if room.text_writing:
+                # Already talking to the database: let it finish (cancelling mid-transaction
+                # would abandon the connection).
+                await task
+            else:
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
         await _write_text(room)
 
 
