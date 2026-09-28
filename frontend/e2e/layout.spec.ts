@@ -275,14 +275,24 @@ test('arranging the project page: a note at the top with a file beside it', asyn
   await pick.selectOption({ label: fileLabel })
   await page.getByRole('button', { name: 'Add tile' }).click()
   await pick.selectOption({ label: `Note: ${title}` })
-  await page.getByRole('button', { name: 'Add tile' }).click()
+  // (Wait until it's saved: dragging while the list is being replaced can miss.)
+  await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/layout') && r.request().method() === 'PUT'),
+    page.getByRole('button', { name: 'Add tile' }).click(),
+  ])
   // New tiles go to the top: the note, then the file. Drag the file above the note (rows are
   // dragged by mouse or touch; the ≡ handle is for the keyboard), then the note back above it.
   await expect(tiles.getByRole('row').first()).toContainText(`Note: ${title}`)
-  await tiles.getByRole('row').filter({ hasText: fileLabel }).dragTo(tiles.getByRole('row').first(), { sourcePosition: { x: 20, y: 20 }, targetPosition: { x: 20, y: 5 } })
-  await expect(tiles.getByRole('row').first()).toContainText(fileLabel)
-  await tiles.getByRole('row').filter({ hasText: `Note: ${title}` }).dragTo(tiles.getByRole('row').first(), { sourcePosition: { x: 20, y: 20 }, targetPosition: { x: 20, y: 5 } })
-  await expect(tiles.getByRole('row').first()).toContainText(`Note: ${title}`)
+  const dragToTop = async (label: string) => {
+    await expect(async () => {
+      if (!(await tiles.getByRole('row').first().textContent())?.includes(label)) {
+        await tiles.getByRole('row').filter({ hasText: label }).dragTo(tiles.getByRole('row').first(), { sourcePosition: { x: 20, y: 20 }, targetPosition: { x: 20, y: 5 } })
+      }
+      await expect(tiles.getByRole('row').first()).toContainText(label, { timeout: 1000 })
+    }).toPass({ timeout: 10_000 })
+  }
+  await dragToTop(fileLabel)
+  await dragToTop(`Note: ${title}`)
   await tiles.getByRole('group', { name: `Width of ${fileLabel}` }).getByRole('button', { name: 'Narrow' }).click()
   await expect(tiles.getByRole('group', { name: `Width of ${fileLabel}` }).getByRole('button', { name: 'Narrow' })).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('button', { name: 'Done' }).click()
