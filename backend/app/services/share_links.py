@@ -18,6 +18,7 @@ from typing import Any
 
 from app import authz
 from app.auth import passwords, tokens
+from app.core import security_log
 from app.db import attachments as attachment_store
 from app.db import auth as audit
 from app.db import notes as note_store
@@ -248,10 +249,13 @@ async def open_link(
     await limits.check(db, [(limits.SHARE_OPEN_IP, limits.key(limits.SHARE_OPEN_IP, ip))], ip=ip)
     name = clean_name(guest_name)
     if not TOKEN.match(token):
+        security_log.event("share_link_failed", ip=ip, reason="malformed")
         raise authz.NotFoundError("This link doesn't work any more.")
     async with db.system_transaction() as conn:
         link = await store.live_link_by_token(conn, _hash(token))
     if link is None:
+        # Unknown, expired or turned off: counted by fail2ban/CrowdSec like failed sign-ins.
+        security_log.event("share_link_failed", ip=ip, reason="unknown")
         raise authz.NotFoundError("This link doesn't work any more.")
     if link.pin_hash is not None:
         if not pin:
@@ -260,6 +264,7 @@ async def open_link(
             db, [(limits.SHARE_PIN_LINK, limits.key(limits.SHARE_PIN_LINK, link.id))], ip=ip
         )
         if not await asyncio.to_thread(passwords.verify_password, link.pin_hash, pin):
+            security_log.event("share_link_failed", ip=ip, reason="pin", link_id=str(link.id))
             raise PinNeededError("That PIN isn't right.")
     session_token = tokens.new_token()
     async with db.system_transaction() as conn:

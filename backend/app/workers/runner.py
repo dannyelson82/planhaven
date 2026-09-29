@@ -55,8 +55,8 @@ class Worker:
             await job_store.heartbeat(conn, self.worker_id)
 
     async def maintenance(self) -> None:
-        """Hourly housekeeping: drop idle rate-limit buckets, old passkey challenges and
-        week-old idempotency keys."""
+        """Hourly housekeeping: drop idle rate-limit buckets, old passkey challenges,
+        week-old idempotency keys and ended share-link sessions."""
         async with self.db.system_transaction() as conn:
             await rate_limits.purge_idle(conn)
             await conn.execute(
@@ -65,6 +65,8 @@ class Worker:
             await conn.execute(
                 text("DELETE FROM idempotency_keys WHERE created_at < now() - interval '7 days'")
             )
+            # Share-link guest sessions end within 12 hours; drop the ended ones.
+            await conn.execute(text("DELETE FROM share_sessions WHERE expires_at < now()"))
         await trash_service.purge(self.db)
         if self.blobs is not None:
             await attachment_service.purge_blobs(self.db, self.blobs)

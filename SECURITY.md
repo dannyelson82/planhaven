@@ -136,7 +136,7 @@ Organized by STRIDE category. Details for each control are in §7.
 | Default or leftover admin credentials | Spoofing | No default credentials; one-time setup token printed to log at first boot (§7.1) |
 | Session hijacking / fixation | Spoofing | HttpOnly+Secure+SameSite cookies, rotation on login and privilege change, server-side revocation (§7.2) |
 | CSRF | Tampering | SameSite cookies + CSRF token on state-changing requests, `Origin` check (§7.2) |
-| XSS | Tampering / Info disclosure | React escaping, sanitized Markdown, strict CSP with no inline script, uploaded HTML/SVG never rendered inline (§7.5, §7.10) |
+| XSS | Tampering / Info disclosure | React escaping, sanitized Markdown, strict CSP with no inline script, uploaded HTML/SVG never rendered inline; the in-app user guide is read into React elements, never HTML (§7.5, §7.10) |
 | IDOR (reading another user's project by ID) | Info disclosure | Central authz layer + PostgreSQL RLS with `FORCE`; UUIDv7 IDs; automated cross-user test matrix (§7.4) |
 | Token leakage (ICS URL, sync token) | Info disclosure | Narrow scopes, hashed storage, revocation, "titles only" feeds, identifiable prefixes for secret scanning (§7.3) |
 | Malicious upload (parser exploit, zip bomb, polyglot) | Elevation / DoS | Byte-sniffed type allowlist, size limits, no auto-extract of archives, sandboxed extractor subprocess with rlimits and timeouts (§7.5, §7.6) |
@@ -156,11 +156,15 @@ Organized by STRIDE category. Details for each control are in §7.
 | Guest uploads | Tampering | Photos only, same cleaning pipeline (location removed), size and rate limits (§7.5, §7.16) |
 | A guest rewriting a note | Tampering | Append only: text added at the end with the guest's name; the rest of the note never changes (§7.16) |
 | Stale access on a live connection after removal from a project | Elevation / Info disclosure | Sharing changes applied to open note connections at once (closed, or switched to read-only); every connection also re-checked every 15 s (§7.15) |
-| Viewer or malicious client pushing edits or oversized/malformed updates | Tampering / DoS | Server rejects viewer updates; size, rate and document limits; malformed updates close the connection (§7.15) |
+| Malicious, oversized or stale note saves | Tampering / DoS | Editors only; the server rebuilds the document from an allowlist (http(s)/mailto links only) with size and depth limits; a stale version is refused, never merged (§7.15) |
 | Assignee (e.g. a child) seeing more than their chores | Info disclosure | Assignee access limited to their assigned tasks by authz and RLS; tested in the authz matrix (ADR 0013) |
 | Private data left on a lost or shared phone (offline copies) | Info disclosure | No credentials, tokens or CSRF values stored; wiped on sign-out, when the session ends and when someone else signs in; device lock; revoke the device's session (§7.14) |
 | Stale or tampered app served from the phone's cache | Tampering | Service worker is same-origin, revalidated on every load, caches only hashed app files and icons, never API data; CSP unchanged (§7.10) |
-| Linking a project, quote or cost to something the user can't see (another person's asset or contact, another project's file or quote) | Info disclosure / Tampering | Links checked by the service and again by database triggers; hidden details stay hidden (A§7.1) |
+| Linking a project, quote or cost to something the user can't see (another person's asset or contact, another project's file or quote; a receipt, purchase item or task need from another project) | Info disclosure / Tampering | Links checked by the service and again by database triggers; hidden details stay hidden (A§7.1) |
+| Malicious contact card (.vcf) | Tampering / Info disclosure | Own small reader with size and line limits, known fields only; websites only http(s); embedded photos cleaned like uploads; photo links never fetched (§7.5) |
+| Using a shared template to write where one can only view | Elevation | Using a template needs edit rights on the target project; templates are private until shared one by one (§7.4) |
+| An experimental feature reaching people who didn't choose it | Elevation / Info disclosure | Off by default; admin turns them on and makes each available (step-up, audited); each person opts in (§7.4, ADR 0012) |
+| Item suggestions revealing items from projects no longer shared | Info disclosure | Suggestions are read through RLS with the person's current access only (§7.4) |
 | Proof photos exposing location or reaching the wrong people | Info disclosure | EXIF GPS stripped; visible only to assignee, assigner and project members (RLS) |
 | Malicious plugin | Elevation | Admin-only install, no install-from-URL, permissions manifest, sandboxed UI iframes; backend isolation planned (§10) |
 

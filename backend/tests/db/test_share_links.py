@@ -8,8 +8,10 @@ from typing import Any
 import pytest
 from sqlalchemy import text
 
+from app.core import security_log
 from app.db.database import OWNER_ROLE, Database
-from app.services import note_content
+from app.services import limits, note_content
+from app.workers.runner import Worker
 from tests.db import team as setup
 from tests.db.conftest import _settings
 from tests.db.team import U
@@ -274,3 +276,78 @@ def test_a_full_note_says_so(team: Team, monkeypatch: pytest.MonkeyPatch) -> Non
     r = guest.req("POST", f"/api/v1/share/notes/{things['notes'][1]}/add", json={"text": "x" * 100})
     assert r.status_code == 422
     assert "full" in r.json()["detail"]
+
+
+def test_failed_opens_are_logged_and_pins_run_out(
+    team: Team, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    owner, _, _, pid, _ = team
+    things = _project(owner, pid)
+    link = _make(owner, pid, things, pin=True).json()
+    logged: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        security_log, "event", lambda name, **kw: logged.append((name, kw.get("reason", "")))
+    )
+    guest = Guest(owner)
+    owner.client.post("/api/v1/share/open", json={"token": "phv_shr_" + "B" * 43, "name": "X"})
+    wrong = "000000" if link["pin"] != "000000" else "111111"
+    codes = [guest.open(link["url"], pin=wrong).status_code for _ in range(6)]
+    # Five wrong PINs, then this link refuses more for a while (even the right one).
+    assert codes == [401] * 5 + [429]
+    assert guest.open(link["url"], pin=link["pin"]).status_code == 429
+    assert ("share_link_failed", "unknown") in logged
+    assert logged.count(("share_link_failed", "pin")) == 5
+
+
+def test_guest_changes_are_rate_limited(team: Team, monkeypatch: pytest.MonkeyPatch) -> None:
+    owner, _, _, pid, _ = team
+    things = _project(owner, pid)
+    link = _make(owner, pid, things).json()
+    guest = Guest(owner)
+    guest.open(link["url"])
+    monkeypatch.setattr(
+        limits, "SHARE_WRITE_LINK", limits.Limit("test-share-write", capacity=2, per_second=0.001)
+    )
+    task = things["tasks"][0]
+    codes = [
+        guest.req("POST", f"/api/v1/share/tasks/{task}", json={"done": bool(i % 2)}).status_code
+        for i in range(3)
+    ]
+    assert codes == [204, 204, 429]
+
+
+def test_ended_guest_sessions_are_cleared(team: Team) -> None:
+    owner, _, _, pid, _ = team
+    link = _make(owner, pid, _project(owner, pid)).json()
+    Guest(owner).open(link["url"])
+
+    async def sessions_after_maintenance(end_them: bool) -> int:
+        owner_db = Database(_settings(), role=OWNER_ROLE)
+        db = Database(_settings())
+        try:
+            if end_them:  # as the table owner (nothing in the app shortens a session)
+                async with owner_db.anonymous_transaction() as conn:
+                    await conn.execute(
+                        text(
+                            "CREATE POLICY test_end ON share_sessions FOR UPDATE "
+                            "TO planhaven_owner USING (true)"
+                        )
+                    )
+                    await conn.execute(
+                        text(
+                            "CREATE POLICY test_end_read ON share_sessions FOR SELECT "
+                            "TO planhaven_owner USING (true)"
+                        )
+                    )
+                    await conn.execute(text("UPDATE share_sessions SET expires_at = now()"))
+                    await conn.execute(text("DROP POLICY test_end ON share_sessions"))
+                    await conn.execute(text("DROP POLICY test_end_read ON share_sessions"))
+            await Worker(db).maintenance()
+            async with db.system_transaction() as conn:
+                return int(await conn.scalar(text("SELECT count(*) FROM share_sessions")) or 0)
+        finally:
+            await db.dispose()
+            await owner_db.dispose()
+
+    assert asyncio.run(sessions_after_maintenance(end_them=False)) == 1
+    assert asyncio.run(sessions_after_maintenance(end_them=True)) == 0

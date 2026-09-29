@@ -20,6 +20,12 @@ def test_masks_planhaven_tokens_in_messages() -> None:
     assert entry["msg"] == f"user created token {REDACTED} ok"
 
 
+@pytest.mark.parametrize("kind", ["sync", "ics", "pat", "oat", "ort", "inv", "setup", "rst", "shr"])
+def test_masks_every_token_type(kind: str) -> None:
+    token = f"phv_{kind}_" + "Ab3_-" * 9
+    assert token not in redact_text(f"opened {token} just now")
+
+
 def test_masks_bearer_credentials() -> None:
     assert redact_text("Authorization: Bearer abc.def.ghi") == f"Authorization: {REDACTED}"
 
