@@ -118,5 +118,7 @@ as they're found rather than hunted now.
       creator (migration 0024); admin "Enable experimental features" switch with
       availability and opt-in (ADR 0012, migration 0025); combined into one release
 - [x] v0.2.16: share links for people without an account (ADR 0015, migration 0026)
+- [x] v0.2.17: phase wrap-up security review (`docs/releases/v0.2.16-security-review.md`)
+      and its fixes
 - Dropped: reading product details from a pasted link (reliability; server fetching
   arbitrary links)
