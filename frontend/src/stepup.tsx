@@ -15,7 +15,9 @@ function needsStepUp(e: unknown): boolean {
 
 export function StepUpProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
-  const pending = useRef<{ resolve: () => void; reject: (e: unknown) => void } | null>(null)
+  // Everything waiting on the check. Several requests can need it at once (the admin screen
+  // loads invites, people and experiments together); one confirmation answers them all.
+  const pending = useRef<{ resolve: () => void; reject: (e: unknown) => void }[]>([])
 
   const run: Run = useCallback(async (action) => {
     try {
@@ -23,7 +25,7 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       if (!needsStepUp(e)) throw e
       await new Promise<void>((resolve, reject) => {
-        pending.current = { resolve, reject }
+        pending.current.push({ resolve, reject })
         setOpen(true)
       })
       return await action()
@@ -32,10 +34,12 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
 
   const close = (ok: boolean) => {
     setOpen(false)
-    const p = pending.current
-    pending.current = null
-    if (ok) p?.resolve()
-    else p?.reject(new Error('Cancelled.'))
+    const waiting = pending.current
+    pending.current = []
+    for (const p of waiting) {
+      if (ok) p.resolve()
+      else p.reject(new Error('Cancelled.'))
+    }
   }
 
   return (
