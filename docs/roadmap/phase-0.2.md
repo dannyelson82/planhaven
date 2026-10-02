@@ -129,8 +129,9 @@ as they're found rather than hunted now.
       (website, notes, photos and files; migration 0027); paste many items at once and move
       items to another list; "merge when safe" when the same thing was saved elsewhere
       (keep mine / keep theirs / keep both); fix: admin people list sometimes missing
-- [ ] Suppliers (a separate list), with a supplier and price on list items
-- [ ] Asset mileage and hours, and maintenance schedules from the manufacturer
-- [ ] Archive notes (an Archive button; an Archived section)
+- [x] v0.2.19: Suppliers (their own list; contacts of kind "supplier") with a supplier and
+      price on list items; asset readings (km or miles, hours), maintenance schedules from the
+      manufacturer and service records, with what's overdue or due soon; archive notes
+      (migration 0028)
 - Moved to phase 0.3 ("people and reminders"): notifications screen, messages between users,
   who's online

@@ -1,12 +1,24 @@
-# Contacts
+# Contacts and suppliers
 
-Contractors, suppliers, anyone you deal with. Each contact is **private to you** until you share it.
+Contractors and anyone you deal with are in **Contacts**; stores and parts suppliers have their
+own list, **Suppliers**. Each one is **private to you** until you share it.
+
+## Suppliers
+
+![Suppliers](screens/desktop/suppliers.jpg)
+
+- **On a computer**: **Suppliers** in the menu.
+- **On a phone**: on **Contacts**, tap **Suppliers →** at the top (and **Contacts →** to go back).
+
+Add one with **New supplier** and **Add supplier**, or straight from a shopping or parts list
+item (see [Lists](lists.md)). A supplier's page works like a contact's: phone, email, website,
+notes, sharing.
 
 ## Add a contact
 
 ![Contacts: search, the list, and importing from a phone](screens/desktop/contacts.jpg)
 
-1. On **Contacts**, type the name in **New contact**, choose the type (Contractor, Supplier, Other), tap **Add contact**.
+1. On **Contacts**, type the name in **New contact**, choose the type (Contractor or Other), tap **Add contact**.
 2. Fill in company, phone, email, website and notes, then tap **Save**.
    A website can be typed as `www.example.com`; `https://` is added for you.
 
@@ -14,7 +26,7 @@ Contractors, suppliers, anyone you deal with. Each contact is **private to you**
 
 **iPhone:**
 1. In the Contacts app, open the person, tap **Share Contact**, then **Save to Files**.
-2. In PlanHaven, on **Contacts**, choose the type (Contractor, Supplier, Other) next to **New contact**.
+2. In PlanHaven, on **Contacts** (or **Suppliers**), choose the type next to **New contact**.
 3. Under **From your phone**, tap **Import a contact card** and pick the file you saved.
 
 **Android:** share the contact as a file (.vcf) the same way, or tap **Pick from phone
