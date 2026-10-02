@@ -22,7 +22,7 @@ from app.db import notifications as notification_store
 from app.db import projects as project_store
 from app.db.database import Database
 from app.services import attachments as attachment_service
-from app.services import live
+from app.services import limits, live
 from app.services.auth import CurrentSession
 from app.services.notifications import zone
 from app.services.projects import ConflictError
@@ -144,6 +144,12 @@ async def set_chore(
         if not repeat_days or any(d not in range(7) for d in repeat_days):
             raise ChoreError("Choose the days of the week.")
     if assignee_id is not None:
+        await limits.check(
+            db,
+            [(limits.CHORE_ASSIGN, limits.key(limits.CHORE_ASSIGN, session.user.id))],
+            ip=ip,
+            user_id=session.user.id,
+        )
         async with db.system_transaction() as conn:
             if not await people_store.active(conn, assignee_id):
                 raise authz.NotFoundError("Not found.")

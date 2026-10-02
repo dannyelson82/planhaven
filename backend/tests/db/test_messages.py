@@ -192,3 +192,14 @@ def test_new_messages_reach_open_apps(team: Team) -> None:
         _send(ann, cid, "Here?")
         assert ws.receive_json() == {"kind": "messages"}
         assert ws.receive_json() == {"kind": "notifications"}
+
+
+def test_sending_is_rate_limited(team: Team, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.services import limits
+
+    ann, bob, _, _, _ = team
+    cid = _start(ann, [bob.id]).json()["id"]
+    monkeypatch.setattr(
+        limits, "MESSAGE_SEND", limits.Limit("test-message-send", capacity=2, per_second=0.001)
+    )
+    assert [_send(ann, cid, f"hi {i}").status_code for i in range(3)] == [201, 201, 429]
