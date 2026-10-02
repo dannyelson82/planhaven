@@ -76,3 +76,17 @@ Chosen by the maintainer on 2026-10-02:
   following redirects (`app/push/webpush.py`).
 - The worker sends pending alerts within seconds and checks for due tasks and services every
   hour; each reminder is sent once (a dedupe key per task and day, per service and record).
+
+## As built (v0.3.1)
+
+- Conversations start through `app.start_conversation` (security definer): the conversation and
+  its first members in one step, so members can't be added to a one-to-one afterwards; groups
+  take more members from current members only. Leaving ends access at once.
+- Each signed-in tab keeps one personal WebSocket (`/api/v1/live/me`), re-checking every 15
+  seconds that the session is still valid; "online" means at least one is open. Last seen is
+  the latest session activity, to the minute.
+- Message alerts: one per conversation until it's read (dedupe key per reader's last read);
+  an alert already read in the app isn't pushed.
+- Photos in messages are left for later.
+- On phones, Messages takes Contacts' place in the bottom bar; Contacts and Suppliers are
+  on Account.

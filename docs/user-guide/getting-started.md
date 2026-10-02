@@ -39,13 +39,13 @@ safe (a password manager), then tap **I've saved them**.
 
 ### On a phone
 
-The menu is at the bottom: **Projects**, **Assets**, **Contacts**, **Account** and the bell for [Notifications](notifications.md). **Sign out** is at the bottom of **Account**.
+The menu is at the bottom: **Projects**, **Assets**, [Messages](messages.md), **Account** and the bell for [Notifications](notifications.md). **Contacts** and **Suppliers** are on **Account**, and **Sign out** is at the bottom of it.
 **Help** is at the bottom of every page, and on **Account** (with **Templates**).
 
 ### On a computer
 
 The menu is on the left: **Notifications** (with the unread number), **Projects**, **Assets**,
-**Contacts**, **Account**, **Suppliers**, **Templates**,
+**Messages**, **Account**, **Contacts**, **Suppliers**, **Templates**,
 **Admin** (admins only), **Help**, and **Sign out** at the bottom.
 
 ## PlanHaven on your phone

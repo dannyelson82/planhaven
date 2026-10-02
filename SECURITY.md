@@ -148,6 +148,11 @@ Organized by STRIDE category. Details for each control are in §7.
 | Alerts reaching the next person on a shared browser | Info disclosure | Signing out unregisters the browser; registering an endpoint someone else had removes their registration (`app.release_push_endpoint`) |
 | Notifications or settings of another person read or changed | Info disclosure / Tampering | RLS: own rows only; the worker reads them in system context to send; authz matrix covers every route |
 | Notification spam (test alerts, device registration) | Denial of service | Per-person rate limits (`PUSH_TEST`, `PUSH_SUBSCRIBE`), at most 10 devices, reminders deduplicated |
+| Reading or joining someone else's conversation (including admins) | Info disclosure | RLS on conversations, members and messages: current members only, via `app.in_conversation`; conversations are started by `app.start_conversation` (definer: the starter plus named active people; one per pair for one-to-one); no third person in a one-to-one; tested in the database directly (`tests/db/test_messages.py`) |
+| Deleted message text lingering | Info disclosure | Deleting clears the body (a check constraint requires it) and removes the preview from notifications |
+| Message spam or flooding | Denial of service | Per-person rate limits on sending and starting conversations (`MESSAGE_SEND`, `CONVERSATION_START`); 4,000-character limit; one alert per conversation until read |
+| Online status used to track someone | Info disclosure | Shown only to signed-in people on the server; "last seen" rounded to the minute; each person can hide both |
+| Server owner reading messages | Info disclosure | Accepted and disclosed (ADR 0018): messages are stored like notes, not end-to-end encrypted; the guide says so |
 | Spoofed client IP via forwarded headers | Spoofing | Forwarded headers honoured only from `TRUSTED_PROXIES`; refuse to start in public mode without it (§7.11) |
 | Secrets theft from DB dump or backup | Info disclosure | Secrets encrypted at rest with master key stored outside the DB (§7.9) |
 | Container escape / host impact | Elevation | Non-root, dropped capabilities, `no-new-privileges`, read-only root FS where possible, DB on Unix socket only (§7.13) |

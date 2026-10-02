@@ -30,13 +30,13 @@ screenshots.
 
 ## Milestone 2: Messages and online status (v0.3.1)
 
-- [ ] One-to-one and named group conversations with anyone on the server; unread counts
-- [ ] Text messages, then photos (existing upload pipeline); delete your own; leave a group
-- [ ] Live delivery over the existing live-updates connection; notifications with an optional
+- [x] One-to-one and named group conversations with anyone on the server; unread counts
+- [x] Text messages; delete your own; leave a group (photos in messages: later)
+- [x] Live delivery over the existing live-updates connection; notifications with an optional
       preview
-- [ ] Online now / last seen, shown in messages and the people list; "Hide my online status"
+- [x] Online now / last seen, shown in messages and the people list; "Hide my online status"
       in Account
-- [ ] Rate limits and length limits; threat-model rows for messages and presence
+- [x] Rate limits and length limits; threat-model rows for messages and presence
 
 ## Milestone 3: Chores (v0.3.2, ADR 0013)
 
