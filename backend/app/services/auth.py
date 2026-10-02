@@ -231,6 +231,14 @@ async def authenticate(db: Database, token: str) -> CurrentSession | None:
     )
 
 
+async def still_active(db: Database, session: CurrentSession) -> bool:
+    """Is this session still valid (not signed out, expired or disabled)? For long-lived
+    connections; unlike authenticate(), it doesn't keep the session alive."""
+    async with db.system_transaction() as conn:
+        row = await store.active_session(conn, tokens.token_hash(session.token))
+    return row is not None and row.id == session.id
+
+
 async def logout(db: Database, session: CurrentSession, ip: str | None) -> None:
     async with db.user_transaction(session.user.id) as conn:
         await store.revoke_session(conn, session.id)

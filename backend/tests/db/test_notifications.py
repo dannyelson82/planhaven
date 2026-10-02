@@ -88,6 +88,7 @@ async def test_list_unread_and_settings(people: dict[str, User], db: Database) -
         "tasks": "off",
         "service": "push",
         "share_links": "push",
+        "messages": "push",
         "security": "push",
     }
     assert (await ann.client.get("/api/v1/notifications/unread")).json() == {"count": 1}
