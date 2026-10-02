@@ -755,6 +755,21 @@ A notification service composes messages from events and schedules, respects use
 and quiet hours, deduplicates, and dispatches to channels (Web Push in core; others via
 plugins). Notification text never includes note bodies or attachment content.
 
+The in-app notifications screen (a bell with an unread count) lists them; each person sets, per
+type, in the app / on the phone / off, and quiet hours (ADR 0018).
+
+### 15.1 Messages and online status
+
+Decided in ADR 0018; built in phase 0.3.
+
+- One-to-one and named group conversations between any accounts on the server. Conversations,
+  their members and messages are under RLS: only members read or write; admins have no access.
+  Stored like notes (not end-to-end encrypted).
+- Messages are text (then photos via the upload pipeline), length- and rate-limited; a sender
+  can delete their own; deleted text is removed, not just hidden.
+- Delivery over the live-updates WebSocket (A§8.5); a notification with an optional preview.
+- Online now / last seen comes from open sessions; each person can hide theirs.
+
 ---
 
 ## 16. Backup and restore
@@ -803,7 +818,7 @@ Every phase ships meeting `SECURITY.md` §11.
 |---|---|
 | **0.1 — Secure foundation** | Container + s6 + Postgres, first-boot setup token, auth (password + passkey/TOTP mandatory), sessions, invites, RLS, authz matrix tests, security headers, rate limiting, audit log, CI security pipeline, signed images. Projects + tasks (minimal UI). Plugin host skeleton + SDK boundary. |
 | **0.2 — Daily use** | Lists, notes, attachments (upload pipeline, EXIF strip), assets, contacts/quotes, sharing UI, PWA with offline lists. Real-time collaborative note editing and live list updates (ADR 0011). |
-| **0.3 — iPhone and chores** | Shortcuts sync + published Shortcut, ICS feed, Web Push, notification preferences. Chores: assigned and scheduled tasks, reminders, proof of completion and approval, limited assignee access (ADR 0013). |
+| **0.3 — People and reminders** | Notifications screen, Web Push, notification preferences; messages between users and online status (ADR 0018); Shortcuts sync + published Shortcut, ICS feed. Chores: assigned and scheduled tasks, reminders, proof of completion and approval, limited assignee access (ADR 0013). |
 | **0.4 — Time planner** | Work rotations and away periods, capacity with rest first, home-stretch plans, in-progress limit, next small step, stalled projects review, remote-doable tasks (ADR 0013). |
 | **0.5 — Local AI** | Extraction sandbox, OCR, embeddings, hybrid retrieval, Q&A with citations, `local_ai_only`. Experimental-features framework; local AI project assistant (experimental, ADR 0012). Unraid CA submission. |
 | **0.6 — MCP connector** | OAuth authorization server, `/mcp` tools, consent UI, connected-clients management, undo for AI changes. Assistant write tools for commercial AI (experimental, ADR 0012). |
