@@ -35,6 +35,26 @@ safe (a password manager), then tap **I've saved them**.
 1. Enter your email and password, tap **Sign in**.
 2. Confirm with your passkey, or the 6-digit code from your authenticator app. No phone? Choose **Use a recovery code**.
 
+## The welcome tour
+
+The first time you sign in, a short tour shows the basics, one step at a time: putting
+PlanHaven on your phone, turning on alerts, starting a project, messages, and where Help is
+(admins also get inviting people and keeping things safe). Where you can set something up,
+there's a button to do it right there. **Next** and **Back** move through it; **Skip the tour**
+closes it.
+
+![The welcome tour](screens/desktop/welcome-tour.jpg)
+
+## What's new
+
+After an update, the first time you open PlanHaven it shows what's new: every update since you
+last looked, together. Each new feature has a few words, a short how-to, and where it needs
+setting up, a button to do it then and there. **More in Help** opens its page of this guide.
+
+![What's new after an update](screens/desktop/whats-new.jpg)
+
+Both are in **Help** any time: **Take the tour again** and **What's new**.
+
 ## Finding your way around
 
 ### On a phone

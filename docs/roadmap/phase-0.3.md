@@ -38,18 +38,26 @@ screenshots.
       in Account
 - [x] Rate limits and length limits; threat-model rows for messages and presence
 
-## Milestone 3: Chores (v0.3.2, ADR 0013)
+## Welcome tour and What's new (v0.3.2, maintainer request 2026-10-02, put first)
+
+- [x] A step-by-step welcome tour on first sign-in (once per person, existing people too; admins
+      get inviting and safety steps), with "set it up now" buttons and guide pictures
+- [x] "What's new" after an update: cumulative since the person last looked (or since they
+      joined), with a short how-to and set-up buttons per feature; both reopen from Help
+- [x] Per-person state on the server (migration 0031); entries in `frontend/src/whatsnew.ts`
+
+## Milestone 3: Chores (v0.3.3, ADR 0013)
 
 - [ ] Assign a task to anyone, once or repeating (RRULE subset with a time of day)
 - [ ] Reminders until done; assignees see their chores without project membership (RLS)
 - [ ] Proof: none, photo or note; the assigner approves or sends back
 
-## Milestone 4: Calendar feed (v0.3.3)
+## Milestone 4: Calendar feed (v0.3.4)
 
 - [ ] Secret, revocable ICS feed per person: tasks with due dates, chores, asset services due;
       "titles only" by default
 
-## Milestone 5: iPhone Reminders (v0.3.4)
+## Milestone 5: iPhone Reminders (v0.3.5)
 
 - [ ] Personal access tokens with a `sync` scope; sync pull and push API (A§13.1)
 - [ ] Published Shortcut and setup guide
