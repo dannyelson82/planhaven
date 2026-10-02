@@ -1,5 +1,7 @@
 // The project's add bar (owner request, 2026-09-28): every "add" lives in one row under the
-// project title; each opens a drawer that slides down with its form.
+// project title; each opens a drawer that slides down with its form. The bar stays at the top
+// of the screen while the page scrolls (owner request, 2026-10-02), so adding is always in reach;
+// a tall drawer scrolls inside itself instead of pushing the bar away.
 import { type ReactNode, useState } from 'react'
 import { Button, Card } from '../ui.tsx'
 
@@ -17,7 +19,7 @@ const TITLE: Record<AddKind, string> = {
 export function AddBar({ forms }: { forms: Record<AddKind, ReactNode> }) {
   const [open, setOpen] = useState<AddKind | null>(null)
   return (
-    <div className="space-y-3">
+    <div className="sticky top-0 z-20 -mx-4 space-y-3 bg-stone-50/95 px-4 pb-3 pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur md:-mx-8 md:px-8 dark:bg-stone-950/95">
       <div role="toolbar" aria-label="Add to this project" className="grid grid-cols-3 gap-2 md:flex md:flex-wrap">
         {(Object.keys(BUTTON) as AddKind[]).map((kind) => (
           <Button key={kind} variant={open === kind ? 'primary' : 'secondary'} aria-expanded={open === kind}
@@ -28,7 +30,7 @@ export function AddBar({ forms }: { forms: Record<AddKind, ReactNode> }) {
         ))}
       </div>
       {open && (
-        <Card key={open} className="space-y-3 motion-safe:animate-slide-down">
+        <Card key={open} className="max-h-[70dvh] space-y-3 overflow-y-auto motion-safe:animate-slide-down">
           <div id="add-drawer" className="flex items-center justify-between gap-2">
             <h2 className="text-lg font-semibold">{TITLE[open]}</h2>
             <Button variant="ghost" onPress={() => setOpen(null)}>Close</Button>
