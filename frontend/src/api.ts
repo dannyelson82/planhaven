@@ -81,13 +81,24 @@ export type Task = {
   due_all_day: boolean
   done: boolean
   version: number
+  // Chores (ADR 0013)
+  assignee_id?: string | null
+  assigned_by?: string | null
+  proof?: 'none' | 'photo' | 'note'
+  repeat_freq?: 'daily' | 'weekly' | 'monthly' | null
+  repeat_interval?: number
+  repeat_days?: number[] | null
+  waiting?: boolean
 }
 /** "Oct 15" (or "Wed, Oct 15, 2026" when long); all-day dates are shown as the day they are. */
-export function dueLabel(t: Task, long = false): string | null {
+export function dueLabel(t: Pick<Task, 'due_at' | 'due_all_day'>, long = false): string | null {
   if (!t.due_at) return null
-  return new Date(t.due_at).toLocaleDateString(undefined, {
+  const date = new Date(t.due_at).toLocaleDateString(undefined, {
     ...(long ? { weekday: 'short', year: 'numeric' } : {}), month: 'short', day: 'numeric', ...(t.due_all_day ? { timeZone: 'UTC' } : {}),
   })
+  if (t.due_all_day) return date
+  // A due time (chores): shown too.
+  return `${date}, ${new Date(t.due_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
 }
 
 /** A list item a task needs (from the project's lists). */

@@ -18,6 +18,7 @@ import { AddCost, AddQuote, ProjectCosts, ProjectQuotes } from './Money.tsx'
 import { NewNoteForm, NoteTile, ProjectNotes } from './Notes.tsx'
 import { ShareButton } from './Sharing.tsx'
 import { TaskDetails } from './TaskEditor.tsx'
+import { ChoreLine } from './Chores.tsx'
 import { cachedGet } from '../offline.ts'
 
 export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
@@ -66,13 +67,13 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
         {open.length > 0 && (
           <p className="text-sm font-medium text-brand-700 dark:text-brand-100">Next small step: {open[0].title}</p>
         )}
-        <TaskList tasks={open} canEdit={canEdit} onToggle={(t) => toggle.mutate(t)} onDelete={(t) => remove.mutate(t)} needsOf={needsOf} />
+        <TaskList tasks={open} canEdit={canEdit} onToggle={(t) => toggle.mutate(t)} onDelete={(t) => remove.mutate(t)} needsOf={needsOf} myId={myId} />
         {tasks.isSuccess && open.length === 0 && <p className="text-stone-500">Nothing open. Nice!</p>}
       </section>
       {done.length > 0 && (
         <details className="rounded-2xl">
           <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-stone-500">Done ({done.length})</summary>
-          <TaskList tasks={done} canEdit={canEdit} onToggle={(t) => toggle.mutate(t)} onDelete={(t) => remove.mutate(t)} needsOf={needsOf} />
+          <TaskList tasks={done} canEdit={canEdit} onToggle={(t) => toggle.mutate(t)} onDelete={(t) => remove.mutate(t)} needsOf={needsOf} myId={myId} />
         </details>
       )}
       {open.length > 0 && <SaveAsTemplate path={`/api/v1/projects/${id}/tasks/template`} suggested={p.title} label="Save tasks as template" />}
@@ -180,7 +181,8 @@ function NewTaskForm({ projectId }: { projectId: string }) {
   )
 }
 
-function TaskList({ tasks, canEdit, onToggle, onDelete, needsOf }: {
+function TaskList({ tasks, canEdit, onToggle, onDelete, needsOf, myId }: {
+  myId: string
   tasks: Task[]
   needsOf: (taskId: string) => Need[]
   canEdit: boolean
@@ -203,9 +205,10 @@ function TaskList({ tasks, canEdit, onToggle, onDelete, needsOf }: {
               {t.done ? '✓' : ''}
             </span>
           </Checkbox>
-          <TaskDetails task={t} needs={needsOf(t.id)} canEdit={canEdit} summary={<>
+          <TaskDetails task={t} needs={needsOf(t.id)} canEdit={canEdit} myId={myId} summary={<>
             <span className={`block ${t.done ? 'text-stone-500 line-through' : ''}`}>{t.title}</span>
             <NeedsLine needs={needsOf(t.id)} done={t.done} />
+            <ChoreLine task={t} myId={myId} />
             {(t.due_at || t.notes) && (
               <span className="block text-xs text-stone-500">
                 {t.due_at && `Due ${dueLabel(t)}`}

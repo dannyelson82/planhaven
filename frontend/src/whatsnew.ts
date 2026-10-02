@@ -5,7 +5,7 @@
 import { useSyncExternalStore } from 'react'
 
 /** Things a tour step or a "What's new" item can set up right there. */
-export type Action = 'home-screen' | 'push' | 'notification-settings' | 'presence' | 'projects' | 'messages' | 'invite' | 'suppliers' | 'assets'
+export type Action = 'chores' | 'home-screen' | 'push' | 'notification-settings' | 'presence' | 'projects' | 'messages' | 'invite' | 'suppliers' | 'assets'
 
 export type Item = {
   title: string
@@ -19,6 +19,26 @@ export type Item = {
 export type Release = { version: string; date: string; items: Item[] }
 
 export const RELEASES: Release[] = [
+  {
+    version: '0.3.3',
+    date: '2026-10-02',
+    items: [
+      {
+        title: 'Chores',
+        text: 'Give a task to someone, once or on a repeat (bins every Tuesday at 7 pm). They get a reminder, and can be asked for a photo or a note that you approve or send back.',
+        steps: ['Open a task on a project.', 'Tap Chore, choose who, when it is due and how often.', 'Choose the proof: none, a photo or a note.', 'Approve it under Chores when it is done.'],
+        action: 'chores',
+        guide: 'chores',
+        shot: 'chore-form',
+      },
+      {
+        title: 'Chores for people outside the project',
+        text: 'Someone with a chore sees only that chore, not the rest of the project. Their chores are on Projects, under Chores.',
+        guide: 'chores',
+        shot: 'chores',
+      },
+    ],
+  },
   {
     version: '0.3.2',
     date: '2026-10-02',

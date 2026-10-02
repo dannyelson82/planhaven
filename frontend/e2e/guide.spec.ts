@@ -228,6 +228,35 @@ test('user guide screenshots', async ({ page }, info) => {
   await page.getByRole('region', { name: 'Messages' }).getByText('For the boat, not the truck.').first().waitFor()
   await shot(page, device, 'conversation')
 
+  // Chores: Take out the bins, weekly for me with a photo (made once).
+  await page.goto(projectUrl)
+  const bins = page.getByRole('button', { name: 'Details: Take out the bins', exact: true })
+  if (await bins.count() === 0) {
+    const adder = page.getByRole('toolbar', { name: 'Add to this project' })
+    await adder.getByRole('button', { name: 'Task', exact: true }).click()
+    await page.getByLabel('Add a task').fill('Take out the bins')
+    await page.getByRole('button', { name: 'Add', exact: true }).click()
+    await adder.getByRole('button', { name: 'Task', exact: true }).click()
+  }
+  {
+    await bins.first().click()
+    const chore = page.getByRole('dialog')
+    await chore.getByRole('button', { name: 'Chore', exact: true }).click()
+    if (await chore.getByLabel('Assign to').inputValue() === '') {
+      await chore.getByLabel('Assign to').selectOption({ label: 'Me' })
+      await chore.getByLabel('Due').fill('2026-10-06T19:00')
+      await chore.getByLabel('Repeats').selectOption('weekly')
+      await chore.getByLabel('Tue').check()
+      await chore.getByLabel('Proof when done').selectOption({ label: 'A photo' })
+    }
+    await shot(page, device, 'chore-form', chore)
+    await chore.getByRole('button', { name: 'Save' }).click()
+    await chore.getByRole('button', { name: 'Close' }).click()
+  }
+  await page.goto('/chores')
+  await page.getByRole('heading', { name: 'Chores', exact: true }).waitFor()
+  await shot(page, device, 'chores')
+
   // The welcome tour and What's new (reopened from Help).
   await page.goto('/help')
   await page.getByRole('button', { name: 'Take the tour again' }).click()

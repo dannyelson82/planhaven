@@ -4,6 +4,7 @@ import { api, type Project, stageLabel } from '../api.ts'
 import { navigate } from '../router.ts'
 import { Button, Card, ErrorText, Field, Form, Link } from '../ui.tsx'
 import { cachedGet } from '../offline.ts'
+import { MyChoresLink } from './Chores.tsx'
 
 export function ProjectsScreen() {
   const client = useQueryClient()
@@ -25,6 +26,7 @@ export function ProjectsScreen() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Projects</h1>
+      <MyChoresLink />
       <Card>
         <Form onSubmit={(e) => { e.preventDefault(); create.mutate() }}>
           <Field label="New project" isRequired maxLength={200} value={title} onChange={setTitle} />
