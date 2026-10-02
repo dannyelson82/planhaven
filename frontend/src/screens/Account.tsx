@@ -2,6 +2,7 @@ import type { Session } from '../api.ts'
 import { Card, Link } from '../ui.tsx'
 import { MyExperiments } from './Experiments.tsx'
 import { NotificationSettingsCard } from './Notifications.tsx'
+import { PresenceCard } from './Messages.tsx'
 import { SignOutButton } from './Auth.tsx'
 import { DevicesCard, PasswordCard, SecondFactorCard } from './Security.tsx'
 
@@ -19,6 +20,11 @@ export function AccountScreen({ session }: { session: Session }) {
           <p className="text-sm text-stone-500">Invite people, reset a forgotten password or a lost second factor.</p>
         </Card>
       )}
+      {/* On a phone the bottom bar has Messages instead; Contacts and Suppliers are here. */}
+      <Card className="py-3 md:hidden">
+        <Link to="/contacts" className="font-medium text-brand-700 dark:text-brand-100">Contacts</Link>
+        <p className="text-sm text-stone-500">Contractors and other people you work with, and <Link to="/suppliers" className="underline">Suppliers</Link>.</p>
+      </Card>
       <Card className="py-3">
         <Link to="/templates" className="font-medium text-brand-700 dark:text-brand-100">Templates</Link>
         <p className="text-sm text-stone-500">Lists and sets of tasks saved for later projects.</p>
@@ -32,6 +38,7 @@ export function AccountScreen({ session }: { session: Session }) {
         <p className="text-sm text-stone-500">Bring back something deleted in the last 30 days.</p>
       </Card>
       <NotificationSettingsCard />
+      <PresenceCard />
       <MyExperiments />
       <PasswordCard />
       <SecondFactorCard />

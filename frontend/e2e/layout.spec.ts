@@ -655,3 +655,49 @@ test('notifications: the bell, the list and settings', async ({ page }) => {
   ])
   expect(problems).toEqual([])
 })
+
+// Messages (ADR 0018): a one-to-one conversation with Sam (invited in the journey), deleting a
+// message, a group, and hiding your online status.
+test('messages', async ({ page }, info) => {
+  const problems = watchForProblems(page)
+  const tag = info.project.name
+  await page.goto('/messages')
+  await expect(page.getByRole('heading', { name: 'Messages' })).toBeVisible()
+  await page.getByRole('button', { name: 'New message' }).click()
+  await page.getByRole('list', { name: 'People' }).getByRole('button', { name: /Sam/ }).click()
+  await expect(page.getByRole('heading', { name: 'Sam' })).toBeVisible()
+
+  const box = page.getByLabel('Message', { exact: true })
+  await box.fill(`Can you pick up oil? (${tag})`)
+  await page.getByRole('button', { name: 'Send' }).click()
+  const thread = page.getByRole('region', { name: 'Messages' })
+  await expect(thread.getByText(`Can you pick up oil? (${tag})`)).toBeVisible()
+  await expect(box).toHaveValue('')
+  await box.fill(`Wrong chat (${tag})`)
+  await page.getByRole('button', { name: 'Send' }).click()
+  await thread.getByRole('button', { name: `Delete message: Wrong chat (${tag})` }).click()
+  await thread.getByRole('button', { name: 'Tap again to delete this message' }).click()
+  await expect(thread.getByText(`Wrong chat (${tag})`)).toHaveCount(0)
+  await expect(thread.getByText('Message deleted').first()).toBeVisible()
+
+  // The conversation is listed; a group with a name.
+  await page.getByRole('link', { name: '← All messages' }).click()
+  await expect(page.getByRole('list', { name: 'Conversations' }).getByRole('link', { name: /Sam/ })).toBeVisible()
+  await page.getByRole('button', { name: 'New group' }).click()
+  await page.getByLabel('Group name').fill(`Boat crew ${tag}`)
+  await page.getByRole('list', { name: 'People' }).getByLabel('Sam').check()
+  await page.getByRole('button', { name: 'Start group' }).click()
+  await expect(page.getByRole('heading', { name: `Boat crew ${tag}` })).toBeVisible()
+  await page.getByRole('button', { name: 'Group', exact: true }).click()
+  await expect(page.getByRole('list', { name: 'Members' })).toContainText('Sam')
+
+  // Hide my online status (Account).
+  await page.goto('/account')
+  const hide = page.getByLabel('Hide my online status')
+  await hide.check()
+  await page.reload()
+  await expect(hide).toBeChecked()
+  await hide.uncheck()
+  await expect(hide).not.toBeChecked()
+  expect(problems).toEqual([])
+})

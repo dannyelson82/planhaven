@@ -19,6 +19,9 @@ import { GuestScreen } from './screens/Share.tsx'
 import { ShareLinksScreen } from './screens/ShareLinks.tsx'
 import { TrashScreen } from './screens/Trash.tsx'
 import { NotificationsScreen } from './screens/Notifications.tsx'
+import { ConversationScreen, MessagesScreen } from './screens/Messages.tsx'
+import { useMessagesUnread } from './conversations.ts'
+import { useLiveMe } from './me.ts'
 import { syncTimeZone, useUnread } from './notifications.ts'
 import { BellIcon } from './icons.tsx'
 
@@ -131,6 +134,10 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
       return <ContactsScreen key="suppliers" suppliers />
     case 'notifications':
       return <NotificationsScreen />
+    case 'messages':
+      return <MessagesScreen myId={session.user.id} />
+    case 'conversation':
+      return <ConversationScreen key={route.id} id={route.id} myId={session.user.id} />
     case 'contact':
       return <ContactScreen id={route.id} myId={session.user.id} />
     case 'admin':
@@ -182,10 +189,12 @@ function VersionFooter() {
   )
 }
 
+// The phone's bottom bar has room for four plus the bell: Contacts and Suppliers are on
+// Account there (and in the side menu on a computer).
 const NAV = [
   { to: '/projects', label: 'Projects' },
   { to: '/assets', label: 'Assets' },
-  { to: '/contacts', label: 'Contacts' },
+  { to: '/messages', label: 'Messages' },
   { to: '/account', label: 'Account' },
 ]
 
@@ -195,11 +204,19 @@ function Shell({ session, children }: { session: Session; children: ReactNode })
   const { online, refused, dismiss } = useReconnect(session)
   const active = (to: string) => path === to || path.startsWith(`${to}/`) || (to === '/projects' && path === '/')
   const unread = useUnread()
+  const unreadMessages = useMessagesUnread()
+  useLiveMe()
   useEffect(() => { void syncTimeZone().catch(() => undefined) }, [])
   const badge = unread > 0 && (
     <span className="rounded-full bg-red-600 px-1.5 text-xs font-semibold leading-5 text-white">{unread > 99 ? '99+' : unread}</span>
   )
   const bellLabel = unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'
+  // Messages show their own unread count on their tab.
+  const label = (n: { to: string; label: string }) =>
+    n.to === '/messages' && unreadMessages > 0 ? `Messages, ${unreadMessages} unread` : undefined
+  const dot = (n: { to: string }) => n.to === '/messages' && unreadMessages > 0 && (
+    <span aria-hidden className="ml-1 inline-block size-2 rounded-full bg-brand-600 align-middle" />
+  )
   return (
     <div className="min-h-dvh md:flex">
       <nav aria-label="Main" className="hidden w-56 shrink-0 flex-col gap-1 border-r border-stone-200 p-4 md:flex dark:border-stone-800">
@@ -208,9 +225,9 @@ function Shell({ session, children }: { session: Session; children: ReactNode })
           className={`flex items-center gap-2 rounded-xl px-3 py-2 ${active('/notifications') ? 'bg-brand-100 font-semibold text-brand-700 dark:bg-stone-800 dark:text-brand-100' : ''}`}>
           <BellIcon /> Notifications {badge}
         </Link>
-        {[...NAV, { to: '/suppliers', label: 'Suppliers' }, { to: '/templates', label: 'Templates' }, ...(session.user.is_admin ? [{ to: '/admin', label: 'Admin' }] : []), { to: '/help', label: 'Help' }].map((n) => (
-          <Link key={n.to} to={n.to} className={`rounded-xl px-3 py-2 ${active(n.to) ? 'bg-brand-100 font-semibold text-brand-700 dark:bg-stone-800 dark:text-brand-100' : ''}`}>
-            {n.label}
+        {[...NAV, { to: '/contacts', label: 'Contacts' }, { to: '/suppliers', label: 'Suppliers' }, { to: '/templates', label: 'Templates' }, ...(session.user.is_admin ? [{ to: '/admin', label: 'Admin' }] : []), { to: '/help', label: 'Help' }].map((n) => (
+          <Link key={n.to} to={n.to} aria-label={label(n)} className={`rounded-xl px-3 py-2 ${active(n.to) ? 'bg-brand-100 font-semibold text-brand-700 dark:bg-stone-800 dark:text-brand-100' : ''}`}>
+            {n.label}{dot(n)}
           </Link>
         ))}
         <p className="mt-auto text-xs text-stone-500">{session.user.display_name}</p>
@@ -234,8 +251,8 @@ function Shell({ session, children }: { session: Session; children: ReactNode })
       </main>
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 flex border-t border-stone-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden dark:border-stone-800 dark:bg-stone-950/95">
         {NAV.map((n) => (
-          <Link key={n.to} to={n.to} className={`flex min-h-14 flex-1 items-center justify-center text-sm ${active(n.to) ? 'font-semibold text-brand-700 dark:text-brand-100' : 'text-stone-600 dark:text-stone-400'}`}>
-            {n.label}
+          <Link key={n.to} to={n.to} aria-label={label(n)} className={`flex min-h-14 flex-1 items-center justify-center text-sm ${active(n.to) ? 'font-semibold text-brand-700 dark:text-brand-100' : 'text-stone-600 dark:text-stone-400'}`}>
+            {n.label}{dot(n)}
           </Link>
         ))}
         <Link to="/notifications" aria-label={bellLabel}
