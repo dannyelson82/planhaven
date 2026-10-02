@@ -24,6 +24,7 @@ import { useMessagesUnread } from './conversations.ts'
 import { useLiveMe } from './me.ts'
 import { TourHost } from './screens/Tour.tsx'
 import { ChoresScreen } from './screens/Chores.tsx'
+import { ItemLinkScreen } from './screens/Feeds.tsx'
 import { syncTimeZone, useUnread } from './notifications.ts'
 import { BellIcon } from './icons.tsx'
 
@@ -138,6 +139,8 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
       return <NotificationsScreen />
     case 'chores':
       return <ChoresScreen />
+    case 'item':
+      return <ItemLinkScreen id={route.id} />
     case 'messages':
       return <MessagesScreen myId={session.user.id} />
     case 'conversation':

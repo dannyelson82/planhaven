@@ -185,6 +185,7 @@ function ItemBody({ item, onLeave }: { item: Item; onLeave: () => void }) {
 const GO: Partial<Record<Action, { label: string; to: string }>> = {
   projects: { label: 'Go to Projects', to: '/projects' },
   chores: { label: 'Open Chores', to: '/chores' },
+  calendar: { label: 'Set it up in Account', to: '/account' },
   messages: { label: 'Open Messages', to: '/messages' },
   invite: { label: 'Invite someone', to: '/admin' },
   suppliers: { label: 'Open Suppliers', to: '/suppliers' },

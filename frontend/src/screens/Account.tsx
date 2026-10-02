@@ -3,6 +3,7 @@ import { Card, Link } from '../ui.tsx'
 import { MyExperiments } from './Experiments.tsx'
 import { NotificationSettingsCard } from './Notifications.tsx'
 import { PresenceCard } from './Messages.tsx'
+import { FeedsCard } from './Feeds.tsx'
 import { SignOutButton } from './Auth.tsx'
 import { DevicesCard, PasswordCard, SecondFactorCard } from './Security.tsx'
 
@@ -39,6 +40,7 @@ export function AccountScreen({ session }: { session: Session }) {
       </Card>
       <NotificationSettingsCard />
       <PresenceCard />
+      <FeedsCard />
       <MyExperiments />
       <PasswordCard />
       <SecondFactorCard />
