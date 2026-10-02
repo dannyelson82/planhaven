@@ -1,6 +1,6 @@
 # Phase 0.3: People and reminders
 
-> **Status:** In progress · **Planned with the maintainer:** 2026-10-02
+> **Status:** Complete (v0.3.5, 2026-10-02) · **Planned with the maintainer:** 2026-10-02
 > Scope: ARCHITECTURE.md §13, §15, §18 (0.3), §21; ADR 0006, 0013, 0018. Every release meets
 > SECURITY.md §11.
 
@@ -64,4 +64,4 @@ screenshots.
 
 ## Wrap-up
 
-- [ ] Phase security review against SECURITY.md §11
+- [x] Phase security review against SECURITY.md §11 (`docs/releases/v0.3.4-security-review.md`, v0.3.5 with its fixes)
