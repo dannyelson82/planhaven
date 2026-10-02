@@ -18,6 +18,9 @@ import { TemplateScreen, TemplatesScreen } from './screens/Templates.tsx'
 import { GuestScreen } from './screens/Share.tsx'
 import { ShareLinksScreen } from './screens/ShareLinks.tsx'
 import { TrashScreen } from './screens/Trash.tsx'
+import { NotificationsScreen } from './screens/Notifications.tsx'
+import { syncTimeZone, useUnread } from './notifications.ts'
+import { BellIcon } from './icons.tsx'
 
 const HelpScreen = lazy(() => import('./screens/Help.tsx'))
 import { useSession } from './session.ts'
@@ -126,6 +129,8 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
       return <ContactsScreen />
     case 'suppliers':
       return <ContactsScreen key="suppliers" suppliers />
+    case 'notifications':
+      return <NotificationsScreen />
     case 'contact':
       return <ContactScreen id={route.id} myId={session.user.id} />
     case 'admin':
@@ -189,10 +194,20 @@ function Shell({ session, children }: { session: Session; children: ReactNode })
   const path = usePath()
   const { online, refused, dismiss } = useReconnect(session)
   const active = (to: string) => path === to || path.startsWith(`${to}/`) || (to === '/projects' && path === '/')
+  const unread = useUnread()
+  useEffect(() => { void syncTimeZone().catch(() => undefined) }, [])
+  const badge = unread > 0 && (
+    <span className="rounded-full bg-red-600 px-1.5 text-xs font-semibold leading-5 text-white">{unread > 99 ? '99+' : unread}</span>
+  )
+  const bellLabel = unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'
   return (
     <div className="min-h-dvh md:flex">
       <nav aria-label="Main" className="hidden w-56 shrink-0 flex-col gap-1 border-r border-stone-200 p-4 md:flex dark:border-stone-800">
         <p className="mb-4 font-bold text-brand-700 dark:text-brand-100">PlanHaven</p>
+        <Link to="/notifications" aria-label={bellLabel}
+          className={`flex items-center gap-2 rounded-xl px-3 py-2 ${active('/notifications') ? 'bg-brand-100 font-semibold text-brand-700 dark:bg-stone-800 dark:text-brand-100' : ''}`}>
+          <BellIcon /> Notifications {badge}
+        </Link>
         {[...NAV, { to: '/suppliers', label: 'Suppliers' }, { to: '/templates', label: 'Templates' }, ...(session.user.is_admin ? [{ to: '/admin', label: 'Admin' }] : []), { to: '/help', label: 'Help' }].map((n) => (
           <Link key={n.to} to={n.to} className={`rounded-xl px-3 py-2 ${active(n.to) ? 'bg-brand-100 font-semibold text-brand-700 dark:bg-stone-800 dark:text-brand-100' : ''}`}>
             {n.label}
@@ -223,7 +238,11 @@ function Shell({ session, children }: { session: Session; children: ReactNode })
             {n.label}
           </Link>
         ))}
-        <SignOutButton className="min-h-14 flex-1 rounded-none px-1 text-sm font-normal text-stone-600 dark:text-stone-400" />
+        <Link to="/notifications" aria-label={bellLabel}
+          className={`relative flex min-h-14 flex-1 items-center justify-center ${active('/notifications') ? 'text-brand-700 dark:text-brand-100' : 'text-stone-600 dark:text-stone-400'}`}>
+          <BellIcon />
+          {badge && <span className="absolute left-1/2 top-2 ml-1">{badge}</span>}
+        </Link>
       </nav>
     </div>
   )

@@ -1,6 +1,6 @@
 # Phase 0.3: People and reminders
 
-> **Status:** Planned · **Planned with the maintainer:** 2026-10-02
+> **Status:** In progress · **Planned with the maintainer:** 2026-10-02
 > Scope: ARCHITECTURE.md §13, §15, §18 (0.3), §21; ADR 0006, 0013, 0018. Every release meets
 > SECURITY.md §11.
 
@@ -20,12 +20,12 @@ screenshots.
 
 ## Milestone 1: Notifications (v0.3.0)
 
-- [ ] Notifications screen: a bell with an unread count in the menu; mark read, mark all read
-- [ ] Notification service: events and schedules become notifications per person, deduplicated
+- [x] Notifications screen: a bell with an unread count in the menu; mark read, mark all read
+- [x] Notification service: events and schedules become notifications per person, deduplicated
       (A§15): added to a project or asset, shared with you, task due today and overdue, asset
       service due soon or overdue, share-link activity
-- [ ] Preferences per type (in the app / on the phone / off) and quiet hours, in Account
-- [ ] Web Push: VAPID keys at first boot, subscribe per device, allowlisted push hosts
+- [x] Preferences per type (in the app / on the phone / off) and quiet hours, in Account
+- [x] Web Push: VAPID keys at first boot, subscribe per device, allowlisted push hosts
       (S§7.8), minimal payloads; on iPhone after adding to the Home Screen
 
 ## Milestone 2: Messages and online status (v0.3.1)

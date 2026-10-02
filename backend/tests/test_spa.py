@@ -14,6 +14,7 @@ def _client(tmp_path: Path) -> TestClient:
     (tmp_path / "icons").mkdir()
     (tmp_path / "icons" / "icon-192.png").write_bytes(b"\x89PNG fake")
     (tmp_path / "sw.js").write_text("self.addEventListener('fetch', () => {})")
+    (tmp_path / "push-sw.js").write_text("self.addEventListener('push', () => {})")
     (tmp_path / "manifest.webmanifest").write_text('{"name": "PlanHaven"}')
     return TestClient(create_app(make_settings(frontend_dir=str(tmp_path))))
 
@@ -39,6 +40,9 @@ def test_serves_installable_app_files(tmp_path: Path) -> None:
     sw = client.get("/sw.js")
     assert sw.headers["content-type"].startswith("text/javascript")
     assert sw.headers["cache-control"] == "no-cache"
+    push = client.get("/push-sw.js")
+    assert push.headers["content-type"].startswith("text/javascript")
+    assert "push" in push.text
     manifest = client.get("/manifest.webmanifest")
     assert manifest.headers["content-type"].startswith("application/manifest+json")
     assert client.get("/icons/icon-192.png").headers["content-type"] == "image/png"

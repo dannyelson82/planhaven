@@ -6,6 +6,7 @@ import { useRefreshSession } from '../session.ts'
 import { AuthPage, Button, ErrorText, Field, Form } from '../ui.tsx'
 import { createPasskey, getPasskey, passkeysSupported } from '../webauthn.ts'
 import { pendingChanges, wipeOfflineData } from '../offline.ts'
+import { forgetThisBrowser } from '../push.ts'
 
 type Options = { challenge_id: string; options: Record<string, unknown> }
 
@@ -241,7 +242,8 @@ export function InviteScreen() {
 function useSignOut(): () => void {
   const refresh = useRefreshSession()
   return () =>
-    void api('POST', '/api/v1/auth/logout').finally(async () => {
+    // This browser stops getting this person's phone alerts first (needs the session).
+    void forgetThisBrowser().then(() => api('POST', '/api/v1/auth/logout')).finally(async () => {
       await wipeOfflineData()
       navigate('/')
       void refresh()

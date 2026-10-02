@@ -616,3 +616,42 @@ test('suppliers, archived notes and asset service', async ({ page }, info) => {
   await expect(oil).toContainText('420 hours')
   expect(problems).toEqual([])
 })
+
+// The bell, the notifications list and the notification settings (ADR 0018).
+test('notifications: the bell, the list and settings', async ({ page }) => {
+  const problems = watchForProblems(page)
+  await page.goto('/projects')
+  // A test alert makes a notification (the same as "Send a test" in Account).
+  const csrf = (await (await page.request.get('/api/v1/auth/session')).json()).csrf_token
+  const sent = await page.request.post('/api/v1/push/test', { headers: { 'X-CSRF-Token': csrf, Origin: new URL(page.url()).origin } })
+  expect(sent.status()).toBe(204)
+  await page.reload()
+  const bell = page.getByRole('link', { name: /^Notifications, \d+ unread$/ })
+  await expect(bell).toBeVisible()
+  await bell.click()
+  await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible()
+  const list = page.getByRole('list', { name: 'Notifications' })
+  await expect(list.getByText('Phone alerts work').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Mark all read' }).click()
+  await expect(page.getByRole('link', { name: 'Notifications', exact: true })).toBeVisible()
+
+  // Settings in Account: a group set to in-the-app only, and quiet hours; kept after a reload.
+  await page.goto('/account')
+  const card = page.getByRole('region', { name: 'Notifications settings' })
+  await card.getByLabel('Tasks due today and overdue').selectOption({ label: 'In the app only' })
+  await expect(card.getByLabel('Quiet hours on')).toBeEnabled() // saved
+  await card.getByLabel('Quiet hours on').check()
+  await expect(card.getByLabel('From')).toHaveValue('22:00')
+  await page.reload()
+  await expect(card.getByLabel('Tasks due today and overdue')).toHaveValue('app')
+  await expect(card.getByLabel('Quiet hours on')).toBeChecked()
+  await card.getByLabel('Quiet hours on').uncheck()
+  await expect(card.getByLabel('Tasks due today and overdue')).toBeEnabled()
+  await card.getByLabel('Tasks due today and overdue').selectOption({ label: 'On the phone and in the app' })
+  await expect(card.getByLabel('Tasks due today and overdue')).toHaveValue('push')
+  // Security notices can't be turned off.
+  await expect(card.getByLabel('Sign-ins and security changes').locator('option')).toHaveText([
+    'On the phone and in the app', 'In the app only',
+  ])
+  expect(problems).toEqual([])
+})

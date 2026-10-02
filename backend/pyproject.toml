@@ -11,8 +11,10 @@ dependencies = [
     "asyncpg>=0.31",
     "cryptography>=50",
     "fastapi>=0.120",
+    "http-ece>=1.2.1",
     "pillow>=12.3.0",
     "planhaven-sdk",
+    "py-vapid>=1.9.4",
     "pycrdt>=0.14",
     "pyotp>=2.10",
     "sqlalchemy[asyncio]>=2.1",
@@ -95,7 +97,7 @@ type = "layers"
 layers = [
     "app.api | app.workers",
     "app.services",
-    "app.authz : app.db : app.ai : app.files : app.sync",
+    "app.authz : app.db : app.ai : app.files : app.sync : app.push",
 ]
 
 [[tool.importlinter.contracts]]

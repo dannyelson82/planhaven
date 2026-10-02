@@ -18,6 +18,7 @@ from app.db import jobs as job_store
 from app.db import rate_limits
 from app.db.database import Database
 from app.services import attachments as attachment_service
+from app.services import notifications as notification_service
 from app.services import trash as trash_service
 from app.services.attachments import BlobStore
 from app.workers.registry import JobContext, get_handler
@@ -39,10 +40,15 @@ def backoff(attempt: int) -> timedelta:
 
 class Worker:
     def __init__(
-        self, db: Database, worker_id: str | None = None, blobs: BlobStore | None = None
+        self,
+        db: Database,
+        worker_id: str | None = None,
+        blobs: BlobStore | None = None,
+        push: notification_service.Sender | None = None,
     ) -> None:
         self.db = db
         self.blobs = blobs
+        self.push = push
         self.worker_id = worker_id or new_worker_id()
         self._stopping = asyncio.Event()
 
@@ -68,6 +74,7 @@ class Worker:
             # Share-link guest sessions end within 12 hours; drop the ended ones.
             await conn.execute(text("DELETE FROM share_sessions WHERE expires_at < now()"))
         await trash_service.purge(self.db)
+        await notification_service.remind(self.db)
         if self.blobs is not None:
             await attachment_service.purge_blobs(self.db, self.blobs)
 
@@ -121,6 +128,10 @@ class Worker:
                     await self.maintenance()
                     last_maintenance = loop.time()
                 if await self.run_once():
+                    continue
+                if self.push is not None and await notification_service.dispatch(
+                    self.db, self.push
+                ):
                     continue
             except Exception as exc:  # database hiccup: log, wait, carry on
                 log.error("worker loop error", extra={"error": type(exc).__name__})

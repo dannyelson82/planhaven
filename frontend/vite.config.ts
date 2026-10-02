@@ -32,6 +32,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['index.html', 'static/**/*.{js,css}', 'icons/*.png'],
+        // Phone alerts: the push and notification-tap handlers (public/push-sw.js).
+        importScripts: ['/push-sw.js'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/healthz$/, /^\/readyz$/],
         runtimeCaching: [],

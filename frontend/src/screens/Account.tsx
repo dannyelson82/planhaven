@@ -1,6 +1,8 @@
 import type { Session } from '../api.ts'
 import { Card, Link } from '../ui.tsx'
 import { MyExperiments } from './Experiments.tsx'
+import { NotificationSettingsCard } from './Notifications.tsx'
+import { SignOutButton } from './Auth.tsx'
 import { DevicesCard, PasswordCard, SecondFactorCard } from './Security.tsx'
 
 export function AccountScreen({ session }: { session: Session }) {
@@ -29,10 +31,13 @@ export function AccountScreen({ session }: { session: Session }) {
         <Link to="/trash" className="font-medium text-brand-700 dark:text-brand-100">Trash</Link>
         <p className="text-sm text-stone-500">Bring back something deleted in the last 30 days.</p>
       </Card>
+      <NotificationSettingsCard />
       <MyExperiments />
       <PasswordCard />
       <SecondFactorCard />
       <DevicesCard />
+      {/* On a phone the bottom bar has the bell instead of Sign out. */}
+      <SignOutButton className="w-full md:hidden" />
     </div>
   )
 }
