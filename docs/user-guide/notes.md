@@ -22,18 +22,22 @@ PlanHaven asks: **Save and leave**, **Leave without saving**, or **Keep editing*
 
 ![Leaving with unsaved changes](screens/desktop/note-leave.jpg)
 
-If someone else saved the same note while you were writing, your save is refused rather than
-overwriting theirs: **Copy my text** keeps yours on the clipboard, **Load their version**
-shows theirs.
+If the note was saved elsewhere while you were writing (by someone else, or by you on another
+device), PlanHaven keeps both changes when they don't overlap (say, they renamed it and you
+wrote in it). If you both changed the text, nothing is lost; you choose:
+
+- **Keep mine**: your version replaces theirs.
+- **Keep both (mine as a copy)**: yours is saved as a new note "(my copy)", and this one shows theirs.
+- **Keep theirs (discard mine)**: your changes are dropped.
 
 ## Note cards on the project
 
 ![A note card on the project page](screens/desktop/note-card.jpg)
 
 - A card shows the note as written: text, headings, bullets and checkboxes, in order.
-- Long notes: **Show all (n more)** / **Show less**.
+- Long notes: **Show all (n more)** / **Show less**. The card stays that way when you come back (on this device).
 - Tick a checkbox right on the card; it's saved at once.
-- ✎ **Edit note** (or the title) opens the note; the copy button puts the whole note on the clipboard as plain text (☐ and ☑ for checkboxes).
+- Tap anywhere else on the card (the words, ✎ **Edit note**, or the title) to open the note. The copy button puts the whole note on the clipboard as plain text (☐ and ☑ for checkboxes).
 - Notes are listed newest first and stay put when edited or ticked.
 
 ## Delete a note
