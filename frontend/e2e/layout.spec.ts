@@ -640,7 +640,11 @@ test('notifications: the bell, the list and settings', async ({ page }) => {
   const card = page.getByRole('region', { name: 'Notifications settings' })
   await card.getByLabel('Tasks due today and overdue').selectOption({ label: 'In the app only' })
   await expect(card.getByLabel('Quiet hours on')).toBeEnabled() // saved
-  await card.getByLabel('Quiet hours on').check()
+  await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/api/v1/notification-settings') && r.request().method() === 'PUT'
+      && (r.request().postDataJSON() as { quiet_from: string | null }).quiet_from !== null),
+    card.getByLabel('Quiet hours on').check(),
+  ])
   await expect(card.getByLabel('From')).toHaveValue('22:00')
   await page.reload()
   await expect(card.getByLabel('Tasks due today and overdue')).toHaveValue('app')
