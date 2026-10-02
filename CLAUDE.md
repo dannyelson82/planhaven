@@ -4,11 +4,11 @@ Guidance for Claude Code (and other AI agents) working in this repository.
 
 ## Project status
 
-PlanHaven is building **phase 0.2** (checklist: `docs/roadmap/phase-0.2.md`; 0.1 is done). The source of truth is:
+PlanHaven is building **phase 0.3** (checklist: `docs/roadmap/phase-0.3.md`; 0.1 and 0.2 are done). The source of truth is:
 
 - `ARCHITECTURE.md`: how it's built and why (cited as A§n)
 - `SECURITY.md`: threat model, controls, release criteria (cited as S§n)
-- `docs/adr/`: decision records (ADRs 0001–0010; index in `docs/adr/README.md`)
+- `docs/adr/`: decision records (ADRs 0001–0018; index in `docs/adr/README.md`)
 - `docs/repo-setup.md`: GitHub hardening checklist
 
 Read the relevant sections before implementing anything. If code and docs disagree, stop and

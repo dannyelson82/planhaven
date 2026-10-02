@@ -1,6 +1,6 @@
 # Phase 0.2: Daily use
 
-> **Status:** In progress · **Started:** 2026-09-27
+> **Status:** Complete (v0.2.19, 2026-10-02) · **Started:** 2026-09-27
 > Scope: ARCHITECTURE.md §18 (0.2) and ADR 0011. Every release meets SECURITY.md §11.
 
 **Goal:** PlanHaven becomes useful every day: share projects with the household, keep lists,
