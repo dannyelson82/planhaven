@@ -22,6 +22,7 @@ import { NotificationsScreen } from './screens/Notifications.tsx'
 import { ConversationScreen, MessagesScreen } from './screens/Messages.tsx'
 import { useMessagesUnread } from './conversations.ts'
 import { useLiveMe } from './me.ts'
+import { TourHost } from './screens/Tour.tsx'
 import { syncTimeZone, useUnread } from './notifications.ts'
 import { BellIcon } from './icons.tsx'
 
@@ -247,6 +248,7 @@ function Shell({ session, children }: { session: Session; children: ReactNode })
           </div>
         )}
         {children}
+        <TourHost isAdmin={session.user.is_admin} />
         <VersionFooter />
       </main>
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 flex border-t border-stone-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden dark:border-stone-800 dark:bg-stone-950/95">

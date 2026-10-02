@@ -227,6 +227,18 @@ test('user guide screenshots', async ({ page }, info) => {
   await conversations.getByRole('link', { name: /Sam/ }).first().click()
   await page.getByRole('region', { name: 'Messages' }).getByText('For the boat, not the truck.').first().waitFor()
   await shot(page, device, 'conversation')
+
+  // The welcome tour and What's new (reopened from Help).
+  await page.goto('/help')
+  await page.getByRole('button', { name: 'Take the tour again' }).click()
+  await page.getByRole('dialog', { name: 'Welcome tour' }).getByRole('button', { name: 'Next' }).click()
+  await page.getByRole('dialog', { name: 'Welcome tour' }).getByRole('button', { name: 'Next' }).click()
+  await shot(page, device, 'welcome-tour', page.getByRole('dialog', { name: 'Welcome tour' }))
+  await page.getByRole('button', { name: 'Skip the tour' }).click()
+  await page.getByRole('button', { name: "What's new" }).click()
+  await page.getByRole('dialog', { name: "What's new" }).getByRole('button', { name: 'Next' }).click()
+  await shot(page, device, 'whats-new', page.getByRole('dialog', { name: "What's new" }))
+  await page.getByRole('dialog', { name: "What's new" }).getByRole('button', { name: 'Close' }).click()
   await page.goto('/admin')
   await page.getByRole('heading', { name: 'Admin' }).waitFor()
   await shot(page, device, 'admin')
