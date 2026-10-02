@@ -33,6 +33,10 @@ SHARE_WRITE_LINK = Limit("share-write-link", capacity=120, per_second=1 / 2)
 # Phone alerts (ADR 0018): registering devices and test alerts, per person.
 PUSH_SUBSCRIBE = Limit("push-subscribe", capacity=10, per_second=1 / 600)
 PUSH_TEST = Limit("push-test", capacity=5, per_second=1 / 120)
+# Feed and sync keys (SECURITY.md §7.3): per key. Calendar apps poll every few minutes at
+# most; a Shortcut syncs on a schedule or when Reminders closes.
+FEED_KEY = Limit("feed-key", capacity=30, per_second=1 / 60)
+SYNC_KEY = Limit("sync-key", capacity=60, per_second=1 / 10)
 # Messages (ADR 0018): sending and starting conversations, per person.
 MESSAGE_SEND = Limit("message-send", capacity=30, per_second=1 / 2)
 CONVERSATION_START = Limit("conversation-start", capacity=20, per_second=1 / 60)

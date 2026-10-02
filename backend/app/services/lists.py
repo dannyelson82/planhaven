@@ -51,6 +51,12 @@ def _can(session: CurrentSession, access: authz.ProjectAccess, write: bool) -> N
         authz.require(session.principal, authz.Action.PROJECT_EDIT, access)
 
 
+async def require_visible(conn: Any, session: CurrentSession, list_id: uuid.UUID) -> None:
+    """The list exists and this person may see it (or NotFoundError)."""
+    _, access = await _list_access(conn, list_id)
+    _can(session, access, write=False)
+
+
 async def lists_for_project(
     db: Database, session: CurrentSession, project_id: uuid.UUID
 ) -> list[ListRow]:
@@ -396,3 +402,11 @@ async def suggestions(db: Database, session: CurrentSession, query: str) -> list
         return []
     async with db.user_transaction(session.user.id) as conn:
         return await store.suggestions(conn, query, MAX_SUGGESTIONS)
+
+
+async def list_of_item(db: Database, session: CurrentSession, item_id: uuid.UUID) -> uuid.UUID:
+    """Which list an item is on (to open it from a Reminders link), for people who can see it."""
+    async with db.user_transaction(session.user.id) as conn:
+        item, access = await _item_access(conn, item_id)
+    _can(session, access, write=False)
+    return item.list_id

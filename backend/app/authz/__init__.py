@@ -90,6 +90,11 @@ class Action(StrEnum):
     CHORE_VIEW = "chore.view"
     CHORE_COMPLETE = "chore.complete"
     CHORE_REVIEW = "chore.review"
+    # Feed and sync keys (SECURITY.md §7.3): making one needs a fresh second factor; using
+    # one (a key principal) reads the calendar feed, or syncs Reminders lists.
+    TOKEN_CREATE = "token.create"  # noqa: S105  # nosec B105 (an action name, not a secret)
+    FEED_READ = "feed.read"
+    SYNC_USE = "sync.use"
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,6 +134,15 @@ RULES: dict[Action, Rule] = {
     Action.CHORE_VIEW: Rule(),
     Action.CHORE_COMPLETE: Rule(),
     Action.CHORE_REVIEW: Rule(),
+    Action.TOKEN_CREATE: Rule(recent=True),
+    Action.FEED_READ: Rule(),
+    Action.SYNC_USE: Rule(),
+}
+
+# What a key principal (Principal.kind) may do: nothing else (SECURITY.md §7.3).
+KEY_ACTIONS: dict[str, frozenset[Action]] = {
+    "ics": frozenset({Action.FEED_READ}),
+    "sync": frozenset({Action.SYNC_USE}),
 }
 
 # Which project roles allow each project action (ARCHITECTURE.md §7.5). Mirrored by the
@@ -164,6 +178,10 @@ class ProjectAccess:
 
 def require(principal: Principal, action: Action, resource: ProjectAccess | None = None) -> None:
     rule = RULES[action]
+    if principal.kind in KEY_ACTIONS and action not in KEY_ACTIONS[principal.kind]:
+        raise ForbiddenError("This key can't do that.")
+    if action in (Action.FEED_READ, Action.SYNC_USE) and principal.kind not in KEY_ACTIONS:
+        raise ForbiddenError("Use a feed or sync key.")
     if rule.admin and not principal.is_admin:
         raise NotFoundError("Not found.")
     if rule.verified and not principal.mfa_verified:
