@@ -23,7 +23,8 @@ its screenshots, in the same change.
 13. [Trash](trash.md)
 14. [Messages](messages.md): one to one and groups, who's online
 15. [Notifications](notifications.md): the bell, phone alerts, quiet hours
-16. [Your account and security](account-and-security.md): including experimental features
-17. [Admin](admin.md): inviting people, reset links, experimental features
+16. [Calendar and iPhone Reminders](calendar-and-reminders.md): due dates in your calendar, lists in Reminders
+17. [Your account and security](account-and-security.md): including experimental features
+18. [Admin](admin.md): inviting people, reset links, experimental features
 
-Written for PlanHaven 0.3.3.
+Written for PlanHaven 0.3.4.

@@ -62,6 +62,7 @@ Tap **Edit** at the top of the list:
 - Change an item's name, quantity or **price each** (shopping and parts lists). Changes are saved when you leave the box.
 - Rename the list in **List name**.
 - Delete an item with ✕, and tap **Undo** within a few seconds if that was a mistake.
+- **iPhone Reminders**: send this list to a list in Reminders on your iPhone. See [Calendar and iPhone Reminders](calendar-and-reminders.md).
 - **Move items to another list**: tick the items (or **All**), choose the list in **Move to**, tap **Move 2 items** (it says how many). Only lists in the same project are offered; make the other list first with **+ List** on the project.
 - **Delete this list** (tap twice). It goes to the [Trash](trash.md).
 
