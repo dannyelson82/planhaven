@@ -8,7 +8,7 @@ bottom of any page (and on **Account**) on a phone. The screenshots show the pho
 version to match your screen. Each feature added, changed or removed updates its page, and
 its screenshots, in the same change.
 
-1. [Getting started](getting-started.md): first sign-in, joining, your second factor, the app on your phone
+1. [Getting started](getting-started.md): first sign-in, joining, your second factor, the welcome tour and What's new, the app on your phone
 2. [Projects and tasks](projects.md): stages, the add bar, tasks and what they need
 3. [Arranging a project page](arranging.md): tiles, widths, dragging things where you want them
 4. [Lists](lists.md): shopping, parts and checklists, prices, offline, recording a purchase
@@ -25,4 +25,4 @@ its screenshots, in the same change.
 15. [Your account and security](account-and-security.md): including experimental features
 16. [Admin](admin.md): inviting people, reset links, experimental features
 
-Written for PlanHaven 0.3.1.
+Written for PlanHaven 0.3.2.

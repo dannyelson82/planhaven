@@ -29,6 +29,18 @@ test('first boot to first project', async ({ page }) => {
   await expect(page.locator('li.font-mono, ul.font-mono li')).toHaveCount(10)
   await page.getByRole('button', { name: "I've saved them" }).click()
 
+  // The welcome tour, once, on first sign-in (an admin gets the invite and safety steps too).
+  const tour = page.getByRole('dialog', { name: 'Welcome tour' })
+  await expect(tour.getByRole('heading', { name: 'Welcome to PlanHaven' })).toBeVisible()
+  await expect(tour).toContainText('Step 1 of 8')
+  for (let step = 1; step < 8; step++) await tour.getByRole('button', { name: 'Next' }).click()
+  await expect(tour.getByRole('heading', { name: 'Help is always there' })).toBeVisible()
+  await tour.getByRole('button', { name: 'Done' }).click()
+  await expect(tour).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0) // a new account: no old news either
+
   // Projects and tasks.
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()
   await page.getByLabel('New project').fill('Winterize boat')

@@ -640,7 +640,11 @@ test('notifications: the bell, the list and settings', async ({ page }) => {
   const card = page.getByRole('region', { name: 'Notifications settings' })
   await card.getByLabel('Tasks due today and overdue').selectOption({ label: 'In the app only' })
   await expect(card.getByLabel('Quiet hours on')).toBeEnabled() // saved
-  await card.getByLabel('Quiet hours on').check()
+  await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/api/v1/notification-settings') && r.request().method() === 'PUT'
+      && (r.request().postDataJSON() as { quiet_from: string | null }).quiet_from !== null),
+    card.getByLabel('Quiet hours on').check(),
+  ])
   await expect(card.getByLabel('From')).toHaveValue('22:00')
   await page.reload()
   await expect(card.getByLabel('Tasks due today and overdue')).toHaveValue('app')
@@ -699,5 +703,26 @@ test('messages', async ({ page }, info) => {
   await expect(hide).toBeChecked()
   await hide.uncheck()
   await expect(hide).not.toBeChecked()
+  expect(problems).toEqual([])
+})
+
+// The welcome tour and "What's new" open again from Help.
+test('tour and what is new from Help', async ({ page }) => {
+  const problems = watchForProblems(page)
+  await page.goto('/help')
+  await page.getByRole('button', { name: 'Take the tour again' }).click()
+  const tour = page.getByRole('dialog', { name: 'Welcome tour' })
+  await expect(tour.getByRole('heading', { name: 'Welcome to PlanHaven' })).toBeVisible()
+  await tour.getByRole('button', { name: 'Skip the tour' }).click()
+  await expect(tour).toHaveCount(0)
+  await page.getByRole('button', { name: "What's new" }).click()
+  const news = page.getByRole('dialog', { name: "What's new" })
+  await expect(news.getByRole('heading', { name: 'A welcome tour, and this' })).toBeVisible()
+  await news.getByRole('button', { name: 'Next' }).click()
+  await expect(news.getByRole('heading', { name: 'Messages' })).toBeVisible()
+  await expect(news.getByText('Tap New message and pick someone, or New group.')).toBeVisible()
+  await news.getByRole('button', { name: 'Open Messages' }).click()
+  await expect(page.getByRole('heading', { name: 'Messages' })).toBeVisible()
+  await expect(news).toHaveCount(0)
   expect(problems).toEqual([])
 })

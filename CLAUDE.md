@@ -29,6 +29,10 @@ and/or adds an ADR in the same PR.
   sections where they differ. It's shown in the app (Help). When a screen changes, re-take
   the screenshots (`GUIDE_SHOTS=1 planhaven-e2e e2e/journey.spec.ts e2e/guide.spec.ts`, or
   `npm run guide-shots` against a fresh instance) and add new ones to `e2e/guide.spec.ts`.
+- **Keep "What's new" current.** Every release with something people will notice adds an
+  entry at the top of `frontend/src/whatsnew.ts` (its version, plain words, a short how-to,
+  a "set it up now" action where it fits, and its guide page). The welcome tour's steps
+  (`frontend/src/screens/Tour.tsx`) change when the basics change.
 - **Keep changes small**: one logical change per commit and per PR. Write clear
   Conventional Commit messages that say what changed and why.
 - **Never commit secrets**: no keys, tokens, passwords, `.env` files, or real credentials,

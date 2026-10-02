@@ -2,7 +2,8 @@
 // their screenshots, phone or computer size to match the screen. Loaded only when opened.
 import { type ReactNode, useEffect } from 'react'
 import { Markdown } from '../markdown.tsx'
-import { Link } from '../ui.tsx'
+import { Button, Link } from '../ui.tsx'
+import { openTour } from '../whatsnew.ts'
 
 const PAGES = import.meta.glob('../../../docs/user-guide/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
 const SHOTS = import.meta.glob('../../../docs/user-guide/screens/*/*.jpg', { query: '?url', import: 'default', eager: true }) as Record<string, string>
@@ -37,6 +38,12 @@ export default function HelpScreen({ slug }: { slug: string }) {
   return (
     <article className="max-w-3xl space-y-4">
       {slug && <Link to="/help" className="text-sm text-brand-700 dark:text-brand-100">← All help</Link>}
+      {!slug && (
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onPress={() => openTour('welcome')}>Take the tour again</Button>
+          <Button variant="secondary" onPress={() => openTour('whats-new')}>What's new</Button>
+        </div>
+      )}
       <Markdown source={source} options={options} />
       {slug && <p className="pt-4"><Link to="/help" className="text-brand-700 dark:text-brand-100">← All help</Link></p>}
     </article>
