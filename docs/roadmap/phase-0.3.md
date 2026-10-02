@@ -48,9 +48,9 @@ screenshots.
 
 ## Milestone 3: Chores (v0.3.3, ADR 0013)
 
-- [ ] Assign a task to anyone, once or repeating (RRULE subset with a time of day)
-- [ ] Reminders until done; assignees see their chores without project membership (RLS)
-- [ ] Proof: none, photo or note; the assigner approves or sends back
+- [x] Assign a task to anyone, once or repeating (RRULE subset with a time of day)
+- [x] Reminders until done; assignees see their chores without project membership (RLS)
+- [x] Proof: none, photo or note; the assigner approves or sends back
 
 ## Milestone 4: Calendar feed (v0.3.4)
 

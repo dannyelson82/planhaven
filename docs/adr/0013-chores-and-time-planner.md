@@ -71,3 +71,16 @@ phase 0.1 (ADR 0008), since they are cheap now and costly to retrofit.
 - Push notifications become central (phase 0.3), including scheduled sends by the worker.
 - Security: a limited assignee view is a new access path, added to the authorization matrix
   and RLS tests; proof photos are user content under RLS; notification text is title only.
+
+## As built (v0.3.3, chores)
+
+- Tasks carry the assignee, who assigned them, the proof asked for and a repeat rule (daily,
+  weekly on chosen days, every N weeks/days/months) at the task's due time. A repeating chore
+  stays one task: each completion moves its due time to the next occurrence (missed ones are
+  skipped), and the history is in `chore_submissions`.
+- Permissions: `authz.require_chore` (assignee completes; assigner or project owners and
+  editors review). Because the assignee may not be a project member, their "done" is written in
+  system context after that check; reads stay under RLS.
+- Reminders run every five minutes: when due, then once more three hours later (title only).
+- No approval is asked when there's no proof, or when people assign chores to themselves.
+- Assigned tasks no longer get the general "due today" reminders: chores have their own.

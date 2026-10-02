@@ -21,6 +21,8 @@ You're told about:
 - **Asset services due**: a maintenance schedule that's due soon or overdue (see [Assets](assets.md)).
 - **Someone used your share link**: a guest ticked something, added to a note or added photos
   (at most once an hour per guest).
+- **Chores**: a chore given to you, when it's due (and a reminder), one to approve, and
+  approved or sent back (see [Chores](chores.md)).
 - **New messages**: one per conversation until you open it (see [Messages](messages.md)). **Show
   the start of messages in alerts** can be unticked to keep the text off your lock screen.
 - **Sign-ins and security changes**: a sign-in from somewhere new, a password or second factor

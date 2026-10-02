@@ -153,6 +153,10 @@ Organized by STRIDE category. Details for each control are in §7.
 | Message spam or flooding | Denial of service | Per-person rate limits on sending and starting conversations (`MESSAGE_SEND`, `CONVERSATION_START`); 4,000-character limit; one alert per conversation until read |
 | Online status used to track someone | Info disclosure | Shown only to signed-in people on the server; "last seen" rounded to the minute; each person can hide both |
 | Server owner reading messages | Info disclosure | Accepted and disclosed (ADR 0018): messages are stored like notes, not end-to-end encrypted; the guide says so |
+| A chore's assignee reaching the rest of the project | Info disclosure / Elevation | The assignee reads only tasks assigned to them (RLS `tasks_select`); project lists, notes, files and other tasks stay hidden (tested); project titles are hidden from non-members |
+| Completing, approving or reassigning someone else's chore | Tampering / Elevation | `authz.require_chore`: only the assignee completes, only the assigner or the project's owners and editors review; assigning needs project edit rights (RLS too); the "done" is written in system context only after that check (`app/services/chores.py`) |
+| Proof photos | Info disclosure | Cleaned like any upload (location removed); served only to the assignee, the assigner and project members (RLS on `chore_submissions`); kept by the blob purge only while referenced |
+| Chore alerts revealing details | Info disclosure | Title only (A§21), never notes or photos |
 | Spoofed client IP via forwarded headers | Spoofing | Forwarded headers honoured only from `TRUSTED_PROXIES`; refuse to start in public mode without it (§7.11) |
 | Secrets theft from DB dump or backup | Info disclosure | Secrets encrypted at rest with master key stored outside the DB (§7.9) |
 | Container escape / host impact | Elevation | Non-root, dropped capabilities, `no-new-privileges`, read-only root FS where possible, DB on Unix socket only (§7.13) |
