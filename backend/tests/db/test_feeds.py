@@ -5,6 +5,8 @@ from typing import Any
 
 import pytest
 
+from app.core import security_log
+from app.services import limits
 from tests.db import team as setup
 from tests.db.team import U
 
@@ -138,3 +140,33 @@ def test_reminders_sync(team: Team) -> None:
     assert owner.client.get("/api/v1/sync/pull", headers=auth).status_code == 401
     # Keys are each person's own.
     assert _req(viewer, "DELETE", f"/api/v1/keys/{kid}").status_code == 404
+
+
+def test_failed_keys_are_logged_and_limited(team: Team, monkeypatch: pytest.MonkeyPatch) -> None:
+    owner, _, _, _, _ = team
+    logged: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        security_log, "event", lambda name, **kw: logged.append((name, kw.get("kind", "")))
+    )
+    monkeypatch.setattr(
+        limits, "KEY_FAIL_IP", limits.Limit("test-key-fail", capacity=3, per_second=0.001)
+    )
+    owner.client.cookies.clear()
+    wrong = {"authorization": "Bearer phv_sync_" + "x" * 43}
+    codes = [owner.client.get("/api/v1/sync/pull", headers=wrong).status_code for _ in range(4)]
+    assert codes == [401, 401, 401, 429]
+    assert owner.client.get("/ics/phv_ics_" + "y" * 43 + ".ics").status_code == 429
+    assert ("key_failed", "sync") in logged
+    assert ("key_failed", "ics") in logged
+
+
+def test_sync_is_rate_limited_per_key(team: Team, monkeypatch: pytest.MonkeyPatch) -> None:
+    owner, _, _, _, _ = team
+    key = _key(owner, "sync")["key"]
+    monkeypatch.setattr(
+        limits, "SYNC_KEY", limits.Limit("test-sync-key", capacity=2, per_second=0.001)
+    )
+    owner.client.cookies.clear()
+    auth = {"authorization": f"Bearer {key}"}
+    codes = [owner.client.get("/api/v1/sync/pull", headers=auth).status_code for _ in range(3)]
+    assert codes == [200, 200, 429]

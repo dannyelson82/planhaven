@@ -14,6 +14,7 @@ from decimal import Decimal
 
 from app import authz
 from app.auth import tokens
+from app.core import security_log
 from app.db import asset_service as service_store
 from app.db import auth as audit
 from app.db import feeds as store
@@ -47,13 +48,20 @@ class KeyHolder:
 async def authenticate(db: Database, kind: str, token: str, ip: str | None) -> KeyHolder | None:
     """A live key of this kind, or None. Rate limited per key; last use recorded."""
     # The shape of a real key (prefix + 43 URL-safe characters) before any database work.
+    # Wrong, removed or malformed keys are security events (fail2ban/CrowdSec count them like
+    # failed sign-ins). Well-formed wrong ones cost a lookup, so they're also limited per
+    # address (failures only, so a household behind one address keeps working).
     if not _SHAPE[kind].fullmatch(token):
+        security_log.event("key_failed", ip=ip, kind=kind, reason="malformed")
         return None
     async with db.system_transaction() as conn:
         row = await store.by_hash(conn, kind, tokens.token_hash(token))
-        if row is None:
-            return None
-        await store.used(conn, row.id, ip)
+        if row is not None:
+            await store.used(conn, row.id, ip)
+    if row is None:
+        security_log.event("key_failed", ip=ip, kind=kind, reason="unknown")
+        await limits.check(db, [(limits.KEY_FAIL_IP, limits.key(limits.KEY_FAIL_IP, ip))], ip=ip)
+        return None
     limit = limits.FEED_KEY if kind == "ics" else limits.SYNC_KEY
     await limits.check(db, [(limit, limits.key(limit, row.id))], ip=ip, user_id=row.user_id)
     principal = authz.Principal(row.user_id, False, True, None, kind=kind)

@@ -37,6 +37,10 @@ PUSH_TEST = Limit("push-test", capacity=5, per_second=1 / 120)
 # most; a Shortcut syncs on a schedule or when Reminders closes.
 FEED_KEY = Limit("feed-key", capacity=30, per_second=1 / 60)
 SYNC_KEY = Limit("sync-key", capacity=60, per_second=1 / 10)
+# Assigning chores, per person (each assignment alerts the assignee).
+CHORE_ASSIGN = Limit("chore-assign", capacity=30, per_second=1 / 60)
+# Wrong feed or sync keys, per address (only failures count).
+KEY_FAIL_IP = Limit("key-fail-ip", capacity=10, per_second=1 / 60)
 # Messages (ADR 0018): sending and starting conversations, per person.
 MESSAGE_SEND = Limit("message-send", capacity=30, per_second=1 / 2)
 CONVERSATION_START = Limit("conversation-start", capacity=20, per_second=1 / 60)

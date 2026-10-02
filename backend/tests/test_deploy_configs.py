@@ -31,7 +31,7 @@ def _written_lines(tmp_path: Path, *events: tuple[str, str | None]) -> list[str]
 
 
 @pytest.mark.parametrize(
-    "event", ["login_failed", "mfa_failed", "rate_limited", "share_link_failed"]
+    "event", ["login_failed", "mfa_failed", "rate_limited", "share_link_failed", "key_failed"]
 )
 @pytest.mark.parametrize("ip", ["198.51.100.7", "2001:db8::42"])
 def test_fail2ban_filter_matches_ban_events(tmp_path: Path, event: str, ip: str) -> None:
@@ -55,4 +55,10 @@ def test_crowdsec_fields_exist_in_log_lines(tmp_path: Path) -> None:
         assert field in entry, field
     scenario = (DEPLOY / "crowdsec/scenarios/planhaven-bf.yaml").read_text()
     for name in re.findall(r"'planhaven_(\w+)'", scenario):
-        assert name in {"login_failed", "mfa_failed", "rate_limited", "share_link_failed"}
+        assert name in {
+            "login_failed",
+            "mfa_failed",
+            "rate_limited",
+            "share_link_failed",
+            "key_failed",
+        }
