@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from app.api import (
     admin,
+    asset_service,
     assets,
     attachments,
     auth,
@@ -73,6 +74,7 @@ ROUTERS = (
     live.router,
     attachments.router,
     assets.router,
+    asset_service.router,
     contacts.router,
     task_needs.router,
     templates.router,
