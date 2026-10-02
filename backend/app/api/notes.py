@@ -44,6 +44,7 @@ class NoteOut(BaseModel):
     source: str
     updated_at: datetime
     version: int
+    archived: bool = False
     can_edit: bool = False
     content: dict[str, Any] | None = None
 
@@ -59,14 +60,19 @@ def _note(
         source=n.source,
         updated_at=n.updated_at,
         version=n.version,
+        archived=n.archived_at is not None,
         can_edit=can_edit,
         content=document,
     )
 
 
 @router.get("/projects/{project_id}/notes")
-async def list_notes(project_id: uuid.UUID, session: SessionDep, request: Request) -> list[NoteOut]:
-    rows = await service.notes_for_project(deps.database(request), session, project_id)
+async def list_notes(
+    project_id: uuid.UUID, session: SessionDep, request: Request, archived: bool = False
+) -> list[NoteOut]:
+    rows = await service.notes_for_project(
+        deps.database(request), session, project_id, archived=archived
+    )
     return [_note(n) for n in rows]
 
 
@@ -115,6 +121,20 @@ async def save_note(
         raise HTTPException(422, str(exc)) from None
     _etag(response, note.version)
     return _note(note, can_edit=True)
+
+
+class ArchiveIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    archived: bool
+
+
+@router.post("/notes/{note_id}/archive", status_code=204)
+async def archive_note(
+    note_id: uuid.UUID, body: ArchiveIn, session: SessionDep, request: Request
+) -> None:
+    await service.set_archived(
+        deps.database(request), session, note_id, body.archived, deps.client_ip(request)
+    )
 
 
 @router.delete("/notes/{note_id}", status_code=204)
