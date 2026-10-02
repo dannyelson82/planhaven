@@ -162,7 +162,7 @@ async def test_cannot_append_events_for_another_user(db: Database) -> None:
 
 
 async def test_database_ready_at_head(db: Database) -> None:
-    assert head_revision() == "0031"
+    assert head_revision() == "0032"
     assert await db_health.database_ready(db, head_revision()) is True
     assert await db_health.database_ready(db, "not-a-revision") is False
 
