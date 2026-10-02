@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { ADMIN, totp, watchForProblems } from './helpers.ts'
+import { ADMIN, row, tick, totp, watchForProblems } from './helpers.ts'
 
 // The first user's whole path through the app, in a real browser: setup, mandatory second
 // factor, projects and tasks, signing out and back in. Saves the signed-in state for the
@@ -42,20 +42,24 @@ test('first boot to first project', async ({ page }) => {
     await expect(page.getByText(task, { exact: true })).toBeVisible()
   }
   await expect(page.getByText('Next small step: Drain water lines')).toBeVisible()
-  // Tap the task row (the checkbox's label), as a person would.
-  await page.locator('label', { hasText: 'Drain water lines' }).click()
+  // Tap the task's box, as a person would.
+  await tick(page, 'Drain water lines')
   await expect(page.getByText('Next small step: Change oil')).toBeVisible()
   await page.reload()
   await expect(page.getByText('Done (1)')).toBeVisible()
 
-  // Edit a task: notes and a due date.
-  await page.getByRole('button', { name: 'Edit Change oil' }).click()
+  // Tapping a task opens its details; edit its notes and due date from there.
+  await row(page, 'Change oil').click()
+  await expect(page.getByRole('dialog').getByText('No due date')).toBeVisible()
+  await page.getByRole('dialog').getByRole('button', { name: 'Edit', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Edit task' })).toBeVisible()
   await page.getByRole('dialog').getByLabel('Notes').fill('5W-30, 6 quarts')
   await page.getByLabel('Due date').fill('2026-10-15')
   await page.getByRole('dialog').getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Edit task' })).toBeHidden()
-  await expect(page.locator('label', { hasText: 'Change oil' })).toContainText('has notes')
+  await expect(page.getByRole('dialog').getByText('5W-30, 6 quarts')).toBeVisible()
+  await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
+  await expect(row(page, 'Change oil')).toContainText('has notes')
 
   // A shopping list, used like in a store.
   await page.getByRole('toolbar', { name: 'Add to this project' }).getByRole('button', { name: 'List', exact: true }).click()
@@ -68,7 +72,7 @@ test('first boot to first project', async ({ page }) => {
   await page.getByRole('button', { name: 'Add', exact: true }).click()
   await page.getByLabel('Add item').fill('Hose clamps')
   await page.getByRole('button', { name: 'Add', exact: true }).click()
-  await page.locator('label', { hasText: 'Antifreeze' }).click()
+  await tick(page, 'Antifreeze')
   await expect(page.getByText('In the cart (1)')).toBeVisible()
   // Edit mode: change a quantity; delete, then undo. No delete buttons outside edit mode.
   await expect(page.getByRole('button', { name: 'Delete Hose clamps' })).toHaveCount(0)
@@ -83,7 +87,7 @@ test('first boot to first project', async ({ page }) => {
   await expect(page.getByText('Deleted “Hose clamps”')).toBeVisible()
   await page.getByRole('button', { name: 'Undo' }).click()
   await page.getByRole('button', { name: 'Done' }).click()
-  await expect(page.locator('label', { hasText: 'Hose clamps' })).toContainText('4')
+  await expect(row(page, 'Hose clamps')).toContainText('4')
   await page.getByRole('link', { name: '← Back to project' }).click()
   await expect(page.getByText('Shopping · 1 to get of 2')).toBeVisible()
   // A whole list can be deleted from its edit mode (it goes to the trash).
@@ -110,9 +114,11 @@ test('first boot to first project', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Winterize boat' })).toBeVisible()
 
   // The oil change needs the hose clamps from the list; the task says so until they're got.
-  await page.getByRole('button', { name: 'Edit Change oil' }).click()
+  await row(page, 'Change oil').click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Edit', exact: true }).click()
   await page.getByRole('group', { name: 'Items needed' }).getByLabel('Hose clamps').check()
   await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
   await expect(page.getByText('Needs 1 of 1 item: Hose clamps')).toBeVisible()
 
   // A note: edit, leave without Done (asked first), then Done saves and goes back.
@@ -212,7 +218,7 @@ test('first boot to first project', async ({ page }) => {
   // Dave's tick shows on the project: the task is done.
   await expect(page.getByRole('region', { name: 'Open tasks' })).not.toContainText('Change oil')
   await page.getByText(/^Done \(\d+\)$/).click()
-  await expect(page.locator('label', { hasText: 'Change oil' }).first()).toBeVisible()
+  await expect(row(page, 'Change oil').first()).toBeVisible()
 
   // Deleted by mistake: the file comes back from the trash.
   await page.getByRole('button', { name: 'Delete parts.csv' }).click()

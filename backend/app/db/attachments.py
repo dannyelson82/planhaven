@@ -21,6 +21,7 @@ class AttachmentRow:
     metadata_kept: bool
     created_by: uuid.UUID
     created_at: datetime
+    list_item_id: uuid.UUID | None
 
 
 async def attachments_for_project(
@@ -29,7 +30,7 @@ async def attachments_for_project(
     rows = await conn.execute(
         text("""
             SELECT id, project_id, filename, kind, content_type, size, blob_sha256,
-                   thumb_sha256, metadata_kept, created_by, created_at
+                   thumb_sha256, metadata_kept, created_by, created_at, list_item_id
             FROM attachments WHERE project_id = :p AND deleted_at IS NULL
             ORDER BY created_at DESC LIMIT 500
         """),
@@ -43,7 +44,7 @@ async def get_attachment(conn: AsyncConnection, attachment_id: uuid.UUID) -> Att
         await conn.execute(
             text("""
                 SELECT id, project_id, filename, kind, content_type, size, blob_sha256,
-                       thumb_sha256, metadata_kept, created_by, created_at
+                       thumb_sha256, metadata_kept, created_by, created_at, list_item_id
                 FROM attachments WHERE id = :id AND deleted_at IS NULL
             """),
             {"id": attachment_id},
@@ -64,13 +65,15 @@ async def create_attachment(
     blob_sha256: str,
     thumb_sha256: str | None,
     metadata_kept: bool,
+    list_item_id: uuid.UUID | None = None,
 ) -> uuid.UUID:
     attachment_id = uuid.uuid7()
     await conn.execute(
         text("""
             INSERT INTO attachments (id, project_id, filename, kind, content_type, size,
-                                     blob_sha256, thumb_sha256, metadata_kept, created_by)
-            VALUES (:id, :p, :f, :k, :ct, :s, :b, :t, :m, :u)
+                                     blob_sha256, thumb_sha256, metadata_kept, created_by,
+                                     list_item_id)
+            VALUES (:id, :p, :f, :k, :ct, :s, :b, :t, :m, :u, :item)
         """),
         {
             "id": attachment_id,
@@ -83,9 +86,18 @@ async def create_attachment(
             "t": thumb_sha256,
             "m": metadata_kept,
             "u": user_id,
+            "item": list_item_id,
         },
     )
     return attachment_id
+
+
+async def item_in_project(conn: AsyncConnection, item_id: uuid.UUID, project_id: uuid.UUID) -> bool:
+    found = await conn.scalar(
+        text("SELECT 1 FROM list_items WHERE id = :i AND project_id = :p AND deleted_at IS NULL"),
+        {"i": item_id, "p": project_id},
+    )
+    return found is not None
 
 
 async def delete_attachment(conn: AsyncConnection, attachment_id: uuid.UUID) -> None:

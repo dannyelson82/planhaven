@@ -33,6 +33,8 @@ class ItemRow:
     quantity: Decimal | None
     unit: str | None
     price_cents: int | None
+    notes: str
+    website: str
     position: float
     checked_at: datetime | None
     updated_at: datetime
@@ -139,8 +141,8 @@ async def delete_list(conn: AsyncConnection, list_id: uuid.UUID) -> None:
 async def items(conn: AsyncConnection, list_id: uuid.UUID) -> list[ItemRow]:
     rows = await conn.execute(
         text("""
-            SELECT id, list_id, project_id, text, quantity, unit, price_cents, position,
-                   checked_at, updated_at, version
+            SELECT id, list_id, project_id, text, quantity, unit, price_cents, notes, website,
+                   position, checked_at, updated_at, version
             FROM list_items WHERE list_id = :l AND deleted_at IS NULL
             ORDER BY checked_at IS NOT NULL, position, created_at LIMIT 2000
         """),
@@ -153,8 +155,8 @@ async def get_item(conn: AsyncConnection, item_id: uuid.UUID) -> ItemRow | None:
     row = (
         await conn.execute(
             text("""
-                SELECT id, list_id, project_id, text, quantity, unit, price_cents, position,
-                       checked_at, updated_at, version
+                SELECT id, list_id, project_id, text, quantity, unit, price_cents, notes, website,
+                       position, checked_at, updated_at, version
                 FROM list_items WHERE id = :id AND deleted_at IS NULL
             """),
             {"id": item_id},
@@ -208,6 +210,8 @@ async def update_item(
     set_unit: bool,
     price_cents: int | None,
     set_price: bool,
+    notes: str | None = None,
+    website: str | None = None,
     checked: bool | None,
 ) -> int | None:
     """expected_version None = unconditional (only allowed for check-offs by the service)."""
@@ -221,6 +225,8 @@ async def update_item(
                             THEN CAST(:unit AS text) ELSE unit END,
                 price_cents = CASE WHEN CAST(:set_price AS boolean)
                                    THEN CAST(:price AS bigint) ELSE price_cents END,
+                notes = coalesce(CAST(:notes AS text), notes),
+                website = coalesce(CAST(:web AS text), website),
                 checked_at = CASE WHEN CAST(:c AS boolean) IS NULL THEN checked_at
                                   WHEN CAST(:c AS boolean) THEN coalesce(checked_at, now())
                                   ELSE NULL END,
@@ -243,11 +249,36 @@ async def update_item(
             "set_unit": set_unit,
             "price": price_cents,
             "set_price": set_price,
+            "notes": notes,
+            "web": website,
             "c": checked,
             "u": user_id,
         },
     )
     return int(v) if v is not None else None
+
+
+async def move_items(
+    conn: AsyncConnection, item_ids: list[uuid.UUID], *, from_list: uuid.UUID, to_list: uuid.UUID
+) -> int:
+    """Moves items to the end of another list, in their current order. Returns how many."""
+    result = await conn.execute(
+        text("""
+            WITH picked AS (
+                SELECT id, row_number() OVER (ORDER BY position, created_at) AS n
+                FROM list_items
+                WHERE id = ANY(:ids) AND list_id = :from_list AND deleted_at IS NULL
+            ), start AS (
+                SELECT coalesce(max(position) + 1, 0) AS p FROM list_items WHERE list_id = :to_list
+            )
+            UPDATE list_items i
+            SET list_id = :to_list, position = start.p + picked.n,
+                updated_at = now(), version = i.version + 1
+            FROM picked, start WHERE i.id = picked.id
+        """),
+        {"ids": item_ids, "from_list": from_list, "to_list": to_list},
+    )
+    return result.rowcount
 
 
 async def delete_item(conn: AsyncConnection, item_id: uuid.UUID) -> None:

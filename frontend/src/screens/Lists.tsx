@@ -9,13 +9,14 @@ import { Button, Card, ErrorText, Field, Form, Link } from '../ui.tsx'
 import { cachedGet, sendOrQueue, updateOfflineCopy } from '../offline.ts'
 import { Movable } from './Movable.tsx'
 import { SaveAsTemplate } from './Templates.tsx'
+import { ItemDetails } from './ItemDetails.tsx'
+import { changes, type Item, saveItem } from '../items.ts'
 
 export type ListSummary = {
   id: string; project_id: string; title: string; kind: Kind; open_items: number; total_items: number; version: number
   estimated_cents: number | null; remaining_cents: number | null
 }
 type Kind = 'shopping' | 'parts' | 'checklist'
-type Item = { id: string; text: string; quantity: string | null; unit: string | null; price_cents: number | null; checked: boolean; version: number }
 type ListDetail = ListSummary & { items: Item[] }
 
 const KIND_LABEL: Record<Kind, string> = { shopping: 'Shopping', parts: 'Parts', checklist: 'Checklist' }
@@ -173,7 +174,7 @@ export function ListScreen({ id }: { id: string }) {
         body: { text: item.text, ...(item.qty ? { quantity: item.qty } : {}), ...(item.price !== null ? { price_cents: item.price } : {}) },
       })
       if (queued) {
-        const pending: Item = { id: `pending-${key}`, text: item.text, quantity: item.qty || null, unit: null, price_cents: item.price, checked: false, version: 0 }
+        const pending: Item = { id: `pending-${key}`, text: item.text, quantity: item.qty || null, unit: null, price_cents: item.price, notes: '', website: '', checked: false, version: 0 }
         await showLocally((d) => ({ ...d, items: [...d.items, pending] }))
       }
     },
@@ -227,9 +228,10 @@ export function ListScreen({ id }: { id: string }) {
     // changed in quick succession aren't refused as someone else's change.
     mutationFn: ({ i, text, qty, price }: { i: Item; text: string; qty: string; price: number | null }) => {
       const run = saving.current.catch(() => undefined).then(async () => {
-        const latest = client.getQueryData<ListDetail>(['list', id])?.items.find((x) => x.id === i.id)
-        const updated = await api<Item>('PATCH', `/api/v1/list-items/${i.id}`, { text, quantity: qty.trim() || null, price_cents: price },
-          { 'If-Match': `"${latest?.version ?? i.version}"` })
+        // Only what changed, compared with the newest copy this device has (merge when safe).
+        const latest = client.getQueryData<ListDetail>(['list', id])?.items.find((x) => x.id === i.id) ?? i
+        const updated = await saveItem(latest, changes(latest, { text, quantity: qty.trim() || null, price_cents: price, website: latest.website, notes: latest.notes }), false, id)
+        if (!updated) return
         client.setQueryData<ListDetail>(['list', id], (d) => d && { ...d, items: d.items.map((x) => x.id === updated.id ? updated : x) })
       })
       saving.current = run
@@ -300,7 +302,8 @@ export function ListScreen({ id }: { id: string }) {
         <ErrorText error={add.error} />
         <Button type="submit">Add</Button>
       </Form>
-      <ItemList items={open} editing={editing} priced={l.kind !== 'checklist'} onToggle={(i) => toggle.mutate(i)} onDelete={(i) => remove.mutate(i)} onSave={(i, text, qty, price) => save.mutate({ i, text, qty, price })} />
+      <AddMany listId={id} onAdded={refresh} />
+      <ItemList listId={id} projectId={l.project_id} items={open} editing={editing} priced={l.kind !== 'checklist'} onToggle={(i) => toggle.mutate(i)} onDelete={(i) => remove.mutate(i)} onSave={(i, text, qty, price) => save.mutate({ i, text, qty, price })} />
       {open.length === 0 && <p className="text-stone-500">All done!</p>}
       {done.length > 0 && (
         <>
@@ -310,10 +313,11 @@ export function ListScreen({ id }: { id: string }) {
               <Button variant="secondary" onPress={() => record.mutate()} isDisabled={record.isPending}>Record purchase</Button>
             )}
           </div>
-          <ItemList items={done} editing={editing} priced={l.kind !== 'checklist'} onToggle={(i) => toggle.mutate(i)} onDelete={(i) => remove.mutate(i)} onSave={(i, text, qty, price) => save.mutate({ i, text, qty, price })} />
+          <ItemList listId={id} projectId={l.project_id} items={done} editing={editing} priced={l.kind !== 'checklist'} onToggle={(i) => toggle.mutate(i)} onDelete={(i) => remove.mutate(i)} onSave={(i, text, qty, price) => save.mutate({ i, text, qty, price })} />
         </>
       )}
       {!editing && l.items.length > 0 && <SaveAsTemplate path={`/api/v1/lists/${id}/template`} suggested={l.title} label="Save as template" />}
+      {editing && <MoveItems list={l} onMoved={refresh} />}
       {editing && (
         <div className="flex justify-end">
           <Button variant="danger-ghost" isDisabled={removeList.isPending}
@@ -329,7 +333,7 @@ export function ListScreen({ id }: { id: string }) {
 
 type Handlers = { onToggle: (i: Item) => void; onDelete: (i: Item) => void; onSave: (i: Item, text: string, qty: string, price: number | null) => void }
 
-function ItemList({ items, editing, priced, onToggle, onDelete, onSave }: { items: Item[]; editing: boolean; priced: boolean } & Handlers) {
+function ItemList({ listId, projectId, items, editing, priced, onToggle, onDelete, onSave }: { listId: string; projectId: string; items: Item[]; editing: boolean; priced: boolean } & Handlers) {
   if (items.length === 0) return null
   if (editing) {
     return (
@@ -341,16 +345,30 @@ function ItemList({ items, editing, priced, onToggle, onDelete, onSave }: { item
   return (
     <ul className="divide-y divide-stone-200 rounded-2xl bg-white ring-1 ring-stone-200 dark:divide-stone-800 dark:bg-stone-900 dark:ring-stone-800">
       {items.map((i) => (
-        <li key={i.id} className="flex items-center gap-2 px-3">
-          <Checkbox isSelected={i.checked} isDisabled={i.id.startsWith('pending-')} onChange={() => onToggle(i)} className="group flex min-h-14 flex-1 items-center gap-3">
+        <li key={i.id} className="flex items-center gap-1 pl-1 pr-3">
+          {/* The circle ticks (a wide tap area for use in a store); the name opens the details. */}
+          <Checkbox isSelected={i.checked} isDisabled={i.id.startsWith('pending-')} onChange={() => onToggle(i)} aria-label={i.text}
+            className="group flex min-h-14 min-w-14 shrink-0 items-center justify-center">
             <span aria-hidden className="flex size-7 shrink-0 items-center justify-center rounded-full border-2 border-stone-400 group-data-[selected]:border-brand-600 group-data-[selected]:bg-brand-600 group-data-[selected]:text-white">
               {i.checked ? '✓' : ''}
             </span>
-            <span className={`min-w-0 flex-1 text-lg ${i.checked ? 'text-stone-500 line-through' : ''}`}>{i.text}</span>
-            {quantityText(i) && <span className="text-sm text-stone-500">{quantityText(i)}</span>}
-            {priced && i.price_cents !== null && <span className="text-sm tabular-nums text-stone-500">{formatCents(lineCents(i))}</span>}
-            {i.id.startsWith('pending-') && <span className="text-xs text-amber-700 dark:text-amber-400">not sent yet</span>}
           </Checkbox>
+          {i.id.startsWith('pending-') ? (
+            <span className="flex min-h-14 min-w-0 flex-1 items-center gap-3">
+              <span className="min-w-0 flex-1 text-lg">{i.text}</span>
+              <span className="text-xs text-amber-700 dark:text-amber-400">not sent yet</span>
+            </span>
+          ) : (
+            <ItemDetails item={i} listId={listId} projectId={projectId} priced={priced} summary={<>
+              <span className={`min-w-0 flex-1 text-lg ${i.checked ? 'text-stone-500 line-through' : ''}`}>
+                {i.text}
+                {(i.notes || i.website) && <span className="sr-only"> (has details)</span>}
+              </span>
+              {(i.notes || i.website) && <span aria-hidden className="text-xs text-stone-400">•••</span>}
+              {quantityText(i) && <span className="text-sm text-stone-500">{quantityText(i)}</span>}
+              {priced && i.price_cents !== null && <span className="text-sm tabular-nums text-stone-500">{formatCents(lineCents(i))}</span>}
+            </>} />
+          )}
         </li>
       ))}
     </ul>
@@ -401,5 +419,94 @@ function EditRow({ item, priced, onDelete, onSave }: { item: Item; priced: boole
       <Button variant="danger-ghost" aria-label={`Delete ${item.text}`} isDisabled={pending} className="ml-auto"
         onPress={() => onDelete({ ...item, text: text.trim() || item.text, quantity: qty.trim() || null })}>✕</Button>
     </li>
+  )
+}
+
+/** Paste or type a long list, one item per line (owner request, 2026-10-02: "enter a big list
+ * into a project and reorganize it into separate lists later"). */
+function AddMany({ listId, onAdded }: { listId: string; onAdded: () => Promise<unknown> }) {
+  const [open, setOpen] = useState(false)
+  const [text, setText] = useState('')
+  const lines = text.split('\n').map((l) => l.replace(/^\s*(?:[-*•☐☑]|\d+[.)])\s*/, '').trim()).filter(Boolean)
+  const add = useMutation({
+    mutationFn: () => api('POST', `/api/v1/lists/${listId}/items/bulk`, { texts: lines.map((l) => l.slice(0, 500)) },
+      { 'Idempotency-Key': crypto.randomUUID() }),
+    onSuccess: async () => { setText(''); setOpen(false); await onAdded() },
+  })
+  if (!open) return <Button variant="ghost" onPress={() => setOpen(true)} className="-ml-2 px-2 text-sm text-brand-700 dark:text-brand-100">Add many at once</Button>
+  return (
+    <section aria-label="Add many at once">
+    <Card className="space-y-3">
+      <Field label="Items, one per line" multiline maxLength={50000} value={text} onChange={setText}
+        description="Paste a list from anywhere. Bullets and numbers at the start of lines are removed." />
+      <ErrorText error={add.error} />
+      {lines.length > MAX_BULK && <p className="text-sm text-red-700 dark:text-red-400">Up to {MAX_BULK} at a time.</p>}
+      <div className="flex gap-2">
+        <Button onPress={() => add.mutate()} isDisabled={!lines.length || lines.length > MAX_BULK || add.isPending}>
+          {lines.length === 1 ? 'Add 1 item' : `Add ${lines.length} items`}
+        </Button>
+        <Button variant="ghost" onPress={() => setOpen(false)}>Cancel</Button>
+      </div>
+    </Card>
+    </section>
+  )
+}
+const MAX_BULK = 200
+
+/** Edit mode: tick items and move them to another list of this project. */
+function MoveItems({ list, onMoved }: { list: ListDetail; onMoved: () => Promise<unknown> }) {
+  const client = useQueryClient()
+  const lists = useQuery({ queryKey: ['lists', list.project_id], queryFn: () => cachedGet<ListSummary[]>(`/api/v1/projects/${list.project_id}/lists`) })
+  const others = (lists.data ?? []).filter((l) => l.id !== list.id)
+  const [picked, setPicked] = useState<string[]>([])
+  const [to, setTo] = useState('')
+  const items = list.items.filter((i) => !i.id.startsWith('pending-'))
+  const move = useMutation({
+    mutationFn: () => api('POST', `/api/v1/lists/${list.id}/move-items`, { item_ids: picked, to_list_id: to }),
+    onSuccess: async () => {
+      setPicked([])
+      await Promise.all([onMoved(), client.invalidateQueries({ queryKey: ['list', to] }), client.invalidateQueries({ queryKey: ['lists'] })])
+    },
+  })
+  if (items.length === 0) return null
+  const toggle = (id: string) => setPicked(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id])
+  return (
+    <section aria-label="Move items" className="space-y-2">
+      <h2 className="font-semibold">Move items to another list</h2>
+      {others.length === 0 ? (
+        <p className="text-sm text-stone-500">Make another list in this project first, then move items into it here.</p>
+      ) : (
+        <>
+          <fieldset className="rounded-2xl bg-white px-3 py-1 ring-1 ring-stone-200 dark:bg-stone-900 dark:ring-stone-800">
+            <legend className="sr-only">Items to move</legend>
+            <label className="flex min-h-11 items-center gap-3 border-b border-stone-200 text-sm font-medium dark:border-stone-800">
+              <input type="checkbox" className="size-5 accent-brand-600" checked={picked.length === items.length}
+                onChange={(e) => setPicked(e.target.checked ? items.map((i) => i.id) : [])} />
+              All
+            </label>
+            {items.map((i) => (
+              <label key={i.id} className="flex min-h-11 items-center gap-3">
+                <input type="checkbox" className="size-5 accent-brand-600" checked={picked.includes(i.id)} onChange={() => toggle(i.id)} />
+                <span className={i.checked ? 'text-stone-500 line-through' : ''}>{i.text}</span>
+              </label>
+            ))}
+          </fieldset>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="block min-w-0 flex-1 text-sm font-medium">
+              Move to
+              <select value={to} onChange={(e) => setTo(e.target.value)}
+                className="mt-1 block w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 dark:border-stone-700 dark:bg-stone-900">
+                <option value="">Choose a list…</option>
+                {others.map((l) => <option key={l.id} value={l.id}>{l.title}</option>)}
+              </select>
+            </label>
+            <Button onPress={() => move.mutate()} isDisabled={!picked.length || !to || move.isPending}>
+              {picked.length === 0 ? 'Move' : picked.length === 1 ? 'Move 1 item' : `Move ${picked.length} items`}
+            </Button>
+          </div>
+          <ErrorText error={move.error} />
+        </>
+      )}
+    </section>
   )
 }
