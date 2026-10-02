@@ -27,5 +27,5 @@ anything experimental is marked **Experimental**.
 
 ## Signing out
 
-- **On a phone:** **Sign out** is at the right end of the menu at the bottom.
+- **On a phone:** **Sign out** is at the bottom of **Account**.
 - **On a computer:** **Sign out** is at the bottom of the menu on the left.

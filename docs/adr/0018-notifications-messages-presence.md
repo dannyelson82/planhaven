@@ -66,3 +66,13 @@ Chosen by the maintainer on 2026-10-02:
   links are fetched or previewed by the server.
 - New threat-model rows: messages (disclosure between users, spam, deleted-message
   remnants), presence (activity tracking), push (payload leakage, endpoint abuse).
+
+## As built (v0.3.0)
+
+- Encryption (RFC 8291) and VAPID signing (RFC 8292) use `http-ece` (MIT) and `py-vapid`
+  (MPL-2.0), both depending only on `cryptography`; the maintainer chose a library over our
+  own implementation (2026-10-02). `pywebpush` itself was not added: it would also bring
+  `requests` and `aiohttp`. Messages are sent with the standard library's HTTP client, without
+  following redirects (`app/push/webpush.py`).
+- The worker sends pending alerts within seconds and checks for due tasks and services every
+  hour; each reminder is sent once (a dedupe key per task and day, per service and record).

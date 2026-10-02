@@ -143,6 +143,11 @@ Organized by STRIDE category. Details for each control are in §7.
 | Prompt injection via documents or web content | Tampering / Info disclosure | Content delimited as data; AI acts only with the user's rights; no delete tools; propose-and-approve by default; scoped OAuth; `local_ai_only` projects hidden; audit + undo; features experimental until tested (§7.7) |
 | Over-privileged AI connector | Elevation | Read vs. write scopes chosen at consent, per-client revocation, 2FA at consent (§7.3, §7.7) |
 | SSRF via configurable URLs | Elevation / Info disclosure | AI endpoints admin-only; push hosts allowlisted; no user-supplied fetch URLs in core (§7.8) |
+| Push subscription endpoint pointed at an internal or attacker host (the browser supplies it) | SSRF / Elevation | Endpoint must be HTTPS on port 443 at an allowlisted push-service host, checked when registered and again before each send; no redirects followed, timeouts, response read capped (`app/push/webpush.py`, §7.8) |
+| Phone alert content read by the push service or on a lock screen | Info disclosure | Payload encrypted for the device (RFC 8291) and signed (RFC 8292) with vetted libraries; only a title, a short line and an app path, never note text; each person chooses which kinds reach the phone |
+| Alerts reaching the next person on a shared browser | Info disclosure | Signing out unregisters the browser; registering an endpoint someone else had removes their registration (`app.release_push_endpoint`) |
+| Notifications or settings of another person read or changed | Info disclosure / Tampering | RLS: own rows only; the worker reads them in system context to send; authz matrix covers every route |
+| Notification spam (test alerts, device registration) | Denial of service | Per-person rate limits (`PUSH_TEST`, `PUSH_SUBSCRIBE`), at most 10 devices, reminders deduplicated |
 | Spoofed client IP via forwarded headers | Spoofing | Forwarded headers honoured only from `TRUSTED_PROXIES`; refuse to start in public mode without it (§7.11) |
 | Secrets theft from DB dump or backup | Info disclosure | Secrets encrypted at rest with master key stored outside the DB (§7.9) |
 | Container escape / host impact | Elevation | Non-root, dropped capabilities, `no-new-privileges`, read-only root FS where possible, DB on Unix socket only (§7.13) |
