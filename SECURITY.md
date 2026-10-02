@@ -472,9 +472,14 @@ Cross-Origin-Resource-Policy: same-origin
   changed" notices (no content); pages then fetch through the normal API.
 - Nothing sent by the browser over the socket is acted on. Limits: 20 open WebSockets per
   user, 1 MB per frame, compression off.
+- The personal channel (`/api/v1/live/me`, ADR 0018) has the same handshake and limits; it
+  carries only "messages" or "notifications" changed, and every 15 seconds checks the session
+  is still valid (signed out elsewhere, expired or disabled closes it). An open one is what
+  makes a person "online".
 - Notes are saved on Done: one authenticated, CSRF-protected `PUT` with `If-Match`,
-  editor role required, audited (`note.saved`). A stale version is refused (409), never
-  merged or overwritten.
+  editor role required, audited (`note.saved`). A stale version is refused (409); since
+  v0.2.18 the client merges when the two saves changed different parts, and otherwise asks
+  (A§8.5).
 - The note document is untrusted input. The server rebuilds it from an allowlist of node
   types, marks and attributes; links may only be `http(s)` or `mailto` (others are dropped,
   keeping their text); limits: 4 MB stored, 50,000 nodes, depth 30, 200,000 characters.
@@ -510,6 +515,25 @@ Cross-Origin-Resource-Policy: same-origin
 - Every guest action is recorded in the link's activity with the name the guest gave.
 
 ---
+
+### 7.17 Notifications, messages, chores and keys (phase 0.3)
+
+- **Phone alerts (Web Push, ADR 0018):** endpoints only HTTPS:443 at allowlisted push-service
+  hosts, checked when registered and before each send; no redirects; payloads encrypted for
+  the device and signed (vetted libraries); title, a short line and an app path only; a
+  browser's registration moves to whoever registers it last, and is removed on sign-out.
+- **Messages:** current members only (RLS, `app.in_conversation`); conversations start through
+  one definer function with all first members; admins have no access; deleting removes the
+  text (and alert previews); stored like notes, not end-to-end encrypted (disclosed in the
+  guide). Rate limited (sending, starting conversations).
+- **Chores:** `authz.require_chore`; an assignee who isn't a project member reads only their own
+  tasks, and their "done" is written in system context after the check; proof photos through
+  the upload pipeline, readable by assignee, assigner and project members; assigning is rate
+  limited per person.
+- **Feed and sync keys (§7.3):** made after a fresh second factor; key principals limited to
+  one action each in `authz.require`; the calendar key appears in a URL (logs redact `/ics/`
+  paths); wrong keys are security events (`key_failed`, counted by the fail2ban filter and
+  CrowdSec scenario) and limited per address; valid keys rate limited per key.
 
 ## 8. Supply chain and security testing
 
