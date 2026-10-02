@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { row, tick, watchForProblems } from './helpers.ts'
+import { RELEASES } from '../src/whatsnew.ts'
 
 // Phone (390 px) and desktop (1280 px) layouts (ARCHITECTURE.md §13.5).
 test('layout fits the screen and navigation is where the thumb or mouse is', async ({ page }, info) => {
@@ -717,13 +718,18 @@ test('tour and what is new from Help', async ({ page }) => {
   await expect(tour).toHaveCount(0)
   await page.getByRole('button', { name: "What's new" }).click()
   const news = page.getByRole('dialog', { name: "What's new" })
-  await expect(news.getByRole('heading', { name: 'Chores', exact: true })).toBeVisible()
-  await expect(news.getByText('Choose the proof: none, a photo or a note.')).toBeVisible()
-  await news.getByRole('button', { name: 'Next' }).click()
-  await expect(news.getByRole('heading', { name: 'Chores for people outside the project' })).toBeVisible()
-  await news.getByRole('button', { name: 'Back' }).click()
-  await news.getByRole('button', { name: 'Open Chores' }).click()
-  await expect(page.getByRole('heading', { name: 'Chores', exact: true })).toBeVisible()
+  // Every release, newest first (the newest's first item, its how-to, then the next item).
+  const [first, second] = RELEASES[0].items
+  await expect(news.getByRole('heading', { name: first.title, exact: true })).toBeVisible()
+  if (first.steps) await expect(news.getByText(first.steps[0], { exact: true })).toBeVisible()
+  if (second) {
+    await news.getByRole('button', { name: 'Next' }).click()
+    await expect(news.getByRole('heading', { name: second.title, exact: true })).toBeVisible()
+    await news.getByRole('button', { name: 'Back' }).click()
+  }
+  // A set-up button takes you there.
+  await news.getByRole('button', { name: 'More in Help' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await expect(news).toHaveCount(0)
   expect(problems).toEqual([])
 })

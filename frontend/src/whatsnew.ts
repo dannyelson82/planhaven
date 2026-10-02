@@ -5,7 +5,7 @@
 import { useSyncExternalStore } from 'react'
 
 /** Things a tour step or a "What's new" item can set up right there. */
-export type Action = 'chores' | 'home-screen' | 'push' | 'notification-settings' | 'presence' | 'projects' | 'messages' | 'invite' | 'suppliers' | 'assets'
+export type Action = 'calendar' | 'chores' | 'home-screen' | 'push' | 'notification-settings' | 'presence' | 'projects' | 'messages' | 'invite' | 'suppliers' | 'assets'
 
 export type Item = {
   title: string
@@ -19,6 +19,26 @@ export type Item = {
 export type Release = { version: string; date: string; items: Item[] }
 
 export const RELEASES: Release[] = [
+  {
+    version: '0.3.4',
+    date: '2026-10-02',
+    items: [
+      {
+        title: 'Your due dates in your calendar',
+        text: 'Tasks with due dates, your chores and asset services coming due appear in your phone\'s calendar. Read-only, titles only unless you choose otherwise.',
+        steps: ['In Account, under Calendar and iPhone Reminders, tap Make my calendar link.', 'Copy it.', 'On an iPhone: Settings, Calendar, Calendar Accounts, Add Account, Other, Add Subscribed Calendar; paste it.'],
+        action: 'calendar',
+        guide: 'calendar-and-reminders',
+        shot: 'feeds',
+      },
+      {
+        title: 'Lists in iPhone Reminders',
+        text: 'Send a list to Reminders on your iPhone: tick items there and they\'re ticked here. It works through a small Shortcut you build once.',
+        steps: ['Open a list, tap Edit, and under iPhone Reminders tap Send to Reminders.', 'Make a sync key in Account.', 'Build the PlanHaven sync Shortcut (the guide has every step).'],
+        guide: 'calendar-and-reminders',
+      },
+    ],
+  },
   {
     version: '0.3.3',
     date: '2026-10-02',

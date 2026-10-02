@@ -156,7 +156,8 @@ async def test_unsafe_session_routes_need_csrf(callers: dict[str, Caller]) -> No
     for (method, path), cls in MATRIX.items():
         # Share-link guests have no CSRF token: their cookie is SameSite=Strict and their
         # unsafe requests must come from our origin (checked below).
-        if method == "GET" or cls in ("public", "public_origin", "share"):
+        # Share and sync routes take no account session (a link cookie or a sync key).
+        if method == "GET" or cls in ("public", "public_origin", "share", "sync"):
             continue
         if (method, path) == ("POST", "/api/v1/auth/logout"):
             continue

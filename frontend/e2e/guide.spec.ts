@@ -205,6 +205,7 @@ test('user guide screenshots', async ({ page }, info) => {
   await page.getByRole('heading', { name: 'Account' }).waitFor()
   await shot(page, device, 'account')
   await shot(page, device, 'notification-settings', page.getByRole('region', { name: 'Notifications settings' }))
+  await shot(page, device, 'feeds', page.getByRole('region', { name: 'Calendar and Reminders' }))
   await page.goto('/notifications')
   await page.getByRole('heading', { name: 'Notifications' }).waitFor()
   await shot(page, device, 'notifications')

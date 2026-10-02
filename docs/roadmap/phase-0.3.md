@@ -52,15 +52,15 @@ screenshots.
 - [x] Reminders until done; assignees see their chores without project membership (RLS)
 - [x] Proof: none, photo or note; the assigner approves or sends back
 
-## Milestone 4: Calendar feed (v0.3.4)
+## Milestone 4: Calendar feed (v0.3.4, released together with milestone 5)
 
-- [ ] Secret, revocable ICS feed per person: tasks with due dates, chores, asset services due;
+- [x] Secret, revocable ICS feed per person: tasks with due dates, chores, asset services due;
       "titles only" by default
 
-## Milestone 5: iPhone Reminders (v0.3.5)
+## Milestone 5: iPhone Reminders (v0.3.4)
 
-- [ ] Personal access tokens with a `sync` scope; sync pull and push API (A§13.1)
-- [ ] Published Shortcut and setup guide
+- [x] Personal access tokens with a `sync` scope; sync pull and push API (A§13.1)
+- [x] Setup guide with a step-by-step Shortcut recipe (a signed .shortcut file needs a Mac)
 
 ## Wrap-up
 

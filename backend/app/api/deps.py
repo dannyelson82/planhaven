@@ -156,3 +156,23 @@ async def require_share_session(request: Request) -> Any:
     if guest is None:
         raise HTTPException(401, "Open the share link again.")
     return guest
+
+
+# ------------------------------------------------------------------ sync keys (A§13.1)
+
+
+async def require_sync_key(request: Request) -> Any:
+    """An iPhone Shortcut with a sync key (`Authorization: Bearer phv_sync_...`), and nothing
+    else: no cookies, so no CSRF; a signed-in browser session doesn't count."""
+    from app.services import feeds
+
+    header = request.headers.get("authorization", "")
+    scheme, _, token = header.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(401, "A sync key is required.", headers={"WWW-Authenticate": "Bearer"})
+    holder = await feeds.authenticate(database(request), "sync", token.strip(), client_ip(request))
+    if holder is None:
+        raise HTTPException(
+            401, "This sync key doesn't work.", headers={"WWW-Authenticate": "Bearer"}
+        )
+    return holder

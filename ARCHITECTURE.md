@@ -588,6 +588,12 @@ Apple provides no server API for Reminders, so a Shortcut shipped in `shortcuts/
 - `POST /api/v1/sync/push` reports reminders completed on the phone (identified via that URL).
 - Conflict rule: completion wins over edits; otherwise last write wins by timestamp.
 - Triggers (documented setup): time-of-day personal automation, and "when Reminders app closes".
+- As built (v0.3.4): lists only (each person picks lists and the Reminders list they go to;
+  tasks may follow). Shortcuts files must be signed on a Mac, so the guide has a step-by-step
+  recipe instead of a published file. The recipe uses only Find / Add / Remove Reminders: the
+  item's link goes in the reminder's notes (the URL field isn't reliably settable), pulls are per
+  Reminders list (`?list=`) with an `action` of "show" or "remove" per item, and pushes can send
+  the ticked reminders' notes as text (`done_text`), from which item ids are read.
 
 ### 13.2 Calendar via ICS feed
 
@@ -596,6 +602,9 @@ Apple provides no server API for Reminders, so a Shortcut shipped in `shortcuts/
 - Privacy option "titles only" (default on): event title + project name, no notes or
   descriptions, so a leaked URL reveals little.
 - Refresh frequency is controlled by iOS; the feed sets sensible cache headers.
+- As built (v0.3.4): open tasks with due dates a person can change or that are theirs as chores,
+  and maintenance coming due on their assets; one link per person (a new one replaces it);
+  "Include notes" adds task and schedule notes. Written by hand (RFC 5545), no dependency.
 
 ### 13.3 Web Push
 

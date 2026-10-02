@@ -15,6 +15,7 @@ from app.api import (
     chores,
     contacts,
     experiments,
+    feeds,
     health,
     invites,
     layouts,
@@ -59,6 +60,7 @@ from app.services import plugins as plugin_service
 # can't be added without its routes being classified and tested (SECURITY.md §7.4).
 ROUTERS = (
     experiments.router,
+    feeds.router,
     health.router,
     auth.router,
     mfa.router,

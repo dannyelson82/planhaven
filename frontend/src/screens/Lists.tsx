@@ -10,6 +10,7 @@ import { cachedGet, sendOrQueue, updateOfflineCopy } from '../offline.ts'
 import { Movable } from './Movable.tsx'
 import { SaveAsTemplate } from './Templates.tsx'
 import { ItemDetails } from './ItemDetails.tsx'
+import { SendToReminders } from './Feeds.tsx'
 import { changes, type Item, saveItem } from '../items.ts'
 
 export type ListSummary = {
@@ -318,6 +319,7 @@ export function ListScreen({ id }: { id: string }) {
       )}
       {!editing && l.items.length > 0 && <SaveAsTemplate path={`/api/v1/lists/${id}/template`} suggested={l.title} label="Save as template" />}
       {editing && <MoveItems list={l} onMoved={refresh} />}
+      {editing && <SendToReminders listId={l.id} title={l.title} />}
       {editing && (
         <div className="flex justify-end">
           <Button variant="danger-ghost" isDisabled={removeList.isPending}

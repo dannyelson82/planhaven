@@ -20,6 +20,11 @@ MATRIX: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/setup"): "public",
     ("GET", "/static/{file_path:path}"): "public",
     ("GET", "/sw.js"): "public",
+    # The calendar feed: its key is in the URL (no session); unknown keys get 404.
+    ("GET", "/ics/{key}.ics"): "public",
+    # Reminders sync: a sync key only (accounts get 401).
+    ("GET", "/api/v1/sync/pull"): "sync",
+    ("POST", "/api/v1/sync/push"): "sync",
     ("GET", "/push-sw.js"): "public",
     ("GET", "/manifest.webmanifest"): "public",
     ("GET", "/icons/{file_path:path}"): "public",
@@ -64,6 +69,13 @@ MATRIX: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/people/status"): "verified",
     ("GET", "/api/v1/onboarding"): "verified",
     ("PUT", "/api/v1/tasks/{task_id}/chore"): "verified",
+    ("GET", "/api/v1/keys"): "verified",
+    ("POST", "/api/v1/keys"): "step_up",
+    ("DELETE", "/api/v1/keys/{key_id}"): "verified",
+    ("PUT", "/api/v1/keys/feed-details"): "verified",
+    ("GET", "/api/v1/sync/lists"): "verified",
+    ("PUT", "/api/v1/lists/{list_id}/sync"): "verified",
+    ("GET", "/api/v1/list-items/{item_id}/list"): "verified",
     ("GET", "/api/v1/chores"): "verified",
     ("GET", "/api/v1/chores/to-review"): "verified",
     ("POST", "/api/v1/tasks/{task_id}/submissions"): "verified",
@@ -284,6 +296,10 @@ BODIES: dict[tuple[str, str], object] = {
     ("PUT", "/api/v1/presence"): {"hidden": False},
     ("PUT", "/api/v1/onboarding"): {"welcome_done": True},
     ("PUT", "/api/v1/tasks/{task_id}/chore"): {"assignee_id": None},
+    ("POST", "/api/v1/sync/push"): {"done": []},
+    ("POST", "/api/v1/keys"): {"kind": "sync", "label": "Matrix"},
+    ("PUT", "/api/v1/keys/feed-details"): {"details": False},
+    ("PUT", "/api/v1/lists/{list_id}/sync"): {"reminders_name": None},
     ("POST", "/api/v1/tasks/{task_id}/submissions"): {"note": ""},
     ("POST", "/api/v1/submissions/{submission_id}/review"): {"approve": True},
     ("POST", "/api/v1/conversations"): {"people": ["00000000-0000-7000-8000-000000000000"]},
@@ -355,6 +371,7 @@ EXPECT: dict[str, dict[str, object]] = {
         "admin_fresh": "ok",
     },
     "share": {p: 401 for p in ("anon", "partial", "stale", "fresh", "admin_stale", "admin_fresh")},
+    "sync": {p: 401 for p in ("anon", "partial", "stale", "fresh", "admin_stale", "admin_fresh")},
     "admin": {
         "anon": 401,
         "partial": 404,
@@ -375,12 +392,14 @@ GUARDS: dict[str, set[str]] = {
     "step_up": {"require_verified_session"},
     "admin": {"require_admin", "require_admin_network"},
     "share": {"require_share_session"},
+    "sync": {"require_sync_key"},
 }
 SESSION_GUARDS = {
     "require_session",
     "require_verified_session",
     "require_admin",
     "require_share_session",
+    "require_sync_key",
 }
 
 
