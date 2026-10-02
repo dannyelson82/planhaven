@@ -12,6 +12,7 @@ type Attachment = {
   has_thumbnail: boolean
   metadata_kept: boolean
   created_at: string
+  list_item_id: string | null
 }
 
 function sizeText(bytes: number): string {
@@ -20,8 +21,9 @@ function sizeText(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-/** Add photos or files (in the project's add bar). On a phone, "Take photo" opens the camera. */
-export function UploadFiles({ projectId }: { projectId: string }) {
+/** Add photos or files (in the project's add bar, or to one list item). On a phone, "Take
+ * photo" opens the camera. */
+export function UploadFiles({ projectId, listItemId }: { projectId: string; listItemId?: string }) {
   const client = useQueryClient()
   const key = ['attachments', projectId]
   const [progress, setProgress] = useState<string | null>(null)
@@ -32,7 +34,7 @@ export function UploadFiles({ projectId }: { projectId: string }) {
     mutationFn: async (list: File[]) => {
       for (const [i, file] of list.entries()) {
         setProgress(list.length > 1 ? `Uploading ${i + 1} of ${list.length}…` : 'Uploading…')
-        const params = new URLSearchParams({ filename: file.name || 'photo.jpg', ...(keepLocation ? { keep_metadata: 'true' } : {}) })
+        const params = new URLSearchParams({ filename: file.name || 'photo.jpg', ...(keepLocation ? { keep_metadata: 'true' } : {}), ...(listItemId ? { list_item_id: listItemId } : {}) })
         await uploadFile(`/api/v1/projects/${projectId}/attachments?${params}`, file)
       }
     },
@@ -57,6 +59,46 @@ export function UploadFiles({ projectId }: { projectId: string }) {
       </label>
       {progress && <p role="status" className="text-sm text-stone-500">{progress}</p>}
       <ErrorText error={upload.error} />
+    </div>
+  )
+}
+
+/** The photos and files added to one list item (they're also among the project's files). */
+export function ItemFiles({ projectId, itemId, canEdit }: { projectId: string; itemId: string; canEdit: boolean }) {
+  const client = useQueryClient()
+  const key = ['attachments', projectId]
+  const files = useQuery({ queryKey: key, queryFn: () => api<Attachment[]>('GET', `/api/v1/projects/${projectId}/attachments`) })
+  const remove = useMutation({
+    mutationFn: (a: Attachment) => api('DELETE', `/api/v1/attachments/${a.id}`),
+    onSettled: () => client.invalidateQueries({ queryKey: key }),
+  })
+  const mine = (files.data ?? []).filter((a) => a.list_item_id === itemId)
+  return (
+    <div className="space-y-2">
+      {mine.length === 0 && <p className="text-sm text-stone-500">No photos or files yet.</p>}
+      <ul className="grid grid-cols-3 gap-2">
+        {mine.filter((a) => a.has_thumbnail).map((a) => (
+          <li key={a.id} className="relative">
+            <a href={a.metadata_kept ? `/api/v1/attachments/${a.id}/download` : `/api/v1/attachments/${a.id}/view`} target="_blank" rel="noopener noreferrer">
+              <img src={`/api/v1/attachments/${a.id}/thumbnail`} alt={a.filename} loading="lazy"
+                className="aspect-square w-full rounded-xl bg-stone-200 object-cover dark:bg-stone-800" />
+            </a>
+            {canEdit && (
+              <Button variant="secondary" aria-label={`Delete ${a.filename}`} onPress={() => remove.mutate(a)}
+                className="absolute right-1 top-1 min-h-8 min-w-8 rounded-full px-0 text-sm opacity-90">✕</Button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {mine.filter((a) => !a.has_thumbnail).map((a) => (
+        <p key={a.id} className="flex items-center gap-2">
+          <a href={`/api/v1/attachments/${a.id}/download`} download className="min-w-0 flex-1 truncate font-medium text-brand-700 dark:text-brand-100">{a.filename}</a>
+          <span className="text-sm text-stone-500">{sizeText(a.size)}</span>
+          {canEdit && <Button variant="ghost" aria-label={`Delete ${a.filename}`} onPress={() => remove.mutate(a)}>✕</Button>}
+        </p>
+      ))}
+      {canEdit && <UploadFiles projectId={projectId} listItemId={itemId} />}
+      <ErrorText error={remove.error ?? files.error} />
     </div>
   )
 }

@@ -90,6 +90,7 @@ export function AdminScreen({ myId }: { myId: string }) {
         <h2 className="text-lg font-semibold">People</h2>
         {(users.data ?? []).map((u) => <UserCard key={u.id} user={u} isMe={u.id === myId} onChanged={refresh} />)}
         <ErrorText error={users.error} />
+        {users.error && <Button variant="secondary" onPress={() => void refresh()}>Try again</Button>}
       </section>
       <AdminExperiments />
     </div>

@@ -19,6 +19,8 @@ router = APIRouter(prefix="/api/v1")
 Kind = Literal["shopping", "parts", "checklist"]
 Qty = Annotated[Decimal, Field(ge=0, le=Decimal("999999999"), max_digits=12, decimal_places=3)]
 Price = Annotated[int, Field(ge=0, le=10**12)]
+Notes = Annotated[str, Field(max_length=4000)]
+Website = Annotated[str, Field(max_length=500, pattern=r"^(https?://\S*)?$")]
 IdemKey = Annotated[str | None, Header(alias="Idempotency-Key", min_length=8, max_length=100)]
 
 
@@ -56,12 +58,26 @@ class ItemIn(Strict):
     price_cents: Price | None = None
 
 
+class ItemBase(Strict):
+    """What the changed fields held when the client started editing (merge when safe)."""
+
+    text: str | None = None
+    quantity: Decimal | None = None
+    unit: str | None = None
+    price_cents: int | None = None
+    notes: str | None = None
+    website: str | None = None
+
+
 class ItemPatch(Strict):
     text: Annotated[str, Field(min_length=1, max_length=500)] | None = None
     quantity: Qty | None = None
     unit: Annotated[str, Field(max_length=30)] | None = None
     price_cents: Price | None = None
+    notes: Notes | None = None
+    website: Website | None = None
     checked: bool | None = None
+    base: ItemBase | None = None
 
 
 class ItemOut(BaseModel):
@@ -71,6 +87,8 @@ class ItemOut(BaseModel):
     quantity: Decimal | None
     unit: str | None
     price_cents: int | None
+    notes: str
+    website: str
     checked: bool
     updated_at: datetime
     version: int
@@ -92,6 +110,8 @@ def _item(r: service.ItemRow) -> ItemOut:
         quantity=r.quantity,
         unit=r.unit,
         price_cents=r.price_cents,
+        notes=r.notes,
+        website=r.website,
         checked=r.checked_at is not None,
         updated_at=r.updated_at,
         version=r.version,
@@ -185,6 +205,58 @@ async def add_item(
     return _item(row)
 
 
+class BulkIn(Strict):
+    """A pasted list: one item per entry."""
+
+    texts: Annotated[
+        list[Annotated[str, Field(min_length=1, max_length=500)]],
+        Field(min_length=1, max_length=service.MAX_BULK_ITEMS),
+    ]
+
+
+class MoveIn(Strict):
+    item_ids: Annotated[list[uuid.UUID], Field(min_length=1, max_length=2000)]
+    to_list_id: uuid.UUID
+
+
+class CountOut(BaseModel):
+    count: int
+
+
+@router.post("/lists/{list_id}/items/bulk", status_code=201)
+async def add_items(
+    list_id: uuid.UUID,
+    body: BulkIn,
+    session: SessionDep,
+    request: Request,
+    idempotency_key: IdemKey = None,
+) -> CountOut:
+    count = await service.add_items(
+        deps.database(request),
+        session,
+        list_id,
+        body.texts,
+        idempotency_key=idempotency_key,
+        ip=deps.client_ip(request),
+    )
+    return CountOut(count=count)
+
+
+@router.post("/lists/{list_id}/move-items")
+async def move_items(
+    list_id: uuid.UUID, body: MoveIn, session: SessionDep, request: Request
+) -> CountOut:
+    count = await service.move_items(
+        deps.database(request),
+        session,
+        list_id,
+        body.item_ids,
+        to_list_id=body.to_list_id,
+        ip=deps.client_ip(request),
+    )
+    return CountOut(count=count)
+
+
 @router.patch("/list-items/{item_id}")
 async def update_item(
     item_id: uuid.UUID,
@@ -194,7 +266,8 @@ async def update_item(
     response: Response,
     if_match: Annotated[str | None, Header()] = None,
 ) -> ItemOut:
-    fields = body.model_dump(include=body.model_fields_set)
+    fields = body.model_dump(include=body.model_fields_set - {"base"})
+    base = body.base.model_dump(include=body.base.model_fields_set) if body.base else None
     only_check = set(fields) <= {"checked"}
     version = None if (only_check and not if_match) else _version(if_match)
     try:
@@ -205,6 +278,7 @@ async def update_item(
             expected_version=version,
             fields=fields,
             ip=deps.client_ip(request),
+            base=base,
         )
     except ConflictError as exc:
         raise HTTPException(409, str(exc)) from None

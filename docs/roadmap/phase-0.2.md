@@ -122,3 +122,15 @@ as they're found rather than hunted now.
       and its fixes
 - Dropped: reading product details from a pasted link (reliability; server fetching
   arbitrary links)
+
+**Batch 5 (maintainer's testing notes, 2026-10-02)**
+- [x] v0.2.18: the add bar stays at the top while scrolling; tapping a note card (not a box)
+      opens the note, and expanded cards stay expanded; task details and list item details
+      (website, notes, photos and files; migration 0027); paste many items at once and move
+      items to another list; "merge when safe" when the same thing was saved elsewhere
+      (keep mine / keep theirs / keep both); fix: admin people list sometimes missing
+- [ ] Suppliers (a separate list), with a supplier and price on list items
+- [ ] Asset mileage and hours, and maintenance schedules from the manufacturer
+- [ ] Archive notes (an Archive button; an Archived section)
+- Moved to phase 0.3 ("people and reminders"): notifications screen, messages between users,
+  who's online

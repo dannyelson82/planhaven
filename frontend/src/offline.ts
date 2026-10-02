@@ -8,6 +8,7 @@
 // kept, so the same person can sign in and send them (SECURITY.md §7.14). No passwords,
 // tokens or CSRF values are stored.
 import { ApiError, api } from './api.ts'
+import { forgetViewChoices } from './remember.ts'
 
 const DB_NAME = 'planhaven-offline'
 const CACHE = 'cache'
@@ -152,6 +153,7 @@ export async function sessionEnded(): Promise<void> {
 
 /** Remove everything kept on this device (sign-out, or another person signing in). */
 export async function wipeOfflineData(): Promise<void> {
+  forgetViewChoices()
   await Promise.all(
     [CACHE, OUTBOX, META].map((store) => run(store, 'readwrite', (s) => s.clear()).catch(() => undefined)),
   )

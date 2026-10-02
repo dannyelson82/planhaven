@@ -54,7 +54,8 @@ export function Field({
   onChange?: (v: string) => void
   isRequired?: boolean
   autoComplete?: string
-  inputMode?: 'numeric' | 'text' | 'email' | 'url'
+  inputMode?: 'numeric' | 'decimal' | 'text' | 'email' | 'url'
+  isInvalid?: boolean
   autoFocus?: boolean
   maxLength?: number
   minLength?: number

@@ -44,6 +44,12 @@ test('user guide screenshots', async ({ page }, info) => {
   await shot(page, device, 'arrange')
   await page.getByRole('button', { name: 'Done' }).click()
 
+  // A task's details (Change oil is done by now: it's under Done).
+  await page.getByText(/^Done \(\d+\)$/).click()
+  await page.getByRole('button', { name: 'Details: Change oil', exact: true }).first().click()
+  await shot(page, device, 'task-details', page.getByRole('dialog'))
+  await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
+
   // Tiles on the project page.
   await shot(page, device, 'note-card', page.getByRole('region', { name: 'Notes' }).locator('li').first())
   await shot(page, device, 'photos', page.getByRole('region', { name: 'Photos and files' }))
@@ -59,8 +65,16 @@ test('user guide screenshots', async ({ page }, info) => {
   await page.getByRole('link', { name: 'Hardware store' }).first().click()
   await page.getByRole('heading', { name: 'Hardware store' }).waitFor()
   await shot(page, device, 'list')
-  await page.getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('button', { name: 'Details: Hose clamps', exact: true }).click()
+  await shot(page, device, 'item-details', page.getByRole('dialog'))
+  await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
+  await page.getByRole('button', { name: 'Add many at once' }).click()
+  await page.getByLabel('Items, one per line').fill('Zip ties\nDuct tape\nRags')
+  await shot(page, device, 'add-many', page.getByRole('region', { name: 'Add many at once' }))
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await page.getByRole('button', { name: 'Edit', exact: true }).click()
   await shot(page, device, 'list-edit')
+  await shot(page, device, 'move-items', page.getByRole('region', { name: 'Move items' }))
   await page.getByRole('button', { name: 'Done' }).click()
 
   // A note: the editor, and the question when leaving without saving.

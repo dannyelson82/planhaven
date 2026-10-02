@@ -82,6 +82,14 @@ export type Task = {
   done: boolean
   version: number
 }
+/** "Oct 15" (or "Wed, Oct 15, 2026" when long); all-day dates are shown as the day they are. */
+export function dueLabel(t: Task, long = false): string | null {
+  if (!t.due_at) return null
+  return new Date(t.due_at).toLocaleDateString(undefined, {
+    ...(long ? { weekday: 'short', year: 'numeric' } : {}), month: 'short', day: 'numeric', ...(t.due_all_day ? { timeZone: 'UTC' } : {}),
+  })
+}
+
 /** A list item a task needs (from the project's lists). */
 export type Need = { task_id: string; list_item_id: string; text: string; quantity: string | null; unit: string | null; checked: boolean; list_id: string; list_title: string }
 export type Stage = 'idea' | 'planning' | 'ready' | 'in_progress' | 'done' | 'archived'

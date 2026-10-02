@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Checkbox, ListBox, ListBoxItem, Popover, Select, SelectValue, Button as AriaButton, Label } from 'react-aria-components'
-import { api, type Project, STAGES, type Stage, type Need, type Task } from '../api.ts'
+import { api, dueLabel, type Project, STAGES, type Stage, type Need, type Task } from '../api.ts'
 import { navigate } from '../router.ts'
 import { Button, ErrorText, Field, Form, Link } from '../ui.tsx'
 import { TrashIcon } from '../icons.tsx'
@@ -17,7 +17,7 @@ import { ListTile, NewListForm, ProjectLists } from './Lists.tsx'
 import { AddCost, AddQuote, ProjectCosts, ProjectQuotes } from './Money.tsx'
 import { NewNoteForm, NoteTile, ProjectNotes } from './Notes.tsx'
 import { ShareButton } from './Sharing.tsx'
-import { TaskEditor } from './TaskEditor.tsx'
+import { TaskDetails } from './TaskEditor.tsx'
 import { cachedGet } from '../offline.ts'
 
 export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
@@ -37,7 +37,7 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
   const { nameOf } = useTileNames(id)
   const pulled = (kind: 'note' | 'list' | 'file') => layout.tiles.filter((t) => t.kind === kind && t.id).map((t) => t.id as string)
   const toggle = useMutation({
-    mutationFn: (t: Task) => api('PATCH', `/api/v1/tasks/${t.id}`, { done: !t.done }, { 'If-Match': `"${t.version}"` }),
+    mutationFn: (t: Task) => api('PATCH', `/api/v1/tasks/${t.id}`, { done: !t.done, base: { done: t.done } }, { 'If-Match': `"${t.version}"` }),
     onSettled: refresh,
   })
   const remove = useMutation({
@@ -190,29 +190,30 @@ function TaskList({ tasks, canEdit, onToggle, onDelete, needsOf }: {
   return (
     <ul className="divide-y divide-stone-200 rounded-2xl bg-white ring-1 ring-stone-200 dark:divide-stone-800 dark:bg-stone-900 dark:ring-stone-800">
       {tasks.map((t) => (
-        <li key={t.id} className="flex items-center gap-3 px-3">
+        <li key={t.id} className="flex items-center gap-1 px-1">
+          {/* Only the box ticks; tapping the words opens the task's details. */}
           <Checkbox
             isSelected={t.done}
             isDisabled={!canEdit}
             onChange={() => onToggle(t)}
-            className="group flex min-h-12 flex-1 items-center gap-3"
+            aria-label={t.title}
+            className="group flex min-h-12 min-w-11 shrink-0 items-center justify-center"
           >
             <span aria-hidden className="flex size-6 shrink-0 items-center justify-center rounded-md border-2 border-stone-400 group-data-[selected]:border-brand-600 group-data-[selected]:bg-brand-600 group-data-[selected]:text-white">
               {t.done ? '✓' : ''}
             </span>
-            <span className="min-w-0 flex-1 py-2">
-              <span className={`block ${t.done ? 'text-stone-500 line-through' : ''}`}>{t.title}</span>
-              <NeedsLine needs={needsOf(t.id)} done={t.done} />
-              {(t.due_at || t.notes) && (
-                <span className="block text-xs text-stone-500">
-                  {t.due_at && `Due ${new Date(t.due_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(t.due_all_day ? { timeZone: 'UTC' } : {}) })}`}
-                  {t.due_at && t.notes && ' · '}
-                  {t.notes && 'has notes'}
-                </span>
-              )}
-            </span>
           </Checkbox>
-          {canEdit && <TaskEditor task={t} needs={needsOf(t.id)} />}
+          <TaskDetails task={t} needs={needsOf(t.id)} canEdit={canEdit} summary={<>
+            <span className={`block ${t.done ? 'text-stone-500 line-through' : ''}`}>{t.title}</span>
+            <NeedsLine needs={needsOf(t.id)} done={t.done} />
+            {(t.due_at || t.notes) && (
+              <span className="block text-xs text-stone-500">
+                {t.due_at && `Due ${dueLabel(t)}`}
+                {t.due_at && t.notes && ' · '}
+                {t.notes && 'has notes'}
+              </span>
+            )}
+          </>} />
           {canEdit && (
             <Button variant="ghost" aria-label={`Delete ${t.title}`} onPress={() => onDelete(t)}>✕</Button>
           )}

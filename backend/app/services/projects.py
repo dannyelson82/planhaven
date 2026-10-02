@@ -13,7 +13,7 @@ from app import authz
 from app.db import auth as audit
 from app.db import projects as store
 from app.db.database import Database
-from app.services import live
+from app.services import live, merge
 from app.services.auth import CurrentSession
 
 # Row types the API layer serialises (the API may not import app.db directly).
@@ -266,17 +266,39 @@ async def update_task(
     due_all_day: bool | None,
     done: bool | None,
     ip: str | None,
+    base: dict[str, Any] | None = None,
 ) -> store.TaskRow:
+    """`base`: what the changed fields held when the client started (merge.unchanged_since)."""
     principal = session.principal
     async with db.user_transaction(principal.user_id) as conn:
         before, access = await _task_access(conn, task_id)
         authz.require(principal, authz.Action.PROJECT_VIEW, access)
         authz.require(principal, authz.Action.PROJECT_EDIT, access)
+        changing = {
+            name: value
+            for name, value in {
+                "title": title,
+                "notes": notes,
+                "due_all_day": due_all_day,
+                "done": done,
+            }.items()
+            if value is not None
+        } | ({"due_at": due_at} if set_due else {})
+        current = {
+            "title": before.title,
+            "notes": before.notes,
+            "due_at": before.due_at,
+            "due_all_day": before.due_all_day,
+            "done": before.done_at is not None,
+        }
+        expected = expected_version
+        if expected != before.version and merge.unchanged_since(current, changing, base):
+            expected = before.version  # only other fields changed meanwhile: keep both
         version = await store.update_task(
             conn,
             task_id,
             user_id=principal.user_id,
-            expected_version=expected_version,
+            expected_version=expected,
             title=title,
             notes=notes,
             set_due=set_due,

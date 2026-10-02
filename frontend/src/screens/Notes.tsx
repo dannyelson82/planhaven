@@ -6,6 +6,7 @@ import { api, ApiError } from '../api.ts'
 import { notePreview } from '../preview.ts'
 import { navigate, setNavigationGuard } from '../router.ts'
 import { CheckIcon, CopyIcon, PencilIcon } from '../icons.tsx'
+import { useRemembered } from '../remember.ts'
 import { Movable } from './Movable.tsx'
 import { Button, Card, ErrorText, Field, Link } from '../ui.tsx'
 
@@ -118,9 +119,19 @@ function NoteCardView({ note, card, canEdit, onTick }: { note: Note; card: NoteC
           </Link>
         )}
       </div>
-      <NoteCardBody card={card} note={note} canEdit={canEdit} onTick={onTick} />
+      {/* A tap anywhere on the note opens it, except on a checkbox or button (owner request,
+          2026-10-02). Keyboard and screen-reader users have the title link for the same thing. */}
+      <div className="cursor-pointer" onClick={(e) => openUnlessControl(e, note.id)}>
+        <NoteCardBody card={card} note={note} canEdit={canEdit} onTick={onTick} />
+      </div>
     </Card>
   )
+}
+
+function openUnlessControl(e: React.MouseEvent, noteId: string) {
+  if ((e.target as Element).closest('input, button, a, label')) return
+  if (window.getSelection()?.toString()) return // selecting text to copy, not opening
+  navigate(`/notes/${noteId}`)
 }
 
 /** Copies the whole note as plain text (checkboxes as ☐ / ☑). */
@@ -153,7 +164,7 @@ const INDENT = ['', 'pl-6', 'pl-12', 'pl-16', 'pl-20', 'pl-24', 'pl-28']
 function NoteCardBody({ card, note, canEdit, onTick }: {
   card: NoteCard | undefined; note: Note; canEdit: boolean; onTick: (line: CardLine) => void
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useRemembered(`note-expanded:${note.id}`, false)
   // Beyond the first 50 notes (or while loading), a short text preview.
   if (!card) return <p className="line-clamp-2 text-stone-600 dark:text-stone-400">{notePreview(note.text_content, false) || 'Empty note'}</p>
   if (card.lines.length === 0) return <p className="text-stone-500">Empty note</p>
@@ -248,11 +259,51 @@ function NoteForm({ note }: { note: Note }) {
     client.invalidateQueries({ queryKey: ['note-cards'] }),
   ])
   const save = useMutation({
-    mutationFn: () => api<Note>('PUT', `/api/v1/notes/${note.id}`,
-      { title: title.trim() || 'Untitled note', content: doc }, { 'If-Match': `"${note.version}"` }),
+    // "Merge when safe" (owner decision, 2026-10-02): if the note was saved elsewhere meanwhile
+    // (someone else, or this person on another device) but only in a part this save doesn't
+    // change (title or text), both changes are kept. Otherwise it's a conflict: keep mine,
+    // keep theirs, or keep both. `mode` is the choice after a conflict.
+    mutationFn: async (mode: 'save' | 'mine' | 'both' = 'save') => {
+      const myTitle = title.trim() || 'Untitled note'
+      const put = (version: number, body: { title: string; content: JSONContent }) =>
+        api<Note>('PUT', `/api/v1/notes/${note.id}`, body, { 'If-Match': `"${version}"` })
+      if (mode === 'both') {
+        const copy = await api<Note>('POST', `/api/v1/projects/${note.project_id}/notes`, { title: `${myTitle} (my copy)`.slice(0, 200) })
+        return api<Note>('PUT', `/api/v1/notes/${copy.id}`, { title: copy.title, content: doc }, { 'If-Match': `"${copy.version}"` })
+      }
+      try {
+        return await put(note.version, { title: myTitle, content: doc })
+      } catch (e) {
+        if (!(e instanceof ApiError && e.status === 409)) throw e
+        const latest = await api<Note>('GET', `/api/v1/notes/${note.id}`)
+        const mineTitle = myTitle !== note.title
+        const theirsTitle = latest.title !== note.title
+        const theirsText = JSON.stringify(latest.content ?? EMPTY_DOC) !== JSON.stringify(note.content ?? EMPTY_DOC)
+        const clash = (mineTitle && theirsTitle && myTitle !== latest.title) || (edited && theirsText)
+        if (clash && mode !== 'mine') throw e
+        return put(latest.version, {
+          title: mineTitle ? myTitle : latest.title,
+          content: edited || mode === 'mine' ? doc : latest.content ?? EMPTY_DOC,
+        })
+      }
+    },
     onSuccess: refresh,
   })
   const conflict = save.error instanceof ApiError && save.error.status === 409
+  const choose = async (mode: 'mine' | 'both') => {
+    try {
+      await save.mutateAsync(mode)
+    } catch {
+      return // the error is shown
+    }
+    if (mode === 'both') {
+      // My version is saved as a copy; this note now shows theirs.
+      await client.invalidateQueries({ queryKey: ['note', note.id] })
+    } else {
+      await client.invalidateQueries({ queryKey: ['note', note.id] })
+      navigate(backTo, { force: true })
+    }
+  }
   const remove = useMutation({
     mutationFn: () => api('DELETE', `/api/v1/notes/${note.id}`),
     onSuccess: async () => { await refresh(); navigate(backTo, { force: true }) },
@@ -277,7 +328,7 @@ function NoteForm({ note }: { note: Note }) {
   const saveAndGo = async (to: string) => {
     if (dirty) {
       try {
-        await save.mutateAsync()
+        await save.mutateAsync('save')
       } catch {
         setLeavingTo(null)
         return // stay: the error (offline, conflict, ...) is shown
@@ -303,11 +354,12 @@ function NoteForm({ note }: { note: Note }) {
 
       {conflict ? (
         <div role="alert" className="space-y-2 rounded-xl bg-red-50 p-3 text-sm text-red-900 dark:bg-red-950 dark:text-red-200">
-          <p className="font-medium">Someone else saved this note since you opened it, so your changes weren't saved.</p>
+          <p className="font-medium">This note was changed in the same place since you opened it (by someone else, or by you on another device), so your changes aren't saved yet.</p>
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onPress={() => void navigator.clipboard.writeText(noteText(doc))}>Copy my text</Button>
+            <Button onPress={() => void choose('mine')} isDisabled={save.isPending}>Keep mine</Button>
+            <Button variant="secondary" onPress={() => void choose('both')} isDisabled={save.isPending}>Keep both (mine as a copy)</Button>
             <Button variant="danger-ghost" onPress={() => void client.invalidateQueries({ queryKey: ['note', note.id] })}>
-              Load their version (discard mine)
+              Keep theirs (discard mine)
             </Button>
           </div>
         </div>
@@ -348,10 +400,13 @@ function NoteForm({ note }: { note: Note }) {
 function TickRow({ line, canEdit, onTick }: { line: CardLine; canEdit: boolean; onTick: (line: CardLine) => void }) {
   const [checked, setChecked] = useState(Boolean(line.checked))
   return (
-    <label className="flex min-h-11 items-start gap-3 py-2.5">
-      <input type="checkbox" checked={checked} disabled={!canEdit} className="mt-0.5 size-5 shrink-0 accent-brand-600"
-        onChange={() => { setChecked(!checked); onTick(line) }} />
-      <span className={`min-w-0 whitespace-pre-line ${checked ? 'text-stone-500 line-through' : ''}`}>{line.text || '(empty)'}</span>
-    </label>
+    <div className="flex min-h-11 items-start gap-1">
+      {/* Only the box ticks; tapping the words opens the note. The label is the box's tap area. */}
+      <label className="-my-0.5 -ml-3 flex min-h-11 min-w-11 shrink-0 justify-center pt-3">
+        <input type="checkbox" checked={checked} disabled={!canEdit} aria-label={line.text || '(empty)'} className="size-5 accent-brand-600"
+          onChange={() => { setChecked(!checked); onTick(line) }} />
+      </label>
+      <span className={`min-w-0 whitespace-pre-line py-2.5 ${checked ? 'text-stone-500 line-through' : ''}`}>{line.text || '(empty)'}</span>
+    </div>
   )
 }

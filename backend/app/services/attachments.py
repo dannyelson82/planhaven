@@ -82,10 +82,16 @@ async def upload(
     chunks: AsyncIterator[bytes],
     max_bytes: int,
     ip: str | None,
+    list_item_id: uuid.UUID | None = None,
 ) -> AttachmentRow:
+    """`list_item_id`: the file belongs to that item of this project (shown in its details)."""
     # Refuse early, before reading a byte of the body.
     async with db.user_transaction(session.user.id) as conn:
         _require(session, await _access(conn, project_id), write=True)
+        if list_item_id is not None and not await store.item_in_project(
+            conn, list_item_id, project_id
+        ):
+            raise authz.NotFoundError("Not found.")
     await limits.check(
         db,
         [(UPLOAD_USER, limits.key(UPLOAD_USER, session.user.id))],
@@ -140,6 +146,7 @@ async def upload(
             blob_sha256=blob_sha,
             thumb_sha256=thumb_sha,
             metadata_kept=keep_metadata and file_type.kind == "image",
+            list_item_id=list_item_id,
         )
         await audit.record_audit(
             conn,

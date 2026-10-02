@@ -73,6 +73,8 @@ MATRIX: dict[tuple[str, str], str] = {
     ("PATCH", "/api/v1/lists/{list_id}"): "verified",
     ("DELETE", "/api/v1/lists/{list_id}"): "verified",
     ("POST", "/api/v1/lists/{list_id}/items"): "verified",
+    ("POST", "/api/v1/lists/{list_id}/items/bulk"): "verified",
+    ("POST", "/api/v1/lists/{list_id}/move-items"): "verified",
     ("PATCH", "/api/v1/list-items/{item_id}"): "verified",
     ("DELETE", "/api/v1/list-items/{item_id}"): "verified",
     # Notes: verified, then project role (tests/db/test_notes.py)
@@ -220,6 +222,11 @@ BODIES: dict[tuple[str, str], object] = {
     ("POST", "/api/v1/projects/{project_id}/tasks"): {"title": "Matrix test task"},
     ("POST", "/api/v1/projects/{project_id}/lists"): {"title": "Matrix list"},
     ("POST", "/api/v1/lists/{list_id}/items"): {"text": "Matrix item"},
+    ("POST", "/api/v1/lists/{list_id}/items/bulk"): {"texts": ["Matrix bulk"]},
+    ("POST", "/api/v1/lists/{list_id}/move-items"): {
+        "item_ids": ["00000000-0000-7000-8000-000000000000"],
+        "to_list_id": "00000000-0000-7000-8000-000000000000",
+    },
     ("POST", "/api/v1/projects/{project_id}/notes"): {"title": "Matrix note"},
     ("PUT", "/api/v1/notes/{note_id}"): {"title": "Matrix note", "content": {"type": "doc"}},
     ("POST", "/api/v1/notes/{note_id}/checklist"): {"index": 0, "text": "x", "checked": True},

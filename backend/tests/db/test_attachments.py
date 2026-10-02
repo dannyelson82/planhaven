@@ -137,3 +137,29 @@ def test_iphone_photos_become_jpeg_without_location(team: Team) -> None:
         True,
     )
     assert owner.get(f"/api/v1/attachments/{kept['id']}/download").content == heic
+
+
+def test_files_for_a_list_item(team: Team) -> None:
+    """A file can belong to one list item of its own project (owner request, 2026-10-02)."""
+    owner, viewer, stranger, pid, _ = team
+    lid = owner.post(f"/api/v1/projects/{pid}/lists", headers=owner.h, json={"title": "Parts"})
+    item = owner.post(
+        f"/api/v1/lists/{lid.json()['id']}/items", headers=owner.h, json={"text": "Impeller"}
+    ).json()
+    r = _upload(owner, pid, b"%PDF-1.4\n%%EOF\n", "manual.pdf", list_item_id=item["id"])
+    assert r.status_code == 201, r.text
+    assert r.json()["list_item_id"] == item["id"]
+    listed = viewer.get(f"/api/v1/projects/{pid}/attachments").json()
+    assert [a["list_item_id"] for a in listed if a["id"] == r.json()["id"]] == [item["id"]]
+
+    # Another project's item (even the uploader's own), or one they can't see: not found.
+    other = owner.post("/api/v1/projects", headers=owner.h, json={"title": "Other"}).json()["id"]
+    assert _upload(owner, other, b"%PDF-1.4\n", "x.pdf", list_item_id=item["id"]).status_code == 404
+    spid = stranger.post("/api/v1/projects", headers=stranger.h, json={"title": "S"}).json()["id"]
+    slid = stranger.post(
+        f"/api/v1/projects/{spid}/lists", headers=stranger.h, json={"title": "L"}
+    ).json()["id"]
+    sitem = stranger.post(
+        f"/api/v1/lists/{slid}/items", headers=stranger.h, json={"text": "Theirs"}
+    ).json()
+    assert _upload(owner, pid, b"%PDF-1.4\n", "y.pdf", list_item_id=sitem["id"]).status_code == 404

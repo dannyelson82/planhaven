@@ -33,6 +33,7 @@ class AttachmentOut(BaseModel):
     has_thumbnail: bool
     metadata_kept: bool
     created_at: datetime
+    list_item_id: uuid.UUID | None = None
     can_delete: bool = False
 
 
@@ -47,6 +48,7 @@ def _out(a: service.AttachmentRow, can_delete: bool = False) -> AttachmentOut:
         has_thumbnail=a.thumb_sha256 is not None,
         metadata_kept=a.metadata_kept,
         created_at=a.created_at,
+        list_item_id=a.list_item_id,
         can_delete=can_delete,
     )
 
@@ -83,6 +85,7 @@ async def upload_attachment(
     request: Request,
     filename: Annotated[str, Query(min_length=1, max_length=255)],
     keep_metadata: bool = False,
+    list_item_id: uuid.UUID | None = None,
 ) -> AttachmentOut:
     try:
         row = await service.upload(
@@ -95,6 +98,7 @@ async def upload_attachment(
             chunks=request.stream(),
             max_bytes=deps.settings(request).max_upload_mb * 1024 * 1024,
             ip=deps.client_ip(request),
+            list_item_id=list_item_id,
         )
     except service.UploadTooLargeError:
         raise HTTPException(413, "This file is larger than the upload limit.") from None

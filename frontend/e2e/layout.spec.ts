@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { watchForProblems } from './helpers.ts'
+import { row, tick, watchForProblems } from './helpers.ts'
 
 // Phone (390 px) and desktop (1280 px) layouts (ARCHITECTURE.md §13.5).
 test('layout fits the screen and navigation is where the thumb or mouse is', async ({ page }, info) => {
@@ -118,8 +118,8 @@ test('lists work offline and catch up when back online', async ({ page, context 
   await page.getByRole('button', { name: 'Add', exact: true }).click()
   await expect(page.getByText(extra)).toBeVisible()
   await expect(page.getByText('not sent yet')).toBeVisible()
-  await page.locator('label', { hasText: 'Hose clamps' }).click()
-  await page.locator('label', { hasText: rope }).click()
+  await tick(page, 'Hose clamps')
+  await tick(page, rope)
   const gone = await page.request.delete(`/api/v1/list-items/${ropeItem.id}`, { headers: { 'X-CSRF-Token': csrf, Origin: origin } })
   expect(gone.status()).toBe(204)
 
@@ -233,6 +233,11 @@ test('ticking on the card, then editing the note, saves without a conflict', asy
   // The text before the list shows in order, as normal text, above the checkbox.
   const card = notes.locator('li.break-inside-avoid', { hasText: title })
   await expect(card.getByText('Before the list')).toBeVisible()
+  // Tapping the words on the card (not a box) opens the note.
+  await card.getByText('Before the list').click()
+  await expect(editor).toContainText(item)
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(box).toBeChecked()
   // Cards don't move when a checkbox is ticked.
   await expect.poll(async () => (await notes.locator('li.break-inside-avoid').allInnerTexts()).map((t) => t.split('\n')[0])).toEqual(order.map((t) => t.split('\n')[0]))
   // Copy puts the whole note on the clipboard.
@@ -425,7 +430,7 @@ test('a contact card from the phone, and item suggestions', async ({ page }, inf
   await expect(page.getByLabel('Qty')).toHaveValue('4')
   await expect(page.getByText('Price each: $2.50')).toBeVisible()
   await page.getByRole('button', { name: 'Add', exact: true }).click()
-  await expect(page.locator('label', { hasText: 'Hose clamps' })).toContainText('$10.00')
+  await expect(row(page, 'Hose clamps').first()).toContainText('$10.00')
   expect(problems).toEqual([])
 })
 
@@ -470,7 +475,7 @@ test('templates for lists and tasks', async ({ page }, info) => {
   await page.getByLabel('Project').selectOption({ label: 'Winterize boat' })
   await page.getByRole('button', { name: 'Make this list' }).click()
   await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible()
-  await expect(page.locator('label', { hasText: 'Hose clamps' })).toBeVisible()
+  await expect(row(page, 'Hose clamps')).toBeVisible()
 
   // Tasks: saved from the project, added again from the + Task drawer.
   await page.goto(projectUrl)
@@ -483,5 +488,60 @@ test('templates for lists and tasks', async ({ page }, info) => {
   await page.getByLabel('Task template').selectOption({ label: `Winterize (${info.project.name}) (${before})` })
   await page.getByRole('button', { name: 'Use template' }).click()
   await expect(page.getByRole('region', { name: 'Open tasks' }).getByRole('checkbox')).toHaveCount(before * 2)
+  expect(problems).toEqual([])
+})
+
+// A long list pasted at once, sorted into another list later; an item's details (owner
+// requests, 2026-10-02). The add bar stays at the top while the page scrolls.
+test('a big list sorted later, and item details', async ({ page }, info) => {
+  const problems = watchForProblems(page)
+  const tag = info.project.name
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Winterize boat' }).click()
+  const bar = page.getByRole('toolbar', { name: 'Add to this project' })
+  await page.mouse.wheel(0, 3000)
+  await expect(bar).toBeInViewport()
+  await bar.getByRole('button', { name: 'List', exact: true }).click()
+  for (const title of [`Brain dump ${tag}`, `Marine store ${tag}`]) {
+    await page.getByLabel('New list').fill(title)
+    await page.getByRole('button', { name: 'Add list' }).click()
+    await expect(page.getByRole('link', { name: title })).toBeVisible()
+  }
+  const store = await page.getByRole('link', { name: `Marine store ${tag}` }).getAttribute('href')
+  await page.getByRole('link', { name: `Brain dump ${tag}` }).click()
+
+  await page.getByRole('button', { name: 'Add many at once' }).click()
+  await page.getByLabel('Items, one per line').fill(`- Impeller ${tag}\n- Fuel filter ${tag}\n\n3. Groceries ${tag}`)
+  await page.getByRole('button', { name: 'Add 3 items' }).click()
+  await expect(row(page, `Groceries ${tag}`)).toBeVisible()
+
+  await page.getByRole('button', { name: 'Edit', exact: true }).click()
+  const move = page.getByRole('region', { name: 'Move items' })
+  await move.getByLabel(`Impeller ${tag}`).check()
+  await move.getByLabel(`Fuel filter ${tag}`).check()
+  await move.getByLabel('Move to').selectOption({ label: `Marine store ${tag}` })
+  await move.getByRole('button', { name: 'Move 2 items' }).click()
+  await expect(row(page, `Impeller ${tag}`)).toHaveCount(0)
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(row(page, `Groceries ${tag}`)).toBeVisible()
+
+  // In the other list: details with a website and notes, edited from the details.
+  await page.goto(store!)
+  await row(page, `Impeller ${tag}`).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByText('No notes')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Edit', exact: true }).click()
+  await dialog.getByLabel('Website').fill('not a link')
+  await expect(dialog.getByRole('button', { name: 'Save' })).toBeDisabled()
+  await dialog.getByLabel('Website').fill('https://example.com/impeller')
+  await dialog.getByLabel('Notes').fill('Part 47-43026')
+  await dialog.getByRole('button', { name: 'Save' }).click()
+  await expect(dialog.getByRole('link', { name: 'https://example.com/impeller' })).toBeVisible()
+  await expect(dialog.getByText('Part 47-43026')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Close' }).click()
+  // Ticking is the circle only.
+  await tick(page, `Impeller ${tag}`)
+  await expect(page.getByText('In the cart (1)')).toBeVisible()
+  await expect(dialog).toHaveCount(0)
   expect(problems).toEqual([])
 })

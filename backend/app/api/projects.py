@@ -66,12 +66,23 @@ class TaskIn(Strict):
     due_all_day: bool = False
 
 
+class TaskBase(Strict):
+    """What the changed fields held when the client started editing (merge when safe)."""
+
+    title: str | None = None
+    notes: str | None = None
+    due_at: datetime | None = None
+    due_all_day: bool | None = None
+    done: bool | None = None
+
+
 class TaskPatch(Strict):
     title: Annotated[str, Field(min_length=1, max_length=300)] | None = None
     notes: Text | None = None
     due_at: datetime | None = None
     due_all_day: bool | None = None
     done: bool | None = None
+    base: TaskBase | None = None
 
 
 class TaskOut(BaseModel):
@@ -245,6 +256,7 @@ async def update_task(
             due_all_day=body.due_all_day,
             done=body.done,
             ip=deps.client_ip(request),
+            base=body.base.model_dump(include=body.base.model_fields_set) if body.base else None,
         )
     except ConflictError as exc:
         raise HTTPException(409, str(exc)) from None

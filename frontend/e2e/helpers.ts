@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 /** RFC 6238 TOTP (SHA-1, 6 digits, 30 s): a test stand-in for an authenticator app. */
 export function totp(secretBase32: string, offsetSteps = 0): string {
@@ -48,4 +48,14 @@ export const ADMIN = {
   name: 'Test Admin',
   email: 'admin@example.com',
   password: 'correct horse battery staple 42',
+}
+
+/** Tick a task or list item: its box only (tapping the words opens its details). */
+export function tick(page: Page, name: string): Promise<void> {
+  return page.locator('label').filter({ has: page.getByRole('checkbox', { name, exact: true }) }).click()
+}
+
+/** A task or list item's row (the words; it opens the details). */
+export function row(page: Page, name: string): Locator {
+  return page.getByRole('button', { name: `Details: ${name}`, exact: true })
 }

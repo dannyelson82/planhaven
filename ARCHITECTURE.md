@@ -385,6 +385,10 @@ Reverse proxy ─► Middleware (trusted-proxy resolution, security headers, req
 - REST under `/api/v1`, JSON only, OpenAPI schema generated and published in CI artifacts.
 - Cursor-based pagination (`?cursor=…&limit=…`, max limit 200).
 - Optimistic concurrency: updates send `If-Match: <version>`; mismatch returns `409`.
+  **Merge when safe** (maintainer decision, 2026-10-02): task and list item updates send only
+  the changed fields plus `base`, the values those fields held when editing started. A stale
+  version is accepted when every changed field still equals its `base` (someone changed only
+  other fields meanwhile); otherwise `409`, and the client offers keep mine / keep theirs.
 - Idempotency: sync and MCP write endpoints accept an `Idempotency-Key` header.
 - Errors use RFC 9457 problem details; no stack traces or internal IDs in responses.
 - Timestamps are UTC ISO 8601; the user's time zone is applied in the UI and in feeds.
@@ -418,7 +422,9 @@ Decided in ADR 0011; live note co-editing paused by ADR 0016.
 
 - Notes are edited in the browser and saved when the person taps **Done** (`PUT
   /api/v1/notes/{id}` with `If-Match`). A save that would overwrite someone else's newer
-  save is refused (409). Leaving with unsaved changes asks first.
+  save is refused (409); the client then merges when the two saves changed different parts
+  (title vs. text), or offers keep mine / keep theirs / keep both (mine as a copy). Leaving
+  with unsaved changes asks first.
 - The document is stored as TipTap JSON, rebuilt by the server from an allowlist; a Markdown
   copy is derived from it for previews, search, AI and export.
 - Notes saved by the earlier live editor (Yjs updates) are converted when read.
