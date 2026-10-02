@@ -86,3 +86,53 @@ async def _live_updates(
     finally:
         receiver.cancel()
         live.unsubscribe(project_id, queue)
+
+
+@router.websocket("/live/me")
+async def live_me(websocket: WebSocket) -> None:
+    """The signed-in person's own channel: new messages and notifications, and being online."""
+    session = await deps.websocket_session(websocket)
+    if session is None:
+        await websocket.close(code=4401)
+        return
+    if not live.claim_socket(session.user.id):
+        await websocket.close(code=4429)
+        return
+    try:
+        await _live_me(websocket, session)
+    finally:
+        live.release_socket(session.user.id)
+
+
+async def _live_me(websocket: WebSocket, session: CurrentSession) -> None:
+    await websocket.accept()
+    queue = live.subscribe_person(session.user.id)
+    receiver = asyncio.ensure_future(websocket.receive())
+    loop = asyncio.get_running_loop()
+    recheck_at = loop.time() + RECHECK_SECONDS
+    try:
+        while True:
+            getter = asyncio.ensure_future(queue.get())
+            done, _ = await asyncio.wait(
+                {getter, receiver},
+                timeout=max(0.0, recheck_at - loop.time()),
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if receiver in done:
+                getter.cancel()
+                break
+            if getter in done:
+                await websocket.send_text(json.dumps({"kind": getter.result()}))
+            else:
+                getter.cancel()
+            # Still signed in? (Sign-out elsewhere, session expiry, account disabled.)
+            if loop.time() >= recheck_at:
+                if not await deps.session_still_valid(websocket, session):
+                    await _safe_close(websocket, 4401, "signed out")
+                    break
+                recheck_at = loop.time() + RECHECK_SECONDS
+    except WebSocketDisconnect:
+        pass
+    finally:
+        receiver.cancel()
+        live.unsubscribe_person(session.user.id, queue)

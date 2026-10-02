@@ -134,6 +134,10 @@ async def websocket_session(websocket: Any) -> CurrentSession | None:
     return session
 
 
+async def session_still_valid(websocket: Any, session: CurrentSession) -> bool:
+    return await auth_service.still_active(websocket.app.state.db, session)
+
+
 # ------------------------------------------------------------------ share-link guests (ADR 0015)
 
 

@@ -21,6 +21,8 @@ You're told about:
 - **Asset services due**: a maintenance schedule that's due soon or overdue (see [Assets](assets.md)).
 - **Someone used your share link**: a guest ticked something, added to a note or added photos
   (at most once an hour per guest).
+- **New messages**: one per conversation until you open it (see [Messages](messages.md)). **Show
+  the start of messages in alerts** can be unticked to keep the text off your lock screen.
 - **Sign-ins and security changes**: a sign-in from somewhere new, a password or second factor
   change. These can't be turned off.
 
@@ -56,6 +58,7 @@ show in the app straight away. Times follow your device's time zone.
 
 ## Privacy
 
-Alerts carry only a title and a short line (a task or asset name, who shared something), never
-the text of notes. They go through your phone's or browser's own alert service (Apple, Google,
+Alerts carry only a title and a short line (a task or asset name, who shared something, the
+start of a message unless you turned that off), never the text of notes. An alert you've
+already read in the app isn't sent to your phone. They go through your phone's or browser's own alert service (Apple, Google,
 Mozilla or Microsoft), encrypted so that service can't read them.

@@ -20,8 +20,9 @@ its screenshots, in the same change.
 10. [Templates](templates.md): lists and tasks to reuse in later projects
 11. [Sharing](sharing.md): who can see and change what, and share links for people without an account
 12. [Trash](trash.md)
-13. [Notifications](notifications.md): the bell, phone alerts, quiet hours
-14. [Your account and security](account-and-security.md): including experimental features
-15. [Admin](admin.md): inviting people, reset links, experimental features
+13. [Messages](messages.md): one to one and groups, who's online
+14. [Notifications](notifications.md): the bell, phone alerts, quiet hours
+15. [Your account and security](account-and-security.md): including experimental features
+16. [Admin](admin.md): inviting people, reset links, experimental features
 
-Written for PlanHaven 0.3.0.
+Written for PlanHaven 0.3.1.

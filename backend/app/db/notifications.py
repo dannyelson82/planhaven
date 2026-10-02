@@ -219,6 +219,7 @@ class PendingRow:
     kind: str
     data: dict[str, Any]
     push_attempts: int
+    read: bool
 
 
 async def claim_pending(conn: AsyncConnection, limit: int) -> list[PendingRow]:
@@ -232,7 +233,7 @@ async def claim_pending(conn: AsyncConnection, limit: int) -> list[PendingRow]:
                 WHERE push_state = 'pending' AND push_after <= now()
                 ORDER BY push_after LIMIT :n FOR UPDATE SKIP LOCKED
             )
-            RETURNING id, user_id, kind, data, push_attempts
+            RETURNING id, user_id, kind, data, push_attempts, read_at IS NOT NULL AS read
         """),
         {"n": limit},
     )

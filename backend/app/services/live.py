@@ -47,3 +47,34 @@ def release_socket(user_id: uuid.UUID) -> None:
     _open_sockets[user_id] -= 1
     if _open_sockets[user_id] <= 0:
         _open_sockets.pop(user_id, None)
+
+
+# ---------------------------------------------------------------- per person (ADR 0018)
+# Each signed-in tab keeps one connection for its person: told about new messages and
+# notifications ("messages", "notifications"; never content). While at least one is open,
+# the person is online.
+
+_people: dict[uuid.UUID, set[asyncio.Queue[str]]] = defaultdict(set)
+
+
+def publish_to(user_id: uuid.UUID, kind: str) -> None:
+    for queue in list(_people.get(user_id, ())):
+        if queue.qsize() < 100:
+            queue.put_nowait(kind)
+
+
+def subscribe_person(user_id: uuid.UUID) -> asyncio.Queue[str]:
+    queue: asyncio.Queue[str] = asyncio.Queue()
+    _people[user_id].add(queue)
+    return queue
+
+
+def unsubscribe_person(user_id: uuid.UUID, queue: asyncio.Queue[str]) -> None:
+    _people[user_id].discard(queue)
+    if not _people[user_id]:
+        _people.pop(user_id, None)
+
+
+def online() -> set[uuid.UUID]:
+    """People with the app open right now (this process)."""
+    return set(_people)

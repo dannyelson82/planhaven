@@ -208,6 +208,25 @@ test('user guide screenshots', async ({ page }, info) => {
   await page.goto('/notifications')
   await page.getByRole('heading', { name: 'Notifications' }).waitFor()
   await shot(page, device, 'notifications')
+
+  // Messages: a conversation with Sam (invited in the journey), made once.
+  await page.goto('/messages')
+  await page.getByRole('heading', { name: 'Messages' }).waitFor()
+  const conversations = page.getByRole('list', { name: 'Conversations' })
+  if (await conversations.getByRole('link', { name: /Sam/ }).count() === 0) {
+    await page.getByRole('button', { name: 'New message' }).click()
+    await page.getByRole('list', { name: 'People' }).getByRole('button', { name: /Sam/ }).click()
+    await page.getByLabel('Message', { exact: true }).fill('Can you grab 2 quarts of 5W-30 on the way home?')
+    await page.getByRole('button', { name: 'Send' }).click()
+    await page.getByLabel('Message', { exact: true }).fill('For the boat, not the truck.')
+    await page.getByRole('button', { name: 'Send' }).click()
+    await page.getByRole('region', { name: 'Messages' }).getByText('For the boat, not the truck.').first().waitFor()
+    await page.goto('/messages')
+  }
+  await shot(page, device, 'messages')
+  await conversations.getByRole('link', { name: /Sam/ }).first().click()
+  await page.getByRole('region', { name: 'Messages' }).getByText('For the boat, not the truck.').first().waitFor()
+  await shot(page, device, 'conversation')
   await page.goto('/admin')
   await page.getByRole('heading', { name: 'Admin' }).waitFor()
   await shot(page, device, 'admin')

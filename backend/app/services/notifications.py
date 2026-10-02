@@ -35,6 +35,7 @@ GROUPS: dict[str, tuple[str, ...]] = {
     "tasks": ("task_due", "task_overdue"),
     "service": ("service_due", "service_overdue"),
     "share_links": ("share_link_used",),
+    "messages": ("message",),
     "security": ("new_sign_in", "security_change", "push_test"),
 }
 GROUP_OF = {kind: group for group, kinds in GROUPS.items() for kind in kinds}
@@ -85,8 +86,9 @@ _SHARED = {
 _CHECK = "If this wasn't you, change your password."
 
 
-def render(kind: str, data: dict[str, Any]) -> Text:
-    """What a notification says, and where tapping it goes (an app path, never a full URL)."""
+def render(kind: str, data: dict[str, Any], previews: bool = True) -> Text:
+    """What a notification says, and where tapping it goes (an app path, never a full URL).
+    `previews`: the person's choice to see the start of messages in notifications."""
     title = _s(data, "title")
     project = f"/projects/{_s(data, 'project_id')}"
     asset = f"/assets/{_s(data, 'asset_id')}"
@@ -110,6 +112,15 @@ def render(kind: str, data: dict[str, Any]) -> Text:
                 f"{guest} used your share link “{link}”",
                 _s(data, "project_title"),
                 f"{project}/links",
+            )
+        case "message":
+            sender = _s(data, "from", 80) or "Someone"
+            group = _s(data, "group", 100)
+            preview = _s(data, "preview", 100) if previews else ""
+            return Text(
+                f"{sender} in {group}" if group else f"Message from {sender}",
+                preview or "New message",
+                f"/messages/{_s(data, 'conversation_id')}",
             )
         case "new_sign_in":
             return Text("New sign-in to your account", _CHECK, "/account")
@@ -218,7 +229,12 @@ async def list_own(db: Database, session: CurrentSession) -> list[Notification]:
         rows = await store.own(conn, session.user.id, _shown_kinds(settings), LIST_LIMIT)
     return [
         Notification(
-            r.id, r.kind, r.data, render(r.kind, r.data), r.created_at, r.read_at is not None
+            r.id,
+            r.kind,
+            r.data,
+            render(r.kind, r.data, settings.previews),
+            r.created_at,
+            r.read_at is not None,
         )
         for r in rows
     ]
@@ -331,8 +347,8 @@ def in_quiet_hours(settings: Settings, now: datetime) -> datetime | None:
     return datetime.combine(end_day, end, tzinfo=local.tzinfo).astimezone(UTC)
 
 
-def payload(kind: str, data: dict[str, Any]) -> bytes:
-    text = render(kind, data)
+def payload(kind: str, data: dict[str, Any], previews: bool = True) -> bytes:
+    text = render(kind, data, previews)
     return json.dumps(
         {"title": text.title[:120], "body": text.body[:200], "url": text.url[:300]}
     ).encode()
@@ -352,7 +368,7 @@ async def dispatch(db: Database, sender: PushSender, *, batch: int = 20) -> int:
             settings = _settings(await store.get_settings(conn, n.user_id))
             subs = await store.subscriptions(conn, n.user_id)
         group = GROUP_OF.get(n.kind, "security")
-        if settings.prefs[group] != "push" or not subs:
+        if settings.prefs[group] != "push" or not subs or n.read:  # read in the app already
             async with db.system_transaction() as conn:
                 await store.set_push_state(conn, n.id, "skipped")
             continue
@@ -361,7 +377,7 @@ async def dispatch(db: Database, sender: PushSender, *, batch: int = 20) -> int:
             async with db.system_transaction() as conn:
                 await store.set_push_state(conn, n.id, "pending", quiet_until)
             continue
-        body = payload(n.kind, n.data)
+        body = payload(n.kind, n.data, settings.previews)
         delivered = False
         for sub in subs:
             target = webpush.Target(sub.endpoint, sub.p256dh, sub.auth)

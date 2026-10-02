@@ -8,7 +8,7 @@ own list, **Suppliers**. Each one is **private to you** until you share it.
 ![Suppliers](screens/desktop/suppliers.jpg)
 
 - **On a computer**: **Suppliers** in the menu.
-- **On a phone**: on **Contacts**, tap **Suppliers →** at the top (and **Contacts →** to go back).
+- **On a phone**: on **Account**, tap **Contacts**, then **Suppliers →** at the top (or the **Suppliers** link on **Account**).
 
 Add one with **New supplier** and **Add supplier**, or straight from a shopping or parts list
 item (see [Lists](lists.md)). A supplier's page works like a contact's: phone, email, website,

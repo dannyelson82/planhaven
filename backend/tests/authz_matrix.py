@@ -61,6 +61,19 @@ MATRIX: dict[tuple[str, str], str] = {
     ("DELETE", "/api/v1/push/devices/{device_id}"): "verified",
     ("POST", "/api/v1/push/forget"): "verified",
     ("POST", "/api/v1/push/test"): "verified",
+    ("GET", "/api/v1/people/status"): "verified",
+    ("GET", "/api/v1/presence"): "verified",
+    ("PUT", "/api/v1/presence"): "verified",
+    ("GET", "/api/v1/conversations"): "verified",
+    ("POST", "/api/v1/conversations"): "verified",
+    ("GET", "/api/v1/conversations/{conversation_id}"): "verified",
+    ("PATCH", "/api/v1/conversations/{conversation_id}"): "verified",
+    ("GET", "/api/v1/conversations/{conversation_id}/messages"): "verified",
+    ("POST", "/api/v1/conversations/{conversation_id}/messages"): "verified",
+    ("POST", "/api/v1/conversations/{conversation_id}/read"): "verified",
+    ("POST", "/api/v1/conversations/{conversation_id}/leave"): "verified",
+    ("POST", "/api/v1/conversations/{conversation_id}/members"): "verified",
+    ("DELETE", "/api/v1/messages/{message_id}"): "verified",
     # Projects and tasks: verified, then the caller's project role (tests/db/test_projects.py)
     ("GET", "/api/v1/projects"): "verified",
     ("POST", "/api/v1/projects"): "verified",
@@ -257,6 +270,13 @@ BODIES: dict[tuple[str, str], object] = {
         "auth": "EXAMPLE-not-a-key",
     },
     ("POST", "/api/v1/push/forget"): {"endpoint": "https://fcm.googleapis.com/fcm/send/EXAMPLE"},
+    ("PUT", "/api/v1/presence"): {"hidden": False},
+    ("POST", "/api/v1/conversations"): {"people": ["00000000-0000-7000-8000-000000000000"]},
+    ("PATCH", "/api/v1/conversations/{conversation_id}"): {"title": "Matrix group"},
+    ("POST", "/api/v1/conversations/{conversation_id}/messages"): {"body": "Matrix hello"},
+    ("POST", "/api/v1/conversations/{conversation_id}/members"): {
+        "user_id": "00000000-0000-7000-8000-000000000000"
+    },
     ("PUT", "/api/v1/assets/{asset_id}/distance-unit"): {"unit": "km"},
     ("POST", "/api/v1/assets/{asset_id}/readings"): {"read_on": "2026-10-02", "distance": "1"},
     ("POST", "/api/v1/assets/{asset_id}/service-schedules"): {"name": "Oil", "every_months": 12},
@@ -353,4 +373,5 @@ SESSION_GUARDS = {
 # SECURITY.md §7.15) and are exercised in tests/db/test_live.py.
 WEBSOCKETS: dict[str, str] = {
     "/api/v1/live/projects/{project_id}": "verified",
+    "/api/v1/live/me": "verified",
 }

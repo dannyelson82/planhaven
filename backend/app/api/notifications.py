@@ -16,7 +16,7 @@ from app.services import notifications as service
 router = APIRouter(prefix="/api/v1")
 
 Choice = Literal["push", "app", "off"]
-Group = Literal["shared", "tasks", "service", "share_links", "security"]
+Group = Literal["shared", "tasks", "service", "share_links", "messages", "security"]
 
 
 class Strict(BaseModel):

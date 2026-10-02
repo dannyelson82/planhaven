@@ -56,7 +56,7 @@ export function NotificationsScreen() {
 }
 
 type Choice = 'push' | 'app' | 'off'
-type Group = 'shared' | 'tasks' | 'service' | 'share_links' | 'security'
+type Group = 'shared' | 'tasks' | 'service' | 'share_links' | 'messages' | 'security'
 type Settings = { prefs: Record<Group, Choice>; quiet_from: string | null; quiet_to: string | null; time_zone: string; previews: boolean }
 type Device = { id: string; label: string; created_at: string; last_success_at: string | null }
 
@@ -65,6 +65,7 @@ const GROUP_LABEL: Record<Group, string> = {
   tasks: 'Tasks due today and overdue',
   service: 'Asset services due',
   share_links: 'Someone used your share link',
+  messages: 'New messages',
   security: 'Sign-ins and security changes',
 }
 const CHOICE_LABEL: Record<Choice, string> = { push: 'On the phone and in the app', app: 'In the app only', off: 'Off' }
@@ -113,6 +114,7 @@ export function NotificationSettingsCard() {
                 </label>
               ))}
             </div>
+            <Previews s={s} onSave={(next) => save.mutate(next)} />
             <fieldset className="space-y-2">
               <legend className="text-sm font-medium">Quiet hours</legend>
               <p className="text-sm text-stone-500">No phone alerts in these hours; they come when quiet hours end. They still show in the app.</p>
@@ -191,5 +193,18 @@ function PhoneAlerts() {
       )}
       <ErrorText error={on.error ?? off.error ?? test.error ?? remove.error} />
     </div>
+  )
+}
+
+/** Whether message alerts show the start of the message (lock screens). */
+function Previews({ s, onSave }: { s: Settings; onSave: (next: Settings) => void }) {
+  const [box, setBox] = useState<{ saved: boolean; on: boolean } | null>(null)
+  const on = box && box.saved === s.previews ? box.on : s.previews
+  return (
+    <label className="flex min-h-11 items-center gap-2 text-sm">
+      <input type="checkbox" className="size-5 accent-brand-600" checked={on}
+        onChange={(e) => { setBox({ saved: s.previews, on: e.target.checked }); onSave({ ...s, previews: e.target.checked }) }} />
+      Show the start of messages in alerts
+    </label>
   )
 }
