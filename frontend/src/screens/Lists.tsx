@@ -174,7 +174,7 @@ export function ListScreen({ id }: { id: string }) {
         body: { text: item.text, ...(item.qty ? { quantity: item.qty } : {}), ...(item.price !== null ? { price_cents: item.price } : {}) },
       })
       if (queued) {
-        const pending: Item = { id: `pending-${key}`, text: item.text, quantity: item.qty || null, unit: null, price_cents: item.price, notes: '', website: '', checked: false, version: 0 }
+        const pending: Item = { id: `pending-${key}`, text: item.text, quantity: item.qty || null, unit: null, price_cents: item.price, notes: '', website: '', supplier_id: null, supplier_name: null, checked: false, version: 0 }
         await showLocally((d) => ({ ...d, items: [...d.items, pending] }))
       }
     },
@@ -230,7 +230,7 @@ export function ListScreen({ id }: { id: string }) {
       const run = saving.current.catch(() => undefined).then(async () => {
         // Only what changed, compared with the newest copy this device has (merge when safe).
         const latest = client.getQueryData<ListDetail>(['list', id])?.items.find((x) => x.id === i.id) ?? i
-        const updated = await saveItem(latest, changes(latest, { text, quantity: qty.trim() || null, price_cents: price, website: latest.website, notes: latest.notes }), false, id)
+        const updated = await saveItem(latest, changes(latest, { text, quantity: qty.trim() || null, price_cents: price, website: latest.website, notes: latest.notes, supplier_id: latest.supplier_id }), false, id)
         if (!updated) return
         client.setQueryData<ListDetail>(['list', id], (d) => d && { ...d, items: d.items.map((x) => x.id === updated.id ? updated : x) })
       })
@@ -365,6 +365,7 @@ function ItemList({ listId, projectId, items, editing, priced, onToggle, onDelet
                 {(i.notes || i.website) && <span className="sr-only"> (has details)</span>}
               </span>
               {(i.notes || i.website) && <span aria-hidden className="text-xs text-stone-400">•••</span>}
+              {priced && i.supplier_name && <span className="hidden max-w-32 truncate text-sm text-stone-500 sm:inline">{i.supplier_name}</span>}
               {quantityText(i) && <span className="text-sm text-stone-500">{quantityText(i)}</span>}
               {priced && i.price_cents !== null && <span className="text-sm tabular-nums text-stone-500">{formatCents(lineCents(i))}</span>}
             </>} />

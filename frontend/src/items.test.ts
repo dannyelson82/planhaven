@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { changes, type Item } from './items.ts'
 
-const item: Item = { id: 'i', text: 'Clamps', quantity: '2.000', unit: null, price_cents: 150, notes: '', website: '', checked: false, version: 3 }
-const same = { text: 'Clamps', quantity: '2', price_cents: 150, website: '', notes: '' }
+const item: Item = { id: 'i', text: 'Clamps', quantity: '2.000', unit: null, price_cents: 150, notes: '', website: '', supplier_id: null, supplier_name: null, checked: false, version: 3 }
+const same = { text: 'Clamps', quantity: '2', price_cents: 150, website: '', notes: '', supplier_id: null }
 
 describe('changes (merge when safe)', () => {
   it('sends nothing when nothing changed', () => {

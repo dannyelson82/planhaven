@@ -35,6 +35,9 @@ class ItemRow:
     price_cents: int | None
     notes: str
     website: str
+    supplier_id: uuid.UUID | None
+    # Filled only when this user can see the supplier (a contact; RLS).
+    supplier_name: str | None
     position: float
     checked_at: datetime | None
     updated_at: datetime
@@ -141,10 +144,13 @@ async def delete_list(conn: AsyncConnection, list_id: uuid.UUID) -> None:
 async def items(conn: AsyncConnection, list_id: uuid.UUID) -> list[ItemRow]:
     rows = await conn.execute(
         text("""
-            SELECT id, list_id, project_id, text, quantity, unit, price_cents, notes, website,
-                   position, checked_at, updated_at, version
-            FROM list_items WHERE list_id = :l AND deleted_at IS NULL
-            ORDER BY checked_at IS NOT NULL, position, created_at LIMIT 2000
+            SELECT i.id, i.list_id, i.project_id, i.text, i.quantity, i.unit, i.price_cents,
+                   i.notes, i.website, i.supplier_id, c.name AS supplier_name, i.position,
+                   i.checked_at, i.updated_at, i.version
+            FROM list_items i
+            LEFT JOIN contacts c ON c.id = i.supplier_id AND c.deleted_at IS NULL
+            WHERE i.list_id = :l AND i.deleted_at IS NULL
+            ORDER BY i.checked_at IS NOT NULL, i.position, i.created_at LIMIT 2000
         """),
         {"l": list_id},
     )
@@ -155,9 +161,12 @@ async def get_item(conn: AsyncConnection, item_id: uuid.UUID) -> ItemRow | None:
     row = (
         await conn.execute(
             text("""
-                SELECT id, list_id, project_id, text, quantity, unit, price_cents, notes, website,
-                       position, checked_at, updated_at, version
-                FROM list_items WHERE id = :id AND deleted_at IS NULL
+                SELECT i.id, i.list_id, i.project_id, i.text, i.quantity, i.unit, i.price_cents,
+                       i.notes, i.website, i.supplier_id, c.name AS supplier_name, i.position,
+                       i.checked_at, i.updated_at, i.version
+                FROM list_items i
+                LEFT JOIN contacts c ON c.id = i.supplier_id AND c.deleted_at IS NULL
+                WHERE i.id = :id AND i.deleted_at IS NULL
             """),
             {"id": item_id},
         )
@@ -212,6 +221,8 @@ async def update_item(
     set_price: bool,
     notes: str | None = None,
     website: str | None = None,
+    supplier_id: uuid.UUID | None = None,
+    set_supplier: bool = False,
     checked: bool | None,
 ) -> int | None:
     """expected_version None = unconditional (only allowed for check-offs by the service)."""
@@ -227,6 +238,8 @@ async def update_item(
                                    THEN CAST(:price AS bigint) ELSE price_cents END,
                 notes = coalesce(CAST(:notes AS text), notes),
                 website = coalesce(CAST(:web AS text), website),
+                supplier_id = CASE WHEN CAST(:set_sup AS boolean)
+                                   THEN CAST(:sup AS uuid) ELSE supplier_id END,
                 checked_at = CASE WHEN CAST(:c AS boolean) IS NULL THEN checked_at
                                   WHEN CAST(:c AS boolean) THEN coalesce(checked_at, now())
                                   ELSE NULL END,
@@ -251,6 +264,8 @@ async def update_item(
             "set_price": set_price,
             "notes": notes,
             "web": website,
+            "sup": supplier_id,
+            "set_sup": set_supplier,
             "c": checked,
             "u": user_id,
         },

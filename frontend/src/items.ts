@@ -3,10 +3,10 @@ import { api, ApiError } from './api.ts'
 
 export type Item = {
   id: string; text: string; quantity: string | null; unit: string | null; price_cents: number | null
-  notes: string; website: string; checked: boolean; version: number
+  notes: string; website: string; supplier_id: string | null; supplier_name: string | null; checked: boolean; version: number
 }
 
-type Fields = Partial<Pick<Item, 'text' | 'quantity' | 'price_cents' | 'website' | 'notes'>>
+type Fields = Partial<Pick<Item, 'text' | 'quantity' | 'price_cents' | 'website' | 'notes' | 'supplier_id'>>
 
 /** Only what changed, compared with what the item held when editing started. */
 export function changes(i: Item, next: Required<Fields>): Fields {
@@ -16,6 +16,7 @@ export function changes(i: Item, next: Required<Fields>): Fields {
   if (next.price_cents !== i.price_cents) out.price_cents = next.price_cents
   if (next.website !== i.website) out.website = next.website
   if (next.notes !== i.notes) out.notes = next.notes
+  if (next.supplier_id !== i.supplier_id) out.supplier_id = next.supplier_id
   return out
 }
 
