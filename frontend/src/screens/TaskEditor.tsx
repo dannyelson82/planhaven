@@ -3,13 +3,15 @@ import { type ReactNode, useState } from 'react'
 import { Button as AriaButton, Dialog, DialogTrigger, Heading, Modal } from 'react-aria-components'
 import { api, ApiError, dueLabel, type Need, type Task } from '../api.ts'
 import { Button, ErrorText, Field, Form } from '../ui.tsx'
+import { ChoreForm } from './Chores.tsx'
+import { repeatText } from '../chores.ts'
 
 /**
  * A task on the project page: tapping it opens its details (notes, due date, the items it
  * needs), with Edit from there (owner request, 2026-10-02). The checkbox beside it ticks it.
  */
-export function TaskDetails({ task, needs, canEdit, summary }: { task: Task; needs: Need[]; canEdit: boolean; summary: ReactNode }) {
-  const [editing, setEditing] = useState(false)
+export function TaskDetails({ task, needs, canEdit, myId, summary }: { task: Task; needs: Need[]; canEdit: boolean; myId: string; summary: ReactNode }) {
+  const [editing, setEditing] = useState<false | 'task' | 'chore'>(false)
   return (
     <DialogTrigger onOpenChange={(open) => { if (!open) setEditing(false) }}>
       <AriaButton aria-label={`Details: ${task.title}`} className="min-h-12 min-w-0 flex-1 cursor-pointer py-2 text-left outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-brand-600">
@@ -17,16 +19,20 @@ export function TaskDetails({ task, needs, canEdit, summary }: { task: Task; nee
       </AriaButton>
       <Modal isDismissable className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 p-4 sm:items-center">
         <Dialog className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 outline-none dark:bg-stone-900">
-          {({ close }) => editing
+          {({ close }) => editing === 'task'
             ? <EditForm task={task} needs={needs} close={() => setEditing(false)} />
-            : <TaskView task={task} needs={needs} canEdit={canEdit} onEdit={() => setEditing(true)} close={close} />}
+            : editing === 'chore'
+              ? <ChoreForm task={task} myId={myId} done={() => setEditing(false)} />
+              : <TaskView task={task} needs={needs} canEdit={canEdit} onEdit={() => setEditing('task')} onChore={() => setEditing('chore')} close={close} />}
         </Dialog>
       </Modal>
     </DialogTrigger>
   )
 }
 
-function TaskView({ task, needs, canEdit, onEdit, close }: { task: Task; needs: Need[]; canEdit: boolean; onEdit: () => void; close: () => void }) {
+function TaskView({ task, needs, canEdit, onEdit, onChore, close }: {
+  task: Task; needs: Need[]; canEdit: boolean; onEdit: () => void; onChore: () => void; close: () => void
+}) {
   const due = dueLabel(task, true)
   return (
     <div className="space-y-4">
@@ -40,6 +46,14 @@ function TaskView({ task, needs, canEdit, onEdit, close }: { task: Task; needs: 
           <dt className="font-medium text-stone-500">Status</dt>
           <dd>{task.done ? 'Done' : 'Open'}</dd>
         </div>
+        {task.assignee_id && (
+          <div>
+            <dt className="font-medium text-stone-500">Chore</dt>
+            <dd>{[repeatText({ repeat_freq: task.repeat_freq ?? null, repeat_interval: task.repeat_interval ?? 1, repeat_days: task.repeat_days ?? null }) ?? 'Once',
+              task.proof === 'photo' ? 'with a photo' : task.proof === 'note' ? 'with a note' : null,
+              task.waiting ? 'waiting for approval' : null].filter(Boolean).join(', ')}</dd>
+          </div>
+        )}
         <div>
           <dt className="font-medium text-stone-500">Notes</dt>
           <dd className="whitespace-pre-wrap">{task.notes || 'No notes'}</dd>
@@ -62,6 +76,7 @@ function TaskView({ task, needs, canEdit, onEdit, close }: { task: Task; needs: 
       </dl>
       <div className="flex gap-2">
         {canEdit && <Button onPress={onEdit} className="flex-1">Edit</Button>}
+        {canEdit && <Button variant="secondary" onPress={onChore}>Chore</Button>}
         <Button variant={canEdit ? 'ghost' : 'primary'} onPress={close} className={canEdit ? '' : 'flex-1'}>Close</Button>
       </div>
     </div>

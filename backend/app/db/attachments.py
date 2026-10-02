@@ -118,6 +118,9 @@ async def referenced_blobs(conn: AsyncConnection) -> set[str]:
             UNION SELECT photo_thumb_sha256 FROM assets WHERE photo_thumb_sha256 IS NOT NULL
             UNION SELECT photo_sha256 FROM contacts WHERE photo_sha256 IS NOT NULL
             UNION SELECT photo_thumb_sha256 FROM contacts WHERE photo_thumb_sha256 IS NOT NULL
+            UNION SELECT photo_sha256 FROM chore_submissions WHERE photo_sha256 IS NOT NULL
+            UNION SELECT photo_thumb_sha256 FROM chore_submissions
+                WHERE photo_thumb_sha256 IS NOT NULL
         """)
     )
     return {r[0] for r in rows}

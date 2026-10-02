@@ -291,8 +291,9 @@ class DueTaskRow:
 
 
 async def tasks_due_around_now(conn: AsyncConnection) -> list[DueTaskRow]:
-    """Open tasks due from four days ago to two days ahead, with who to tell: the assignee,
-    or else the project's owners and editors."""
+    """Open tasks due from four days ago to two days ahead, with who to tell: the project's
+    owners and editors. Assigned tasks are chores, with their own reminders
+    (app.services.chores)."""
     rows = await conn.execute(
         text("""
             SELECT t.id AS task_id, t.title, t.project_id, p.title AS project_title,
@@ -301,8 +302,7 @@ async def tasks_due_around_now(conn: AsyncConnection) -> list[DueTaskRow]:
             JOIN projects p ON p.id = t.project_id AND p.deleted_at IS NULL
                            AND p.stage <> 'archived'
             JOIN project_members m ON m.project_id = t.project_id
-                AND (m.user_id = t.assignee_id
-                     OR (t.assignee_id IS NULL AND m.role IN ('owner', 'editor')))
+                AND t.assignee_id IS NULL AND m.role IN ('owner', 'editor')
             JOIN users u ON u.id = m.user_id AND u.disabled_at IS NULL
             WHERE t.deleted_at IS NULL AND t.done_at IS NULL AND t.due_at IS NOT NULL
               AND t.due_at BETWEEN now() - interval '4 days' AND now() + interval '2 days'

@@ -98,6 +98,12 @@ class TaskOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     version: int
+    assigned_by: uuid.UUID | None = None
+    proof: str = "none"
+    repeat_freq: str | None = None
+    repeat_interval: int = 1
+    repeat_days: list[int] | None = None
+    waiting: bool = False
 
 
 def _project(r: service.ProjectRow) -> ProjectOut:
@@ -118,6 +124,12 @@ def _task(r: service.TaskRow) -> TaskOut:
         created_at=r.created_at,
         updated_at=r.updated_at,
         version=r.version,
+        assigned_by=r.assigned_by,
+        proof=r.proof,
+        repeat_freq=r.repeat_freq,
+        repeat_interval=r.repeat_interval,
+        repeat_days=r.repeat_days,
+        waiting=r.waiting,
     )
 
 

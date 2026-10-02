@@ -41,7 +41,8 @@ screen while you scroll down the project, so adding is always one tap away.
 2. Tick a task's box to mark it done. Done tasks move to **Done (n)**, below the open ones.
 3. The first open task is shown as **Next small step**.
 4. Tap a task's name to see its details: due date, notes and the items it needs.
-5. To change it, tap **Edit** in the details: its **Title**, **Notes**, **Due date** and **Items needed**, then **Save**. ✕ beside the task deletes it.
+5. To give it to someone as a chore (once or repeating, with proof), tap **Chore** in the details. See [Chores](chores.md).
+6. To change it, tap **Edit** in the details: its **Title**, **Notes**, **Due date** and **Items needed**, then **Save**. ✕ beside the task deletes it.
 
 ![A task's details](screens/desktop/task-details.jpg)
 

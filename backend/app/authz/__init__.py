@@ -86,6 +86,10 @@ class Action(StrEnum):
     TEMPLATE_EDIT = "template.edit"
     TEMPLATE_MANAGE = "template.manage"
     TEMPLATE_SHARE = "template.share"
+    # Chores (ADR 0013): see require_chore
+    CHORE_VIEW = "chore.view"
+    CHORE_COMPLETE = "chore.complete"
+    CHORE_REVIEW = "chore.review"
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,6 +126,9 @@ RULES: dict[Action, Rule] = {
     Action.TEMPLATE_EDIT: Rule(),
     Action.TEMPLATE_MANAGE: Rule(),
     Action.TEMPLATE_SHARE: Rule(recent=True),
+    Action.CHORE_VIEW: Rule(),
+    Action.CHORE_COMPLETE: Rule(),
+    Action.CHORE_REVIEW: Rule(),
 }
 
 # Which project roles allow each project action (ARCHITECTURE.md §7.5). Mirrored by the
@@ -169,6 +176,37 @@ def require(principal: Principal, action: Action, resource: ProjectAccess | None
             raise NotFoundError("Not found.")
         if resource.role not in PROJECT_ROLES[action]:
             raise ForbiddenError("Your role doesn't allow that.")
+
+
+@dataclass(frozen=True, slots=True)
+class ChoreAccess:
+    """How the principal relates to one assigned task (ADR 0013): its assignee (who may not be
+    a project member), the person who assigned it, and their project role (None = not a
+    member)."""
+
+    is_assignee: bool
+    is_assigner: bool
+    project_role: str | None
+
+
+def require_chore(principal: Principal, action: Action, access: ChoreAccess) -> None:
+    """- view: the assignee, the assigner, or any project member;
+    - complete (submit, with proof): the assignee only;
+    - review (approve or send back): the assigner, or the project's owners and editors."""
+    rule = RULES[action]
+    if rule.verified and not principal.mfa_verified:
+        raise ForbiddenError("Second factor required.")
+    visible = access.is_assignee or access.is_assigner or access.project_role is not None
+    if not visible:
+        raise NotFoundError("Not found.")
+    if action == Action.CHORE_COMPLETE and not access.is_assignee:
+        raise ForbiddenError("Only the person it's assigned to can mark it done.")
+    if action == Action.CHORE_REVIEW and not (
+        access.is_assigner or access.project_role in ("owner", "editor")
+    ):
+        raise ForbiddenError("Only the person who assigned it can approve it.")
+    if action not in (Action.CHORE_VIEW, Action.CHORE_COMPLETE, Action.CHORE_REVIEW):
+        raise ValueError("not a chore action")
 
 
 def allowed(principal: Principal, action: Action, resource: ProjectAccess | None = None) -> bool:

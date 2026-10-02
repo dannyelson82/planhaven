@@ -5,7 +5,7 @@ import { useEffect } from 'react'
 
 const KINDS: Record<string, unknown[][]> = {
   messages: [['conversations'], ['messages']],
-  notifications: [['notifications']],
+  notifications: [['notifications'], ['chores']],
 }
 
 export function useLiveMe(): void {
