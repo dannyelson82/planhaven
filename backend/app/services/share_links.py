@@ -22,6 +22,7 @@ from app.core import security_log
 from app.db import attachments as attachment_store
 from app.db import auth as audit
 from app.db import notes as note_store
+from app.db import notifications as notification_store
 from app.db import projects as project_store
 from app.db import share_links as store
 from app.db.database import Database
@@ -374,6 +375,28 @@ async def _write_limit(db: Database, guest: Guest, ip: str | None) -> None:
     )
 
 
+async def _tell_creator(db: Database, guest: Guest) -> None:
+    """The link's creator hears that it was used: at most once an hour per guest name
+    (ADR 0018). Who and which link only; what they did is in the link's activity."""
+    hour = datetime.now(UTC).strftime("%Y-%m-%dT%H")
+    async with db.system_transaction() as conn:
+        link = await store.get_link(conn, guest.grant.link_id)
+        if link is None:
+            return
+        await notification_store.notify(
+            conn,
+            link.created_by,
+            "share_link_used",
+            {
+                "guest": guest.name[:60],
+                "link_name": link.name[:80],
+                "project_id": str(link.project_id),
+                "project_title": (await project_store.title(conn, link.project_id) or "")[:120],
+            },
+            f"share_link_used:{link.id}:{guest.name[:60]}:{hour}",
+        )
+
+
 async def tick_task(
     db: Database, guest: Guest, task_id: uuid.UUID, done: bool, ip: str | None
 ) -> None:
@@ -387,6 +410,7 @@ async def tick_task(
             conn, guest.grant.link_id, guest.name, "task.done" if done else "task.undone", title
         )
     live.publish(guest.grant.project_id, "tasks")
+    await _tell_creator(db, guest)
 
 
 async def tick_item(
@@ -409,6 +433,7 @@ async def tick_item(
             text_,
         )
     live.publish(guest.grant.project_id, "lists")
+    await _tell_creator(db, guest)
 
 
 MAX_ADDITION = 4000
@@ -466,6 +491,7 @@ async def add_to_note(
             raise authz.NotFoundError("Not found.")
         await store.record(conn, guest.grant.link_id, guest.name, "note.added", note.title)
     live.publish(guest.grant.project_id, "notes")
+    await _tell_creator(db, guest)
 
 
 _PHOTO_TYPES = {t.mime: t for t in (sniff.JPEG, sniff.PNG, sniff.GIF, sniff.WEBP)}
@@ -513,6 +539,7 @@ async def add_photo(
         )
         await store.record(conn, guest.grant.link_id, guest.name, "photo.added", filename[:200])
     live.publish(guest.grant.project_id, "attachments")
+    await _tell_creator(db, guest)
     return attachment_id
 
 

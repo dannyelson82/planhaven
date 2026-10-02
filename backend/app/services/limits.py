@@ -30,6 +30,9 @@ MFA_USER = Limit("mfa-user", capacity=10, per_second=1 / 60)
 SHARE_OPEN_IP = Limit("share-open-ip", capacity=20, per_second=1 / 30)
 SHARE_PIN_LINK = Limit("share-pin-link", capacity=5, per_second=1 / 300)
 SHARE_WRITE_LINK = Limit("share-write-link", capacity=120, per_second=1 / 2)
+# Phone alerts (ADR 0018): registering devices and test alerts, per person.
+PUSH_SUBSCRIBE = Limit("push-subscribe", capacity=10, per_second=1 / 600)
+PUSH_TEST = Limit("push-test", capacity=5, per_second=1 / 120)
 
 
 class RateLimitedError(Exception):

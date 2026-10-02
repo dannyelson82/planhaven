@@ -61,6 +61,12 @@ async def service_worker(request: Request) -> FileResponse:
     return _root_file(request, "sw.js", "text/javascript")
 
 
+@router.get("/push-sw.js", include_in_schema=False)
+async def push_worker(request: Request) -> FileResponse:
+    """Phone alert handlers, loaded by the service worker (importScripts)."""
+    return _root_file(request, "push-sw.js", "text/javascript")
+
+
 @router.get("/manifest.webmanifest", include_in_schema=False)
 async def manifest(request: Request) -> FileResponse:
     return _root_file(request, "manifest.webmanifest", "application/manifest+json")
