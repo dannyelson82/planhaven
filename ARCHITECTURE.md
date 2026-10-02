@@ -292,12 +292,13 @@ contracts in CI.
 | **Project** | The central unit of work, from idea to done. Has a stage, owner, optional asset, optional recurrence, and a `local_ai_only` flag. |
 | **ProjectMember** | Grants a user a role on a project: `owner`, `editor`, or `viewer`. |
 | **Asset** | A durable thing projects relate to: vehicle, boat, house, dock, home lab, tool. Has a kind and free-form metadata (e.g. VIN, engine, mileage). Shareable like projects. |
+| **AssetReading** / **ServiceSchedule** / **ServiceRecord** | An asset's meter readings (distance in km or miles, hours), its maintenance schedules from the manufacturer (every N distance / hours / months, whichever first) and the services done. What's due is computed from the latest record of each schedule and the highest reading. Access follows the asset. |
 | **Task** | Actionable item: title, description, due date/time, assignee, done state, optional dependency on another task, and the list items it needs (from its project's lists). |
-| **List** / **ListItem** | Shopping lists, parts lists, checklists. A list can be mapped to a named iPhone Reminders list. |
-| **Note** | Rich-text (Markdown) note. `source` records origin: `user`, `mcp:<client>`, or `local_ai`. Its checkboxes can also be ticked from the project page. |
+| **List** / **ListItem** | Shopping lists, parts lists, checklists. A list can be mapped to a named iPhone Reminders list. An item may have notes, a website, its own attachments and a supplier. |
+| **Note** | Rich-text (Markdown) note. `source` records origin: `user`, `mcp:<client>`, or `local_ai`. Its checkboxes can also be ticked from the project page. Can be archived (off the project page, restorable). |
 | **Attachment** | A file linked to a project; references a content-addressed blob. Tracks extraction status. |
 | **Chunk** | A text segment extracted from a note or attachment, with a vector embedding, used for retrieval. |
-| **Contact** | A person or business (contractor, supplier). Shared one by one, like assets (own members and roles). |
+| **Contact** | A person or business (contractor, supplier). Shared one by one, like assets (own members and roles). Suppliers are contacts of kind `supplier`, shown in their own Suppliers list. |
 | **Quote** | A quote from a contact on a project: amount, status (`requested`, `received`, `accepted`, `declined`), attached document. |
 | **CostEntry** | Money spent on a project (optional link to a list item or quote). Amounts are stored in cents; Canadian dollars by default. |
 | **PluginData** | Namespaced JSON documents owned by a plugin, scoped to a project or user. |

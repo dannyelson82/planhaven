@@ -67,6 +67,7 @@ class ItemBase(Strict):
     price_cents: int | None = None
     notes: str | None = None
     website: str | None = None
+    supplier_id: uuid.UUID | None = None
 
 
 class ItemPatch(Strict):
@@ -76,6 +77,7 @@ class ItemPatch(Strict):
     price_cents: Price | None = None
     notes: Notes | None = None
     website: Website | None = None
+    supplier_id: uuid.UUID | None = None
     checked: bool | None = None
     base: ItemBase | None = None
 
@@ -89,6 +91,8 @@ class ItemOut(BaseModel):
     price_cents: int | None
     notes: str
     website: str
+    supplier_id: uuid.UUID | None
+    supplier_name: str | None
     checked: bool
     updated_at: datetime
     version: int
@@ -112,6 +116,8 @@ def _item(r: service.ItemRow) -> ItemOut:
         price_cents=r.price_cents,
         notes=r.notes,
         website=r.website,
+        supplier_id=r.supplier_id if r.supplier_name is not None else None,
+        supplier_name=r.supplier_name,
         checked=r.checked_at is not None,
         updated_at=r.updated_at,
         version=r.version,

@@ -62,11 +62,11 @@ async def _document(conn: Any, note_id: uuid.UUID) -> dict[str, Any]:
 
 
 async def notes_for_project(
-    db: Database, session: CurrentSession, project_id: uuid.UUID
+    db: Database, session: CurrentSession, project_id: uuid.UUID, *, archived: bool = False
 ) -> list[NoteRow]:
     async with db.user_transaction(session.user.id) as conn:
         _require(session, await _access(conn, project_id), write=False)
-        notes = await store.notes_for_project(conn, project_id)
+        notes = await store.notes_for_project(conn, project_id, archived=archived)
         # Notes from the earlier live editor: their stored preview text may hold leftovers of
         # the old garbled-text bug, so it's rebuilt from the document until the note is saved.
         legacy = await store.unconverted(conn, project_id)
@@ -162,6 +162,25 @@ async def save(
         raise authz.NotFoundError("Not found.")
     live.publish(note.project_id, "notes")
     return after
+
+
+async def set_archived(
+    db: Database, session: CurrentSession, note_id: uuid.UUID, archived: bool, ip: str | None
+) -> None:
+    async with db.user_transaction(session.user.id) as conn:
+        note, access = await _note_access(conn, note_id)
+        _require(session, access, write=True)
+        await store.set_archived(conn, note_id, archived)
+        await audit.record_audit(
+            conn,
+            action="note.archived" if archived else "note.unarchived",
+            actor_user_id=session.user.id,
+            ip=ip,
+            project_id=note.project_id,
+            resource_type="note",
+            resource_id=note_id,
+        )
+    live.publish(note.project_id, "notes")
 
 
 async def delete_note(

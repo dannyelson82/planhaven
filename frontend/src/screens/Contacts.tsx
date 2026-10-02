@@ -58,11 +58,17 @@ export type Contact = {
 const KIND_LABEL: Record<Kind, string> = { contractor: 'Contractor', supplier: 'Supplier', other: 'Other' }
 const select = 'min-h-11 rounded-xl border border-stone-300 bg-white px-2 dark:border-stone-700 dark:bg-stone-900'
 
-/** Contractors and suppliers you've shared with each other. */
-export function ContactsScreen() {
-  const contacts = useQuery({ queryKey: ['contacts'], queryFn: () => api<Contact[]>('GET', '/api/v1/contacts') })
+/**
+ * Contacts (contractors and others), or, with `suppliers`, the Suppliers list: suppliers are
+ * contacts of kind "supplier" kept in their own list (maintainer's decision, 2026-10-02),
+ * shared the same way.
+ */
+export function ContactsScreen({ suppliers = false }: { suppliers?: boolean }) {
+  const all = useQuery({ queryKey: ['contacts'], queryFn: () => api<Contact[]>('GET', '/api/v1/contacts') })
+  const contacts = { ...all, data: all.data?.filter((c) => (c.kind === 'supplier') === suppliers) }
   const [name, setName] = useState('')
-  const [kind, setKind] = useState<Kind>('contractor')
+  const [kind, setKind] = useState<Kind>(suppliers ? 'supplier' : 'contractor')
+  const word = suppliers ? 'supplier' : 'contact'
   const create = useMutation({
     mutationFn: () => api<Contact>('POST', '/api/v1/contacts', { name, kind }),
     onSuccess: (c) => navigate(`/contacts/${c.id}`),
@@ -71,12 +77,21 @@ export function ContactsScreen() {
   const shown = (contacts.data ?? []).filter((c) => matches(c, query))
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Contacts</h1>
-      <p className="text-stone-600 dark:text-stone-400">Contractors and suppliers. Each contact is private to you until you share it.</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold">{suppliers ? 'Suppliers' : 'Contacts'}</h1>
+        <Link to={suppliers ? '/contacts' : '/suppliers'} className="text-sm text-brand-700 dark:text-brand-100">
+          {suppliers ? 'Contacts →' : 'Suppliers →'}
+        </Link>
+      </div>
+      <p className="text-stone-600 dark:text-stone-400">
+        {suppliers
+          ? 'Stores and parts suppliers, to pick on shopping and parts lists. Each is private to you until you share it.'
+          : 'Contractors and other people you work with. Each contact is private to you until you share it.'}
+      </p>
       {(contacts.data ?? []).length > 0 && (
         <div className="relative">
           <span className="pointer-events-none absolute left-3 top-3 text-stone-500"><SearchIcon /></span>
-          <input type="search" aria-label="Search contacts" placeholder="Search by name, company, phone, email or notes"
+          <input type="search" aria-label={`Search ${word}s`} placeholder="Search by name, company, phone, email or notes"
             value={query} onChange={(e) => setQuery(e.target.value)} maxLength={100}
             className="min-h-11 w-full rounded-xl border border-stone-300 bg-white py-2.5 pl-10 pr-3 dark:border-stone-700 dark:bg-stone-900" />
         </div>
@@ -101,17 +116,19 @@ export function ContactsScreen() {
           </li>
         ))}
       </ul>
-      {contacts.data?.length === 0 && <p className="text-sm text-stone-500">No contacts yet.</p>}
-      {(contacts.data ?? []).length > 0 && shown.length === 0 && <p className="text-sm text-stone-500">No contacts match “{query.trim()}”.</p>}
+      {contacts.data?.length === 0 && <p className="text-sm text-stone-500">No {word}s yet.</p>}
+      {(contacts.data ?? []).length > 0 && shown.length === 0 && <p className="text-sm text-stone-500">No {word}s match “{query.trim()}”.</p>}
       <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); if (name.trim()) create.mutate() }}>
-        <div className="min-w-0 flex-1"><Field label="New contact" maxLength={200} value={name} onChange={setName} /></div>
-        <select aria-label="Type" value={kind} onChange={(e) => setKind(e.target.value as Kind)} className={select}>
-          {(Object.keys(KIND_LABEL) as Kind[]).map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
-        </select>
-        <Button type="submit" variant="secondary" isDisabled={create.isPending}>Add contact</Button>
+        <div className="min-w-0 flex-1"><Field label={`New ${word}`} maxLength={200} value={name} onChange={setName} /></div>
+        {!suppliers && (
+          <select aria-label="Type" value={kind} onChange={(e) => setKind(e.target.value as Kind)} className={select}>
+            {(['contractor', 'other'] as Kind[]).map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
+          </select>
+        )}
+        <Button type="submit" variant="secondary" isDisabled={create.isPending}>Add {word}</Button>
       </form>
       <ImportContact kind={kind} />
-      <ErrorText error={create.error ?? contacts.error} />
+      <ErrorText error={create.error ?? all.error} />
     </div>
   )
 }
@@ -144,7 +161,7 @@ function ImportContact({ kind }: { kind: Kind }) {
       <h2 className="font-semibold">From your phone</h2>
       <p className="text-sm text-stone-600 dark:text-stone-400">
         In your phone's Contacts, share the contact (iPhone: Share Contact, then Save to Files), then choose that file here.
-        The type chosen above is used.
+        {kind === 'supplier' ? " It's added as a supplier." : ' The type chosen above is used.'}
       </p>
       <div className="flex flex-wrap gap-2">
         <Button variant="secondary" onPress={() => pick.current?.click()} isDisabled={fromFile.isPending}>
@@ -230,15 +247,16 @@ function ContactDetail({ contact, myId, photo }: { contact: Contact; myId: strin
     mutationFn: () => api('PUT', `/api/v1/contacts/${contact.id}`, { ...form, website: withScheme(form.website) }, { 'If-Match': `"${contact.version}"` }),
     onSettled: () => Promise.all([client.invalidateQueries({ queryKey: ['contact', contact.id] }), client.invalidateQueries({ queryKey: ['contacts'] })]),
   })
+  const home = contact.kind === 'supplier' ? '/suppliers' : '/contacts'
   const remove = useMutation({
     mutationFn: () => api('DELETE', `/api/v1/contacts/${contact.id}`),
-    onSuccess: async () => { await client.invalidateQueries({ queryKey: ['contacts'] }); navigate('/contacts') },
+    onSuccess: async () => { await client.invalidateQueries({ queryKey: ['contacts'] }); navigate(home) },
   })
   const websiteOk = !form.website.trim() || WEBSITE.test(form.website.trim())
 
   return (
     <div className="space-y-4">
-      <Link to="/contacts" className="text-sm text-brand-700 dark:text-brand-100">← All contacts</Link>
+      <Link to={home} className="text-sm text-brand-700 dark:text-brand-100">{contact.kind === 'supplier' ? '← All suppliers' : '← All contacts'}</Link>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{contact.name}</h1>
         <ShareButton kind="contact" id={contact.id} isOwner={contact.role === 'owner'} myId={myId} />

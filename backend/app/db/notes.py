@@ -20,17 +20,22 @@ class NoteRow:
     source: str
     updated_at: datetime
     version: int
+    archived_at: datetime | None
 
 
-async def notes_for_project(conn: AsyncConnection, project_id: uuid.UUID) -> list[NoteRow]:
+async def notes_for_project(
+    conn: AsyncConnection, project_id: uuid.UUID, *, archived: bool = False
+) -> list[NoteRow]:
+    """The project's notes on its page, or (archived=True) the archived ones."""
     rows = await conn.execute(
         text("""
             SELECT id, project_id, title, left(text_content, 300) AS text_content, source,
-                   updated_at, version
+                   updated_at, version, archived_at
             FROM notes WHERE project_id = :p AND deleted_at IS NULL
-            ORDER BY created_at DESC LIMIT 500
+              AND (archived_at IS NOT NULL) = :a
+            ORDER BY coalesce(archived_at, created_at) DESC LIMIT 500
         """),
-        {"p": project_id},
+        {"p": project_id, "a": archived},
     )
     return [NoteRow(**r._mapping) for r in rows]
 
@@ -50,7 +55,8 @@ async def get_note(conn: AsyncConnection, note_id: uuid.UUID) -> NoteRow | None:
     row = (
         await conn.execute(
             text("""
-                SELECT id, project_id, title, text_content, source, updated_at, version
+                SELECT id, project_id, title, text_content, source, updated_at, version,
+                       archived_at
                 FROM notes WHERE id = :id AND deleted_at IS NULL
             """),
             {"id": note_id},
@@ -68,6 +74,18 @@ async def create_note(
         {"id": note_id, "p": project_id, "t": title, "u": user_id},
     )
     return note_id
+
+
+async def set_archived(conn: AsyncConnection, note_id: uuid.UUID, archived: bool) -> None:
+    """Archiving hides a note from the project page; it isn't an edit, so the version stays
+    (an open editor can still save)."""
+    await conn.execute(
+        text("""
+            UPDATE notes SET archived_at = CASE WHEN :a THEN coalesce(archived_at, now()) END
+            WHERE id = :id AND deleted_at IS NULL
+        """),
+        {"id": note_id, "a": archived},
+    )
 
 
 async def delete_note(conn: AsyncConnection, note_id: uuid.UUID) -> None:

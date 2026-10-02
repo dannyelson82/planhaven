@@ -4,6 +4,7 @@ import { api, stageLabel, uploadFile } from '../api.ts'
 import { navigate } from '../router.ts'
 import { Button, Card, ErrorText, Field, Link } from '../ui.tsx'
 import { ShareButton } from './Sharing.tsx'
+import { AssetService } from './AssetService.tsx'
 
 type AssetKind = 'vehicle' | 'boat' | 'house' | 'property' | 'equipment' | 'tool' | 'other'
 type Detail = { label: string; value: string }
@@ -109,6 +110,7 @@ export function AssetScreen({ id, myId }: { id: string; myId: string }) {
       <AssetPhoto asset={a} canEdit={a.role === 'owner' || a.role === 'editor'} />
       {/* key: start the form over when the asset changes on the server. */}
       <AssetDetail key={a.version} asset={a} />
+      <AssetService assetId={a.id} />
     </div>
   )
 }
@@ -190,8 +192,8 @@ function AssetDetail({ asset }: { asset: Asset }) {
         <ErrorText error={save.error ?? remove.error} />
       </Card>
 
-      <section aria-label="Service history" className="space-y-2">
-        <h2 className="text-lg font-semibold">Service history</h2>
+      <section aria-label="Projects for this asset" className="space-y-2">
+        <h2 className="text-lg font-semibold">Projects</h2>
         {(asset.history ?? []).length === 0 && <p className="text-sm text-stone-500">No projects for this yet. Link one from a project page.</p>}
         <ul className="space-y-2">
           {(asset.history ?? []).map((p) => (

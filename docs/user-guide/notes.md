@@ -40,6 +40,13 @@ wrote in it). If you both changed the text, nothing is lost; you choose:
 - Tap anywhere else on the card (the words, ✎ **Edit note**, or the title) to open the note. The copy button puts the whole note on the clipboard as plain text (☐ and ☑ for checkboxes).
 - Notes are listed newest first and stay put when edited or ticked.
 
+## Archive a note
+
+Done with a note but want to keep it? Archive it: it leaves the project page but isn't deleted.
+
+1. Tap the archive button (the box icon) on its card, or **Archive** at the bottom of the open note.
+2. Archived notes are under **Archived (n)** below the project's notes. Tap one to read it, or **Restore** to put it back on the page.
+
 ## Delete a note
 
 Open it and tap **Delete** at the bottom (twice). It goes to the [Trash](trash.md).

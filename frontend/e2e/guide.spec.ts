@@ -111,6 +111,17 @@ test('user guide screenshots', async ({ page }, info) => {
   await page.getByText('Tax and other').waitFor()
   await shot(page, device, 'purchase', main)
 
+  // Suppliers (made once; the phone and computer runs share the data).
+  await page.goto('/suppliers')
+  await page.getByRole('heading', { name: 'Suppliers' }).waitFor()
+  if (await page.getByRole('link', { name: 'Marine Depot' }).count() === 0) {
+    await page.getByLabel('New supplier').fill('Marine Depot')
+    await page.getByRole('button', { name: 'Add supplier' }).click()
+    await page.getByRole('heading', { name: 'Marine Depot' }).waitFor()
+    await page.goto('/suppliers')
+  }
+  await shot(page, device, 'suppliers')
+
   // Contacts, a contact, an asset.
   await page.goto('/contacts')
   await page.getByRole('heading', { name: 'Contacts' }).waitFor()
@@ -122,6 +133,29 @@ test('user guide screenshots', async ({ page }, info) => {
   await page.getByRole('link', { name: 'Sea Ray 240' }).click()
   await page.getByRole('heading', { name: 'Sea Ray 240' }).waitFor()
   await shot(page, device, 'asset')
+  const service = page.getByRole('region', { name: 'Service', exact: true })
+  if (await service.getByText('Engine oil and filter').count() === 0) {
+    await service.getByRole('button', { name: '+ Reading' }).click()
+    await service.getByLabel('Hours').fill('410')
+    await service.getByRole('button', { name: 'Save reading' }).click()
+    await service.getByText('Now: 410 hours').waitFor()
+    await service.getByRole('button', { name: '+ Schedule' }).click()
+    await service.getByLabel('What').fill('Engine oil and filter')
+    await service.getByLabel('Hours').fill('100')
+    await service.getByLabel('Months').fill('12')
+    await service.getByLabel('Notes').fill('Mercury 25W-40, 5 quarts. Manual p. 52')
+    await service.getByRole('button', { name: 'Save schedule' }).click()
+    await service.getByRole('button', { name: 'Mark done' }).click()
+    await service.getByLabel('Hours').fill('320')
+    await service.getByRole('button', { name: 'Save', exact: true }).click()
+    await service.getByText('Due soon').waitFor()
+    await service.getByRole('button', { name: '+ Schedule' }).click()
+    await service.getByLabel('What').fill('Water pump impeller')
+    await service.getByLabel('Months').fill('24')
+    await service.getByRole('button', { name: 'Save schedule' }).click()
+    await service.getByText('Water pump impeller').waitFor()
+  }
+  await shot(page, device, 'asset-service', service)
 
   // Templates: one saved from the Hardware store list.
   const lists = await (await page.request.get(`/api/v1/projects/${pid}/lists`)).json()

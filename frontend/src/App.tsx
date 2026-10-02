@@ -124,6 +124,8 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
       return <AssetScreen id={route.id} myId={session.user.id} />
     case 'contacts':
       return <ContactsScreen />
+    case 'suppliers':
+      return <ContactsScreen key="suppliers" suppliers />
     case 'contact':
       return <ContactScreen id={route.id} myId={session.user.id} />
     case 'admin':
@@ -191,7 +193,7 @@ function Shell({ session, children }: { session: Session; children: ReactNode })
     <div className="min-h-dvh md:flex">
       <nav aria-label="Main" className="hidden w-56 shrink-0 flex-col gap-1 border-r border-stone-200 p-4 md:flex dark:border-stone-800">
         <p className="mb-4 font-bold text-brand-700 dark:text-brand-100">PlanHaven</p>
-        {[...NAV, { to: '/templates', label: 'Templates' }, ...(session.user.is_admin ? [{ to: '/admin', label: 'Admin' }] : []), { to: '/help', label: 'Help' }].map((n) => (
+        {[...NAV, { to: '/suppliers', label: 'Suppliers' }, { to: '/templates', label: 'Templates' }, ...(session.user.is_admin ? [{ to: '/admin', label: 'Admin' }] : []), { to: '/help', label: 'Help' }].map((n) => (
           <Link key={n.to} to={n.to} className={`rounded-xl px-3 py-2 ${active(n.to) ? 'bg-brand-100 font-semibold text-brand-700 dark:bg-stone-800 dark:text-brand-100' : ''}`}>
             {n.label}
           </Link>

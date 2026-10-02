@@ -11,6 +11,7 @@ from typing import Any
 
 from app import authz
 from app.db import auth as audit
+from app.db import contacts as contact_store
 from app.db import lists as store
 from app.db import projects as project_store
 from app.db.database import Database
@@ -307,6 +308,12 @@ async def update_item(
     async with db.user_transaction(session.user.id) as conn:
         before, access = await _item_access(conn, item_id)
         _can(session, access, write=True)
+        supplier_id = fields.get("supplier_id")
+        if supplier_id is not None and supplier_id != before.supplier_id:
+            # Only a supplier this person can see (the database checks it too).
+            supplier = await contact_store.get_contact(conn, supplier_id)
+            if supplier is None or supplier.role is None:
+                raise authz.NotFoundError("Not found.")
         expected = None if only_check else expected_version
         if (
             expected is not None
@@ -328,6 +335,8 @@ async def update_item(
             set_price="price_cents" in fields,
             notes=fields.get("notes"),
             website=fields.get("website"),
+            supplier_id=fields.get("supplier_id"),
+            set_supplier="supplier_id" in fields,
             checked=fields.get("checked"),
         )
         if version is None:

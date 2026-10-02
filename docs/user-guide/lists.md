@@ -36,6 +36,10 @@ Items with a website or notes show ••• in the list.
 ![An item's details](screens/desktop/item-details.jpg)
 
 - Tap **Edit** to change them, then **Save**. A website starts with https://.
+- On shopping and parts lists, pick the item's **Supplier** from your [Suppliers](contacts.md),
+  or choose **+ New supplier…** and type its name: it's added to your Suppliers when you save.
+  Put the supplier's price in **Price each**. The supplier shows beside the item on a computer.
+  People you share the project with see the supplier only if you've shared it with them too.
 - **Add photos or files** (or **Take photo** on a phone) adds them to this item. They're also among the project's photos and files.
 
 If the same item was changed elsewhere while you were editing, changes to different things are

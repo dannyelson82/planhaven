@@ -5,7 +5,7 @@ import { Dialog, Heading, Modal } from 'react-aria-components'
 import { api, ApiError } from '../api.ts'
 import { notePreview } from '../preview.ts'
 import { navigate, setNavigationGuard } from '../router.ts'
-import { CheckIcon, CopyIcon, PencilIcon } from '../icons.tsx'
+import { ArchiveIcon, CheckIcon, CopyIcon, PencilIcon } from '../icons.tsx'
 import { useRemembered } from '../remember.ts'
 import { Movable } from './Movable.tsx'
 import { Button, Card, ErrorText, Field, Link } from '../ui.tsx'
@@ -22,6 +22,7 @@ type Note = {
   text_content: string
   updated_at: string
   version: number
+  archived: boolean
   can_edit: boolean
   content?: JSONContent | null
 }
@@ -48,13 +49,19 @@ function useNoteCards(projectId: string) {
       client.removeQueries({ queryKey: ['note', noteId] }),
     ]),
   })
+  // Archive: off the project page, into "Archived" (and back with Restore).
+  const archive = useMutation({
+    mutationFn: ({ noteId, archived }: { noteId: string; archived: boolean }) =>
+      api('POST', `/api/v1/notes/${noteId}/archive`, { archived }),
+    onSettled: () => client.invalidateQueries({ queryKey: ['notes', projectId] }),
+  })
   const cardOf = (noteId: string) => cards.data?.find((c) => c.note_id === noteId)
-  return { notes, tick, cardOf }
+  return { notes, tick, archive, cardOf }
 }
 
 /** Notes group on a project page (notes given their own tile are left out). */
 export function ProjectNotes({ projectId, canEdit, exclude = [] }: { projectId: string; canEdit: boolean; exclude?: string[] }) {
-  const { notes, tick, cardOf } = useNoteCards(projectId)
+  const { notes, tick, archive, cardOf } = useNoteCards(projectId)
   const listed = (notes.data ?? []).filter((n) => !exclude.includes(n.id))
   return (
     <section aria-label="Notes" className="space-y-3">
@@ -65,14 +72,39 @@ export function ProjectNotes({ projectId, canEdit, exclude = [] }: { projectId: 
         {listed.map((n) => (
           <li key={n.id} className="mb-2 break-inside-avoid">
             <Movable dragKey={`note:${n.id}`} label={`Note: ${n.title}`}>
-              <NoteCardView note={n} card={cardOf(n.id)} canEdit={canEdit} onTick={(line) => tick.mutate({ noteId: n.id, line })} />
+              <NoteCardView note={n} card={cardOf(n.id)} canEdit={canEdit} onTick={(line) => tick.mutate({ noteId: n.id, line })}
+                onArchive={() => archive.mutate({ noteId: n.id, archived: true })} />
             </Movable>
           </li>
         ))}
       </ul>
       {notes.data?.length === 0 && <p className="text-sm text-stone-500">No notes yet.</p>}
-      <ErrorText error={tick.error ?? notes.error} />
+      <ArchivedNotes projectId={projectId} canEdit={canEdit} onRestore={(noteId) => archive.mutate({ noteId, archived: false })} />
+      <ErrorText error={tick.error ?? archive.error ?? notes.error} />
     </section>
+  )
+}
+
+/** Archived notes, folded away under the project's notes; Restore puts one back. */
+function ArchivedNotes({ projectId, canEdit, onRestore }: { projectId: string; canEdit: boolean; onRestore: (noteId: string) => void }) {
+  const archived = useQuery({
+    queryKey: ['notes', projectId, 'archived'],
+    queryFn: () => api<Note[]>('GET', `/api/v1/projects/${projectId}/notes?archived=true`),
+  })
+  const list = archived.data ?? []
+  if (list.length === 0) return null
+  return (
+    <details className="rounded-2xl">
+      <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-stone-500">Archived ({list.length})</summary>
+      <ul className="divide-y divide-stone-200 rounded-2xl bg-white ring-1 ring-stone-200 dark:divide-stone-800 dark:bg-stone-900 dark:ring-stone-800">
+        {list.map((n) => (
+          <li key={n.id} className="flex items-center gap-2 px-3">
+            <Link to={`/notes/${n.id}`} className="min-h-11 min-w-0 flex-1 truncate py-2.5">{n.title}</Link>
+            {canEdit && <Button variant="ghost" onPress={() => onRestore(n.id)}>Restore</Button>}
+          </li>
+        ))}
+      </ul>
+    </details>
   )
 }
 
@@ -95,23 +127,31 @@ export function NewNoteForm({ projectId }: { projectId: string }) {
 
 /** One note in its own tile on the project page. */
 export function NoteTile({ projectId, noteId, canEdit }: { projectId: string; noteId: string; canEdit: boolean }) {
-  const { notes, tick, cardOf } = useNoteCards(projectId)
+  const { notes, tick, archive, cardOf } = useNoteCards(projectId)
   const note = notes.data?.find((n) => n.id === noteId)
-  if (!note) return null // deleted since, or not shared with this person
+  if (!note) return null // deleted or archived since, or not shared with this person
   return (
     <section aria-label={`Note: ${note.title}`}>
-      <NoteCardView note={note} card={cardOf(note.id)} canEdit={canEdit} onTick={(line) => tick.mutate({ noteId: note.id, line })} />
-      <ErrorText error={tick.error} />
+      <NoteCardView note={note} card={cardOf(note.id)} canEdit={canEdit} onTick={(line) => tick.mutate({ noteId: note.id, line })}
+        onArchive={() => archive.mutate({ noteId: note.id, archived: true })} />
+      <ErrorText error={tick.error ?? archive.error} />
     </section>
   )
 }
 
-function NoteCardView({ note, card, canEdit, onTick }: { note: Note; card: NoteCard | undefined; canEdit: boolean; onTick: (line: CardLine) => void }) {
+function NoteCardView({ note, card, canEdit, onTick, onArchive }: {
+  note: Note; card: NoteCard | undefined; canEdit: boolean; onTick: (line: CardLine) => void; onArchive: () => void
+}) {
   return (
     <Card>
       <div className="flex items-start gap-1">
         <Link to={`/notes/${note.id}`} className="block min-w-0 flex-1 py-2 font-semibold">{note.title}</Link>
         <CopyNote noteId={note.id} />
+        {canEdit && (
+          <Button variant="ghost" aria-label={`Archive ${note.title}`} onPress={onArchive} className="min-w-11 px-2 text-stone-600 dark:text-stone-400">
+            <ArchiveIcon />
+          </Button>
+        )}
         {canEdit && (
           <Link to={`/notes/${note.id}`} aria-label="Edit note"
             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800">
@@ -325,6 +365,27 @@ function NoteForm({ note }: { note: Note }) {
     }
   }, [])
 
+  // Archive (or restore) from the editor: unsaved changes are saved first.
+  const archive = useMutation({
+    mutationFn: (archived: boolean) => api('POST', `/api/v1/notes/${note.id}/archive`, { archived }),
+  })
+  const archiveAndGo = async (archived: boolean) => {
+    if (dirty) {
+      try {
+        await save.mutateAsync('save')
+      } catch {
+        return // the error (offline, conflict, ...) is shown
+      }
+    }
+    try {
+      await archive.mutateAsync(archived)
+    } catch {
+      return
+    }
+    await Promise.all([refresh(), client.invalidateQueries({ queryKey: ['note', note.id] })])
+    navigate(backTo, { force: true })
+  }
+
   const saveAndGo = async (to: string) => {
     if (dirty) {
       try {
@@ -341,6 +402,7 @@ function NoteForm({ note }: { note: Note }) {
   return (
     <div className="space-y-4">
       <Link to={backTo} className="text-sm text-brand-700 dark:text-brand-100">← Back to project</Link>
+      {note.archived && <p role="status" className="text-sm text-amber-700 dark:text-amber-400">Archived: not shown on the project page. Tap Restore to bring it back.</p>}
       {note.can_edit ? (
         <input aria-label="Note title" maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)}
           className="block w-full rounded-xl bg-transparent px-1 text-2xl font-bold focus:outline-2 focus:outline-brand-600" />
@@ -364,7 +426,7 @@ function NoteForm({ note }: { note: Note }) {
           </div>
         </div>
       ) : (
-        <ErrorText error={save.error ?? remove.error} />
+        <ErrorText error={save.error ?? remove.error ?? archive.error} />
       )}
 
       {/* Done stays in reach at the bottom of the screen (above the phone's tab bar). */}
@@ -373,6 +435,11 @@ function NoteForm({ note }: { note: Note }) {
           {save.isPending ? 'Saving…' : 'Done'}
         </Button>
         {dirty && <span role="status" className="text-xs text-amber-700 dark:text-amber-400">Not saved yet</span>}
+        {note.can_edit && (
+          <Button variant="ghost" onPress={() => void archiveAndGo(!note.archived)} isDisabled={save.isPending || archive.isPending}>
+            {note.archived ? 'Restore' : 'Archive'}
+          </Button>
+        )}
         {note.can_edit && (
           <Button variant="danger-ghost" onPress={() => (confirmDelete ? remove.mutate() : setConfirmDelete(true))} isDisabled={remove.isPending}>
             {confirmDelete ? 'Tap again to delete' : 'Delete'}

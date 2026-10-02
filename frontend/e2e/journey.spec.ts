@@ -250,7 +250,7 @@ test('first boot to first project', async ({ page }) => {
   await page.getByLabel('For', { exact: true }).selectOption({ label: 'Sea Ray 240' })
   await page.getByRole('link', { name: 'Open' }).click()
   await expect(page.getByLabel('Hull ID', { exact: true })).toHaveValue('SERA1234B626')
-  await expect(page.getByRole('region', { name: 'Service history' }).getByRole('link', { name: 'Winterize boat' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Projects for this asset' }).getByRole('link', { name: 'Winterize boat' })).toBeVisible()
   await page.goto(projectUrl)
 
   // A contractor, their quote, and what was paid (CAD).
