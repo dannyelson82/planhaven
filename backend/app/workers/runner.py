@@ -18,6 +18,7 @@ from app.db import jobs as job_store
 from app.db import rate_limits
 from app.db.database import Database
 from app.services import attachments as attachment_service
+from app.services import chores as chore_service
 from app.services import notifications as notification_service
 from app.services import trash as trash_service
 from app.services.attachments import BlobStore
@@ -30,6 +31,7 @@ LEASE = JOB_TIMEOUT + timedelta(minutes=1)
 POLL_INTERVAL = 2.0
 HEARTBEAT_INTERVAL = 10.0
 MAINTENANCE_INTERVAL = 3600.0
+CHORE_INTERVAL = 300.0
 BACKOFF_BASE = timedelta(seconds=10)
 BACKOFF_MAX = timedelta(hours=1)
 
@@ -119,8 +121,13 @@ class Worker:
         last_beat = -HEARTBEAT_INTERVAL
         loop = asyncio.get_running_loop()
         last_maintenance = loop.time()
+        last_chores = -CHORE_INTERVAL
         while not self._stopping.is_set():
             try:
+                # Chores are due at a time of day: checked every few minutes.
+                if loop.time() - last_chores >= CHORE_INTERVAL:
+                    await chore_service.remind(self.db)
+                    last_chores = loop.time()
                 if loop.time() - last_beat >= HEARTBEAT_INTERVAL:
                     await self.beat()
                     last_beat = loop.time()

@@ -43,6 +43,13 @@ class TaskRow:
     created_at: datetime
     updated_at: datetime
     version: int
+    # Chores (ADR 0013)
+    assigned_by: uuid.UUID | None = None
+    proof: str = "none"
+    repeat_freq: str | None = None
+    repeat_interval: int = 1
+    repeat_days: list[int] | None = None
+    waiting: bool = False  # done by the assignee, waiting for approval
 
 
 async def role(conn: AsyncConnection, project_id: uuid.UUID) -> str | None:
@@ -189,7 +196,11 @@ async def list_tasks(conn: AsyncConnection, project_id: uuid.UUID) -> list[TaskR
     rows = await conn.execute(
         text("""
             SELECT id, project_id, title, notes, due_at, due_all_day, assignee_id, position,
-                   done_at, created_at, updated_at, version
+                   done_at, created_at, updated_at, version, assigned_by, proof, repeat_freq,
+                   repeat_interval, repeat_days,
+                   EXISTS (SELECT 1 FROM chore_submissions c WHERE c.task_id = tasks.id
+                           AND c.status = 'pending'
+                           AND c.occurrence_due IS NOT DISTINCT FROM tasks.due_at) AS waiting
             FROM tasks WHERE project_id = :p AND deleted_at IS NULL
             ORDER BY done_at IS NOT NULL, position, created_at
             LIMIT 1000
@@ -204,7 +215,12 @@ async def get_task(conn: AsyncConnection, task_id: uuid.UUID) -> TaskRow | None:
         await conn.execute(
             text("""
                 SELECT id, project_id, title, notes, due_at, due_all_day, assignee_id,
-                       position, done_at, created_at, updated_at, version
+                       position, done_at, created_at, updated_at, version, assigned_by, proof,
+                       repeat_freq, repeat_interval, repeat_days,
+                       EXISTS (SELECT 1 FROM chore_submissions c WHERE c.task_id = tasks.id
+                               AND c.status = 'pending'
+                               AND c.occurrence_due IS NOT DISTINCT FROM tasks.due_at)
+                         AS waiting
                 FROM tasks WHERE id = :id AND deleted_at IS NULL
             """),
             {"id": task_id},

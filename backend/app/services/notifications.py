@@ -36,6 +36,14 @@ GROUPS: dict[str, tuple[str, ...]] = {
     "service": ("service_due", "service_overdue"),
     "share_links": ("share_link_used",),
     "messages": ("message",),
+    "chores": (
+        "chore_assigned",
+        "chore_due",
+        "chore_reminder",
+        "chore_submitted",
+        "chore_approved",
+        "chore_sent_back",
+    ),
     "security": ("new_sign_in", "security_change", "push_test"),
 }
 GROUP_OF = {kind: group for group, kinds in GROUPS.items() for kind in kinds}
@@ -122,6 +130,19 @@ def render(kind: str, data: dict[str, Any], previews: bool = True) -> Text:
                 preview or "New message",
                 f"/messages/{_s(data, 'conversation_id')}",
             )
+        case "chore_assigned":
+            return Text(f"New chore: {title}", f"From {_s(data, 'by', 80) or 'someone'}", "/chores")
+        case "chore_due":
+            return Text(f"Chore due: {title}", "Tap when it's done.", "/chores")
+        case "chore_reminder":
+            return Text(f"Still to do: {title}", "Done? Mark it in Chores.", "/chores")
+        case "chore_submitted":
+            who = _s(data, "by", 80) or "Someone"
+            return Text(f"{who} finished: {title}", "Check it and approve it.", "/chores")
+        case "chore_approved":
+            return Text(f"Approved: {title}", "Nice work.", "/chores")
+        case "chore_sent_back":
+            return Text(f"Sent back: {title}", "See what still needs doing.", "/chores")
         case "new_sign_in":
             return Text("New sign-in to your account", _CHECK, "/account")
         case "security_change":
