@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { createHash, randomBytes } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import { ADMIN, row, tick, totp, watchForProblems } from './helpers.ts'
 
@@ -391,6 +392,48 @@ test('first boot to first project', async ({ page }) => {
   await page.getByRole('button', { name: 'Done' }).click()
   const pulled = await page.request.get('/api/v1/sync/pull?list=Groceries', { headers: { Authorization: `Bearer ${syncKey}` } })
   expect((await pulled.json()).items.length).toBeGreaterThan(0)
+
+  // An AI app connects (OAuth with PKCE, ADR 0019), suggests tasks, and they're approved and
+  // undone. The app's "redirect back" is answered here instead of by a real app.
+  const callback = 'http://127.0.0.1:9/callback'
+  await page.route('http://127.0.0.1:9/**', (r) => r.fulfill({ body: 'back in the AI app' }))
+  const registered = await (await page.request.post('/oauth/register', { data: { client_name: 'Test AI', redirect_uris: [callback] } })).json()
+  const verifier = randomBytes(48).toString('base64url')
+  const challenge = createHash('sha256').update(verifier).digest('base64url')
+  const authorize = new URLSearchParams({
+    response_type: 'code', client_id: registered.client_id, redirect_uri: callback, code_challenge: challenge,
+    code_challenge_method: 'S256', scope: 'projects:write', state: 'e2e',
+  })
+  await page.goto(`/oauth/authorize?${authorize}`)
+  await expect(page.getByRole('heading', { name: 'Connect an AI app' })).toBeVisible()
+  await expect(page.getByText('Test AI', { exact: true })).toBeVisible()
+  await page.getByRole('radio', { name: /Suggest changes/ }).check()
+  await page.getByRole('button', { name: 'Allow', exact: true }).click()
+  await page.waitForURL(/127\.0\.0\.1:9\/callback/)
+  const back = new URL(page.url()).searchParams
+  expect(back.get('state')).toBe('e2e')
+  const tokens = await (await page.request.post('/oauth/token', {
+    form: { grant_type: 'authorization_code', code: back.get('code')!, redirect_uri: callback, client_id: registered.client_id, code_verifier: verifier },
+  })).json()
+  expect(tokens.access_token).toMatch(/^phv_oat_/)
+  const mcp = async (method: string, params: object) =>
+    (await (await page.request.post('/mcp', { headers: { Authorization: `Bearer ${tokens.access_token}` }, data: { jsonrpc: '2.0', id: 1, method, params } })).json()).result
+  const projects = (await mcp('tools/call', { name: 'planhaven_list_projects', arguments: {} })).structuredContent.projects
+  const boat = projects.find((p: { title: string }) => p.title === 'Winterize boat')
+  const suggest = (title: string) => mcp('tools/call', { name: 'planhaven_add_tasks', arguments: { project_id: boat.id, tasks: [{ title }] } })
+  expect((await suggest('Fog the engine')).structuredContent.status).toBe('waiting_for_approval')
+  await page.goto('/ai')
+  const waiting = page.getByRole('region', { name: 'Waiting for approval' })
+  await expect(waiting.getByText('Fog the engine', { exact: false })).toBeVisible()
+  await waiting.getByRole('button', { name: 'Approve' }).click()
+  const recent = page.getByRole('region', { name: 'Recent AI changes' })
+  await expect(recent.getByRole('button', { name: 'Undo' })).toBeVisible()
+  await recent.getByRole('button', { name: 'Undo' }).click()
+  await expect(recent.getByText('Undone')).toBeVisible()
+  await suggest('Add stabilizer to the fuel') // left waiting, for the guide's picture
+  await page.goto('/account')
+  await expect(page.getByRole('region', { name: 'Connected AI apps' }).getByText('Test AI')).toBeVisible()
+  await page.goto('/projects')
   await page.goto('/projects')
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()
 

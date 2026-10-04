@@ -49,6 +49,12 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
     mutationFn: (stage: Stage) => api('PATCH', `/api/v1/projects/${id}`, { stage }, { 'If-Match': `"${project.data?.version}"` }),
     onSettled: refresh,
   })
+  // Owners can keep a project away from AI apps (ADR 0019).
+  const [aiBox, setAiBox] = useState<{ saved: boolean; on: boolean } | null>(null)
+  const aiOnly = useMutation({
+    mutationFn: (on: boolean) => api('PATCH', `/api/v1/projects/${id}`, { local_ai_only: on }, { 'If-Match': `"${project.data?.version}"` }),
+    onSettled: refresh,
+  })
   const deleteProject = useMutation({
     mutationFn: () => api('DELETE', `/api/v1/projects/${id}`),
     onSuccess: async () => { await client.invalidateQueries({ queryKey: ['projects'] }); navigate('/projects') },
@@ -112,7 +118,7 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
       </div>
       <ProjectAssetPicker projectId={id} assetId={p.asset_id ?? null} assetName={p.asset_name ?? null} canEdit={canEdit} />
       {p.description && <p className="whitespace-pre-wrap text-stone-700 dark:text-stone-300">{p.description}</p>}
-      <ErrorText error={setStage.error ?? toggle.error ?? remove.error ?? tasks.error} />
+      <ErrorText error={setStage.error ?? aiOnly.error ?? toggle.error ?? remove.error ?? tasks.error} />
 
       {canEdit && (
         <AddBar forms={{
@@ -147,6 +153,14 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
       </ArrangeContext.Provider>
       {canEdit && (
         <p><Link to={`/projects/${id}/trash`} className="inline-flex min-h-11 items-center gap-2 text-sm text-brand-700 dark:text-brand-100"><TrashIcon /> This project's trash can</Link></p>
+      )}
+      {p.role === 'owner' && (
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input type="checkbox" className="size-5 accent-brand-600"
+            checked={aiBox && aiBox.saved === p.local_ai_only ? aiBox.on : p.local_ai_only}
+            onChange={(e) => { setAiBox({ saved: p.local_ai_only, on: e.target.checked }); aiOnly.mutate(e.target.checked) }} />
+          Local AI only (keep this project away from AI apps like Claude)
+        </label>
       )}
       {p.role === 'owner' && (
         <Button variant="danger-ghost" onPress={() => { if (window.confirm('Delete this project?')) deleteProject.mutate() }}>

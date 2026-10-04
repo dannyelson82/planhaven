@@ -206,6 +206,18 @@ test('user guide screenshots', async ({ page }, info) => {
   await shot(page, device, 'account')
   await shot(page, device, 'notification-settings', page.getByRole('region', { name: 'Notifications settings' }))
   await shot(page, device, 'feeds', page.getByRole('region', { name: 'Calendar and Reminders' }))
+  await shot(page, device, 'ai-apps', page.getByRole('region', { name: 'Connected AI apps' }))
+
+  // AI apps: the page an app sends you to, and the AI page (the journey left a suggestion).
+  const callback = 'https://claude.example.com/callback' // never visited here
+  const app = await (await page.request.post('/oauth/register', { data: { client_name: 'Claude', redirect_uris: [callback] } })).json()
+  const ask = new URLSearchParams({ response_type: 'code', client_id: app.client_id, redirect_uri: callback, code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM', code_challenge_method: 'S256', scope: 'projects:write' })
+  await page.goto('/oauth/authorize?' + ask.toString())
+  await page.getByRole('heading', { name: 'Connect an AI app' }).waitFor()
+  await shot(page, device, 'ai-connect')
+  await page.goto('/ai')
+  await page.getByRole('heading', { name: 'AI', exact: true }).waitFor()
+  await shot(page, device, 'ai')
   await page.goto('/notifications')
   await page.getByRole('heading', { name: 'Notifications' }).waitFor()
   await shot(page, device, 'notifications')

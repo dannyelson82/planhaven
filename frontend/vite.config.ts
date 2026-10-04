@@ -35,7 +35,8 @@ export default defineConfig({
         // Phone alerts: the push and notification-tap handlers (public/push-sw.js).
         importScripts: ['/push-sw.js'],
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//, /^\/healthz$/, /^\/readyz$/],
+        // Server pages, not the app: the API, AI apps' sign-in, feeds and health checks.
+        navigateFallbackDenylist: [/^\/api\//, /^\/oauth\//, /^\/mcp$/, /^\/\.well-known\//, /^\/ics\//, /^\/healthz$/, /^\/readyz$/],
         runtimeCaching: [],
         inlineWorkboxRuntime: true,
         // A new version takes over open pages at once (main.tsx then reloads them), instead

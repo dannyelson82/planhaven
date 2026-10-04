@@ -56,7 +56,7 @@ export function NotificationsScreen() {
 }
 
 type Choice = 'push' | 'app' | 'off'
-type Group = 'shared' | 'tasks' | 'service' | 'share_links' | 'messages' | 'chores' | 'security'
+type Group = 'shared' | 'tasks' | 'service' | 'share_links' | 'messages' | 'chores' | 'ai' | 'security'
 type Settings = { prefs: Record<Group, Choice>; quiet_from: string | null; quiet_to: string | null; time_zone: string; previews: boolean }
 type Device = { id: string; label: string; created_at: string; last_success_at: string | null }
 
@@ -67,6 +67,7 @@ const GROUP_LABEL: Record<Group, string> = {
   share_links: 'Someone used your share link',
   messages: 'New messages',
   chores: 'Chores: assigned, due, to approve',
+  ai: 'AI apps: suggested changes to approve',
   security: 'Sign-ins and security changes',
 }
 const CHOICE_LABEL: Record<Choice, string> = { push: 'On the phone and in the app', app: 'In the app only', off: 'Off' }
