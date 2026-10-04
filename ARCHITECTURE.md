@@ -571,6 +571,11 @@ Still no delete, sharing, account or admin tools.
   where ideas came from.
 - Tool output returns data, never instructions; content from attachments is labeled as
   untrusted user content.
+- Writes, per connection (ADR 0019): **approve first** (default: changes wait in an "AI
+  suggestions" list until the person approves them) or **apply with undo**; or read-only.
+- A connection sees all its person's projects except `local_ai_only` ones. Search is keyword
+  (full-text) until local AI (0.5) adds meaning-based search.
+- The OAuth server and `/mcp` are written in PlanHaven, with no new dependencies (ADR 0019).
 
 ---
 
@@ -828,9 +833,9 @@ Every phase ships meeting `SECURITY.md` §11.
 | **0.1 — Secure foundation** | Container + s6 + Postgres, first-boot setup token, auth (password + passkey/TOTP mandatory), sessions, invites, RLS, authz matrix tests, security headers, rate limiting, audit log, CI security pipeline, signed images. Projects + tasks (minimal UI). Plugin host skeleton + SDK boundary. |
 | **0.2 — Daily use** | Lists, notes, attachments (upload pipeline, EXIF strip), assets, contacts/quotes, sharing UI, PWA with offline lists. Real-time collaborative note editing and live list updates (ADR 0011). |
 | **0.3 — People and reminders** | Notifications screen, Web Push, notification preferences; messages between users and online status (ADR 0018); Shortcuts sync + published Shortcut, ICS feed. Chores: assigned and scheduled tasks, reminders, proof of completion and approval, limited assignee access (ADR 0013). |
-| **0.4 — Time planner** | Work rotations and away periods, capacity with rest first, home-stretch plans, in-progress limit, next small step, stalled projects review, remote-doable tasks (ADR 0013). |
+| **0.4 — MCP connector** | OAuth authorization server, `/mcp` tools, consent UI, connected-clients management, undo for AI changes. Assistant write tools for commercial AI (experimental, ADR 0012).  Moved up 2026-10-04 (ADR 0019): writes approve-first or apply-with-undo per connection. |
 | **0.5 — Local AI** | Extraction sandbox, OCR, embeddings, hybrid retrieval, Q&A with citations, `local_ai_only`. Experimental-features framework; local AI project assistant (experimental, ADR 0012). Unraid CA submission. |
-| **0.6 — MCP connector** | OAuth authorization server, `/mcp` tools, consent UI, connected-clients management, undo for AI changes. Assistant write tools for commercial AI (experimental, ADR 0012). |
+| **0.6 — Time planner** | Work rotations and away periods, capacity with rest first, home-stretch plans, in-progress limit, next small step, stalled projects review, remote-doable tasks (ADR 0013).  Postponed by the maintainer (ADR 0019). |
 | **0.7 — Cut list plugin** | Reference plugin end-to-end; plugin API v1 frozen; `docs/plugin-api.md`. |
 | **Later** | Native iPhone and Android apps (owner request, 2026-09-28; see §19.2). Voice chat with a local speech server (experimental, ADR 0012), recurrence by asset meter, plugin process isolation, backup encryption, separate files origin, more plugins (vehicle log, Home Assistant bridge, electronics BOM). |
 
@@ -889,7 +894,7 @@ New or risky capabilities ship behind named feature flags (ADR 0012).
 - Everything experimental is labelled "Experimental" in the UI.
 - Graduating from experimental needs tests, a SECURITY.md threat-model entry and the
   maintainer's sign-off.
-- First features: `assistant.local` (phase 0.5), `assistant.mcp_write` (0.6), `voice.chat`
+- First features: `assistant.local` (phase 0.5), `assistant.mcp_write` (after 0.4), `voice.chat`
   (later).
 
 ---
@@ -911,7 +916,7 @@ Decided in ADR 0013; built in phase 0.3.
 
 ## 22. Time planner
 
-Decided in ADR 0013; built in phase 0.4.
+Decided in ADR 0013; phase 0.6 (renumbered and postponed by ADR 0019).
 
 - Availability from a work rotation (e.g. 14 on / 14 off, anchor date) and away periods.
 - Daily capacity for home days, with rest days planned first; plans never exceed capacity.
