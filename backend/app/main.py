@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from app.api import (
     admin,
+    ai,
     asset_service,
     assets,
     attachments,
@@ -21,10 +22,12 @@ from app.api import (
     layouts,
     lists,
     live,
+    mcp,
     messages,
     mfa,
     notes,
     notifications,
+    oauth,
     onboarding,
     passkeys,
     password_reset,
@@ -61,6 +64,9 @@ from app.services import plugins as plugin_service
 ROUTERS = (
     experiments.router,
     feeds.router,
+    oauth.router,
+    mcp.router,
+    ai.router,
     health.router,
     auth.router,
     mfa.router,

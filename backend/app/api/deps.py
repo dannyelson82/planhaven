@@ -176,3 +176,28 @@ async def require_sync_key(request: Request) -> Any:
             401, "This sync key doesn't work.", headers={"WWW-Authenticate": "Bearer"}
         )
     return holder
+
+
+# ------------------------------------------------------------------ AI apps (A§12)
+
+
+async def require_mcp_token(request: Request) -> Any:
+    """An AI app's access token (`Authorization: Bearer phv_oat_...`), audience /mcp. Without
+    one, 401 tells the app where to sign in (RFC 9728)."""
+    from app.services import oauth
+
+    base = str(settings(request).base_url).rstrip("/")
+    challenge = f'Bearer resource_metadata="{base}/.well-known/oauth-protected-resource"'
+    scheme, _, token = request.headers.get("authorization", "").partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(
+            401, "Sign in from your AI app.", headers={"WWW-Authenticate": challenge}
+        )
+    connection = await oauth.authenticate(database(request), token.strip())
+    if connection is None:
+        raise HTTPException(
+            401,
+            "This sign-in has ended.",
+            headers={"WWW-Authenticate": challenge + ', error="invalid_token"'},
+        )
+    return connection

@@ -66,12 +66,20 @@ async def get_note(conn: AsyncConnection, note_id: uuid.UUID) -> NoteRow | None:
 
 
 async def create_note(
-    conn: AsyncConnection, *, project_id: uuid.UUID, user_id: uuid.UUID, title: str
+    conn: AsyncConnection,
+    *,
+    project_id: uuid.UUID,
+    user_id: uuid.UUID,
+    title: str,
+    source: str = "user",
 ) -> uuid.UUID:
     note_id = uuid.uuid7()
     await conn.execute(
-        text("INSERT INTO notes (id, project_id, title, created_by) VALUES (:id, :p, :t, :u)"),
-        {"id": note_id, "p": project_id, "t": title, "u": user_id},
+        text("""
+            INSERT INTO notes (id, project_id, title, created_by, source)
+            VALUES (:id, :p, :t, :u, :s)
+        """),
+        {"id": note_id, "p": project_id, "t": title, "u": user_id, "s": source},
     )
     return note_id
 
