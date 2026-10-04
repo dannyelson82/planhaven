@@ -314,3 +314,40 @@ def from_legacy(snapshot: bytes | None, updates: list[bytes]) -> dict[str, Any] 
     fragment = doc.get("default", type=pycrdt.XmlFragment)
     blocks = [_from_xml(c) for c in fragment.children if isinstance(c, pycrdt.XmlElement)]
     return clean({"type": "doc", "content": blocks})
+
+
+def from_text(value: str) -> dict[str, Any]:
+    """A note document from plain text (AI apps write text): a paragraph per line, "- " lines
+    as a bullet list, "- [ ] " and "- [x] " lines as checkboxes. Cleaned like any document."""
+    blocks: list[dict[str, Any]] = []
+    for raw in value.replace("\r\n", "\n").split("\n"):
+        line = raw.rstrip()
+        if not line.strip():
+            continue
+        lower = line.lstrip().lower()
+        if lower.startswith(("- [ ] ", "- [x] ")):
+            item = {
+                "type": "taskItem",
+                "attrs": {"checked": lower.startswith("- [x]")},
+                "content": [{"type": "paragraph", "content": [_text(line.lstrip()[6:])]}],
+            }
+            if blocks and blocks[-1]["type"] == "taskList":
+                blocks[-1]["content"].append(item)
+            else:
+                blocks.append({"type": "taskList", "content": [item]})
+        elif lower.startswith(("- ", "* ")):
+            item = {
+                "type": "listItem",
+                "content": [{"type": "paragraph", "content": [_text(line.lstrip()[2:])]}],
+            }
+            if blocks and blocks[-1]["type"] == "bulletList":
+                blocks[-1]["content"].append(item)
+            else:
+                blocks.append({"type": "bulletList", "content": [item]})
+        else:
+            blocks.append({"type": "paragraph", "content": [_text(line)]})
+    return clean({"type": "doc", "content": blocks or [{"type": "paragraph"}]})
+
+
+def _text(value: str) -> dict[str, Any]:
+    return {"type": "text", "text": value or " "}

@@ -95,6 +95,11 @@ class Action(StrEnum):
     TOKEN_CREATE = "token.create"  # noqa: S105  # nosec B105 (an action name, not a secret)
     FEED_READ = "feed.read"
     SYNC_USE = "sync.use"
+    # AI connector (ADR 0007, 0019): connecting an app (or widening it) needs a fresh second
+    # factor; an access token (an "mcp_read" or "mcp_write" principal) uses the MCP tools.
+    AI_CONNECT = "ai.connect"
+    MCP_READ = "mcp.read"
+    MCP_WRITE = "mcp.write"
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,12 +142,17 @@ RULES: dict[Action, Rule] = {
     Action.TOKEN_CREATE: Rule(recent=True),
     Action.FEED_READ: Rule(),
     Action.SYNC_USE: Rule(),
+    Action.AI_CONNECT: Rule(recent=True),
+    Action.MCP_READ: Rule(),
+    Action.MCP_WRITE: Rule(),
 }
 
 # What a key principal (Principal.kind) may do: nothing else (SECURITY.md §7.3).
 KEY_ACTIONS: dict[str, frozenset[Action]] = {
     "ics": frozenset({Action.FEED_READ}),
     "sync": frozenset({Action.SYNC_USE}),
+    "mcp_read": frozenset({Action.MCP_READ}),
+    "mcp_write": frozenset({Action.MCP_READ, Action.MCP_WRITE}),
 }
 
 # Which project roles allow each project action (ARCHITECTURE.md §7.5). Mirrored by the
@@ -180,8 +190,9 @@ def require(principal: Principal, action: Action, resource: ProjectAccess | None
     rule = RULES[action]
     if principal.kind in KEY_ACTIONS and action not in KEY_ACTIONS[principal.kind]:
         raise ForbiddenError("This key can't do that.")
-    if action in (Action.FEED_READ, Action.SYNC_USE) and principal.kind not in KEY_ACTIONS:
-        raise ForbiddenError("Use a feed or sync key.")
+    key_only = (Action.FEED_READ, Action.SYNC_USE, Action.MCP_READ, Action.MCP_WRITE)
+    if action in key_only and principal.kind not in KEY_ACTIONS:
+        raise ForbiddenError("Use a key or an AI app's token.")
     if rule.admin and not principal.is_admin:
         raise NotFoundError("Not found.")
     if rule.verified and not principal.mfa_verified:

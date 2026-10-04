@@ -139,6 +139,7 @@ Organized by STRIDE category. Details for each control are in §7.
 | XSS | Tampering / Info disclosure | React escaping, sanitized Markdown, strict CSP with no inline script, uploaded HTML/SVG never rendered inline; the in-app user guide is read into React elements, never HTML (§7.5, §7.10) |
 | IDOR (reading another user's project by ID) | Info disclosure | Central authz layer + PostgreSQL RLS with `FORCE`; UUIDv7 IDs; automated cross-user test matrix (§7.4) |
 | Token leakage (ICS URL, sync token) | Info disclosure | Narrow scopes, hashed storage, revocation, "titles only" feeds, identifiable prefixes for secret scanning (§7.3) |
+| Malicious or impersonating AI app, stolen OAuth token | Spoofing / Elevation | Consent shows the app and its return host, needs a fresh second factor; PKCE S256, exact redirects, single-use codes; 1-hour access tokens, rotated refresh tokens with reuse revocation; scope and mode chosen by the person; disconnect at once (§7.18) |
 | Malicious upload (parser exploit, zip bomb, polyglot) | Elevation / DoS | Byte-sniffed type allowlist, size limits, no auto-extract of archives, sandboxed extractor subprocess with rlimits and timeouts (§7.5, §7.6) |
 | Prompt injection via documents or web content | Tampering / Info disclosure | Content delimited as data; AI acts only with the user's rights; no delete tools; propose-and-approve by default; scoped OAuth; `local_ai_only` projects hidden; audit + undo; features experimental until tested (§7.7) |
 | Over-privileged AI connector | Elevation | Read vs. write scopes chosen at consent, per-client revocation, 2FA at consent (§7.3, §7.7) |
@@ -327,8 +328,8 @@ Prompt injection can't be fully prevented, so the design limits what a hijacked 
   download. Read-only grants are offered at consent.
 - **Privacy flag.** `local_ai_only` projects are invisible to MCP clients and cannot be sent to
   commercial providers; enforced in the provider layer.
-- **Audit and undo.** Every AI-originated write is audited with client identity and can be
-  reverted from the activity view.
+- **Audit and undo.** Every AI-originated write is recorded with the app's name and can be
+  undone from the AI page (§7.18).
 - **Rate limits** per OAuth client on write tools.
 - **AI changes follow the assistant rules (ADR 0012).** Local and commercial models act only
   through assistant tools that run as the signed-in user (`authz.require` + RLS), never with
@@ -534,6 +535,36 @@ Cross-Origin-Resource-Policy: same-origin
   one action each in `authz.require`; the calendar key appears in a URL (logs redact `/ics/`
   paths); wrong keys are security events (`key_failed`, counted by the fail2ban filter and
   CrowdSec scenario) and limited per address; valid keys rate limited per key.
+
+### 7.18 AI apps: OAuth and MCP (phase 0.4, ADR 0019)
+
+- **Sign-in (OAuth 2.1, ADR 0007):** public clients only, PKCE S256 required (43-character
+  challenge), exact registered redirect URIs (https, or http on loopback; no fragments or
+  user info); an unknown client or redirect is never redirected to. Registration is open (RFC
+  7591) but gives nothing until a person approves; it's rate limited per address. Requests
+  last 15 minutes, codes 2 minutes and work once: a reused code revokes the connection and its
+  tokens. The `resource` must be this server's `/mcp`; the response carries `iss`.
+- **Consent:** a signed-in, second-factor session, with a **fresh second factor** to approve
+  (and to widen a connection later). The page shows the app's name and the host it returns to;
+  the person picks read only, suggest changes (approve first, the default) or make changes
+  (with undo); never more than the app asked for. The person is notified that an app connected.
+- **Tokens:** `phv_oat_` 1 hour, `phv_ort_` 30 days, stored hashed; refresh rotates, and a
+  reused refresh token revokes its whole family; failures are raised after the revocation is
+  committed. Disconnecting, a disabled account or revocation ends access at once. Token
+  endpoint failures are security events (`oauth_failed`, counted by the fail2ban filter and
+  the CrowdSec scenario) and rate limited per address.
+- **`/mcp`:** bearer access token only (cookies are ignored; a session gets 401 with
+  `WWW-Authenticate` pointing at the protected-resource metadata); a foreign `Origin` is
+  refused (DNS rebinding); the key principal is limited to `mcp_read`/`mcp_write` in
+  `authz.require`, and every tool runs as the person (`authz.require` + RLS), so an app never
+  sees or changes more than the person could. `local_ai_only` projects are invisible.
+- **Tools:** read (list, get, keyword search) and add/change (project, note, tasks, list items,
+  complete a task); no delete, sharing, account, admin or file-download tools. Output labels
+  project text as the person's content, not instructions. Write tools are refused on a
+  read-only connection; rate limited per connection (all calls, and writes separately).
+- **Approve first / undo:** suggestions are stored and re-checked as of approval time (a change
+  that's no longer allowed fails safely); applied changes are recorded with the app's name and
+  undone as the person.
 
 ## 8. Supply chain and security testing
 

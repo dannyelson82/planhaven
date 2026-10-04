@@ -24,6 +24,7 @@ import { useMessagesUnread } from './conversations.ts'
 import { useLiveMe } from './me.ts'
 import { TourHost } from './screens/Tour.tsx'
 import { ChoresScreen } from './screens/Chores.tsx'
+import { AiScreen, ConnectScreen } from './screens/AI.tsx'
 import { ItemLinkScreen } from './screens/Feeds.tsx'
 import { syncTimeZone, useUnread } from './notifications.ts'
 import { BellIcon } from './icons.tsx'
@@ -108,6 +109,8 @@ function Root() {
     return <LoginScreen />
   }
   if (!session.data.mfa_verified) return <SecondFactorScreen />
+  // An AI app's sign-in request: its own page, without the menu (ADR 0019).
+  if (route.name === 'connect') return <StepUpProvider><ConnectScreen /></StepUpProvider>
   return (
     <StepUpProvider>
       <Shell session={session.data}>{screen(route, session.data)}</Shell>
@@ -139,6 +142,8 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
       return <NotificationsScreen />
     case 'chores':
       return <ChoresScreen />
+    case 'ai':
+      return <AiScreen />
     case 'item':
       return <ItemLinkScreen id={route.id} />
     case 'messages':
@@ -232,7 +237,7 @@ function Shell({ session, children }: { session: Session; children: ReactNode })
           className={`flex items-center gap-2 rounded-xl px-3 py-2 ${active('/notifications') ? 'bg-brand-100 font-semibold text-brand-700 dark:bg-stone-800 dark:text-brand-100' : ''}`}>
           <BellIcon /> Notifications {badge}
         </Link>
-        {[...NAV, { to: '/chores', label: 'Chores' }, { to: '/contacts', label: 'Contacts' }, { to: '/suppliers', label: 'Suppliers' }, { to: '/templates', label: 'Templates' }, ...(session.user.is_admin ? [{ to: '/admin', label: 'Admin' }] : []), { to: '/help', label: 'Help' }].map((n) => (
+        {[...NAV, { to: '/chores', label: 'Chores' }, { to: '/ai', label: 'AI' }, { to: '/contacts', label: 'Contacts' }, { to: '/suppliers', label: 'Suppliers' }, { to: '/templates', label: 'Templates' }, ...(session.user.is_admin ? [{ to: '/admin', label: 'Admin' }] : []), { to: '/help', label: 'Help' }].map((n) => (
           <Link key={n.to} to={n.to} aria-label={label(n)} className={`rounded-xl px-3 py-2 ${active(n.to) ? 'bg-brand-100 font-semibold text-brand-700 dark:bg-stone-800 dark:text-brand-100' : ''}`}>
             {n.label}{dot(n)}
           </Link>

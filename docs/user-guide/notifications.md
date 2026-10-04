@@ -25,8 +25,10 @@ You're told about:
   approved or sent back (see [Chores](chores.md)).
 - **New messages**: one per conversation until you open it (see [Messages](messages.md)). **Show
   the start of messages in alerts** can be unticked to keep the text off your lock screen.
+- **AI apps**: an AI app suggested changes for you to approve (at most once an hour per app; see
+  [AI apps](ai-apps.md)).
 - **Sign-ins and security changes**: a sign-in from somewhere new, a password or second factor
-  change. These can't be turned off.
+  change, an AI app connected. These can't be turned off.
 
 ## Phone alerts
 

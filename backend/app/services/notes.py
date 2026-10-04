@@ -79,12 +79,19 @@ async def notes_for_project(
 
 
 async def create_note(
-    db: Database, session: CurrentSession, project_id: uuid.UUID, title: str, ip: str | None
+    db: Database,
+    session: CurrentSession,
+    project_id: uuid.UUID,
+    title: str,
+    ip: str | None,
+    *,
+    source: str = "user",
 ) -> NoteRow:
+    """`source`: who wrote it (`mcp:<app>` for an AI app, A§12.4)."""
     async with db.user_transaction(session.user.id) as conn:
         _require(session, await _access(conn, project_id), write=True)
         note_id = await store.create_note(
-            conn, project_id=project_id, user_id=session.user.id, title=title
+            conn, project_id=project_id, user_id=session.user.id, title=title, source=source[:120]
         )
         await store.save(
             conn,

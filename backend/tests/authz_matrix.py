@@ -9,6 +9,11 @@ Classes:
 - step_up       verified, with a second factor in the last 5 minutes
 - admin         admin with step-up; everyone else gets 404
 - share         a share-link guest (ADR 0015): only their link session counts; accounts get 401
+- sync          a sync key only (accounts get 401)
+- mcp           an AI app's access token only (ADR 0019; accounts get 401)
+
+The OAuth endpoints AI apps call from their own servers (register, token, revoke) are
+"public": they read no cookies, so cross-origin calls carry no ambient authority.
 
 A route missing from this table fails the tests. When token principals (sync, PAT, OAuth)
 arrive, they get their own columns.
@@ -25,6 +30,31 @@ MATRIX: dict[tuple[str, str], str] = {
     # Reminders sync: a sync key only (accounts get 401).
     ("GET", "/api/v1/sync/pull"): "sync",
     ("POST", "/api/v1/sync/push"): "sync",
+    # AI apps (ADR 0019): discovery and OAuth are public (no cookies are read); /mcp takes
+    # an access token only.
+    ("GET", "/.well-known/oauth-authorization-server"): "public",
+    ("GET", "/.well-known/oauth-protected-resource"): "public",
+    ("GET", "/.well-known/oauth-protected-resource/mcp"): "public",
+    ("POST", "/oauth/register"): "public",
+    ("GET", "/oauth/authorize"): "public",
+    ("POST", "/oauth/token"): "public",
+    ("POST", "/oauth/revoke"): "public",
+    ("POST", "/mcp"): "mcp",
+    ("GET", "/mcp"): "public",
+    ("DELETE", "/mcp"): "public",
+    ("GET", "/api/v1/oauth/requests/{request_id}"): "verified",
+    ("POST", "/api/v1/oauth/requests/{request_id}/approve"): "step_up",
+    ("POST", "/api/v1/oauth/requests/{request_id}/deny"): "verified",
+    ("GET", "/api/v1/ai/connections"): "verified",
+    # Widening a connection needs step-up; that is checked in the service (tests/db/test_ai).
+    ("PATCH", "/api/v1/ai/connections/{grant_id}"): "verified",
+    ("DELETE", "/api/v1/ai/connections/{grant_id}"): "verified",
+    ("GET", "/api/v1/ai/suggestions"): "verified",
+    ("POST", "/api/v1/ai/suggestions/{suggestion_id}/approve"): "verified",
+    ("POST", "/api/v1/ai/suggestions/{suggestion_id}/decline"): "verified",
+    ("POST", "/api/v1/ai/suggestions/approve-all"): "verified",
+    ("GET", "/api/v1/ai/changes"): "verified",
+    ("POST", "/api/v1/ai/changes/{change_id}/undo"): "verified",
     ("GET", "/push-sw.js"): "public",
     ("GET", "/manifest.webmanifest"): "public",
     ("GET", "/icons/{file_path:path}"): "public",
@@ -297,6 +327,9 @@ BODIES: dict[tuple[str, str], object] = {
     ("PUT", "/api/v1/onboarding"): {"welcome_done": True},
     ("PUT", "/api/v1/tasks/{task_id}/chore"): {"assignee_id": None},
     ("POST", "/api/v1/sync/push"): {"done": []},
+    ("POST", "/oauth/register"): {"redirect_uris": ["https://ai.example.com/callback"]},
+    ("POST", "/api/v1/oauth/requests/{request_id}/approve"): {"scope": "read"},
+    ("PATCH", "/api/v1/ai/connections/{grant_id}"): {"scope": "read", "write_mode": "approve"},
     ("POST", "/api/v1/keys"): {"kind": "sync", "label": "Matrix"},
     ("PUT", "/api/v1/keys/feed-details"): {"details": False},
     ("PUT", "/api/v1/lists/{list_id}/sync"): {"reminders_name": None},
@@ -372,6 +405,7 @@ EXPECT: dict[str, dict[str, object]] = {
     },
     "share": {p: 401 for p in ("anon", "partial", "stale", "fresh", "admin_stale", "admin_fresh")},
     "sync": {p: 401 for p in ("anon", "partial", "stale", "fresh", "admin_stale", "admin_fresh")},
+    "mcp": {p: 401 for p in ("anon", "partial", "stale", "fresh", "admin_stale", "admin_fresh")},
     "admin": {
         "anon": 401,
         "partial": 404,
@@ -393,6 +427,7 @@ GUARDS: dict[str, set[str]] = {
     "admin": {"require_admin", "require_admin_network"},
     "share": {"require_share_session"},
     "sync": {"require_sync_key"},
+    "mcp": {"require_mcp_token"},
 }
 SESSION_GUARDS = {
     "require_session",
@@ -400,6 +435,7 @@ SESSION_GUARDS = {
     "require_admin",
     "require_share_session",
     "require_sync_key",
+    "require_mcp_token",
 }
 
 

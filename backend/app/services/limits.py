@@ -39,6 +39,12 @@ FEED_KEY = Limit("feed-key", capacity=30, per_second=1 / 60)
 SYNC_KEY = Limit("sync-key", capacity=60, per_second=1 / 10)
 # Assigning chores, per person (each assignment alerts the assignee).
 CHORE_ASSIGN = Limit("chore-assign", capacity=30, per_second=1 / 60)
+# AI connector: app registration and the token endpoint per address; tool calls and changes
+# per connection (A§12.4, S§7.7).
+OAUTH_REGISTER_IP = Limit("oauth-register-ip", capacity=10, per_second=1 / 360)
+OAUTH_TOKEN_IP = Limit("oauth-token-ip", capacity=30, per_second=1 / 10)
+MCP_GRANT = Limit("mcp-grant", capacity=120, per_second=1)
+MCP_WRITE_GRANT = Limit("mcp-write-grant", capacity=30, per_second=1 / 10)
 # Wrong feed or sync keys, per address (only failures count).
 KEY_FAIL_IP = Limit("key-fail-ip", capacity=10, per_second=1 / 60)
 # Messages (ADR 0018): sending and starting conversations, per person.

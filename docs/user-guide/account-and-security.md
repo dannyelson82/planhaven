@@ -19,6 +19,11 @@ Open **Account**.
 See where you're signed in. **Sign out** one device, or **Sign out all other devices** if a
 phone was lost.
 
+## Connected AI apps
+
+AI apps such as Claude that you connected, what each may do, and when it was last used. Change
+what an app may do, or **Disconnect** it. See [AI apps](ai-apps.md).
+
 ## Experimental features
 
 When an admin has made experimental features available, they're listed here with what they do

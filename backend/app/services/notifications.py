@@ -44,6 +44,7 @@ GROUPS: dict[str, tuple[str, ...]] = {
         "chore_approved",
         "chore_sent_back",
     ),
+    "ai": ("ai_suggestion",),
     "security": ("new_sign_in", "security_change", "push_test"),
 }
 GROUP_OF = {kind: group for group, kinds in GROUPS.items() for kind in kinds}
@@ -76,6 +77,7 @@ _SECURITY_CHANGES = {
     "second_factor_reset": "An admin reset your second factor",
     "admin_granted": "You were made an admin",
     "admin_revoked": "You're no longer an admin",
+    "ai_app_connected": "An AI app was connected to your account",
 }
 
 
@@ -143,6 +145,9 @@ def render(kind: str, data: dict[str, Any], previews: bool = True) -> Text:
             return Text(f"Approved: {title}", "Nice work.", "/chores")
         case "chore_sent_back":
             return Text(f"Sent back: {title}", "See what still needs doing.", "/chores")
+        case "ai_suggestion":
+            who = title or "An AI app"
+            return Text(f"{who} suggests changes", "Approve or decline them.", "/ai")
         case "new_sign_in":
             return Text("New sign-in to your account", _CHECK, "/account")
         case "security_change":

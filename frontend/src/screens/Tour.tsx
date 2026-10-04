@@ -190,6 +190,7 @@ const GO: Partial<Record<Action, { label: string; to: string }>> = {
   invite: { label: 'Invite someone', to: '/admin' },
   suppliers: { label: 'Open Suppliers', to: '/suppliers' },
   assets: { label: 'Open Assets', to: '/assets' },
+  ai: { label: 'See connected AI apps', to: '/account' },
   'notification-settings': { label: 'Choose in Account', to: '/account' },
   presence: { label: 'Choose in Account', to: '/account' },
 }

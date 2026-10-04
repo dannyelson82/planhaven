@@ -53,3 +53,19 @@ audience-bound tokens, no tokens in URLs.
 - An "AI suggestions" inbox and undo for AI writes are new pieces of the app.
 - The `assistant.mcp_write` experimental feature (ADR 0012) keeps the wider write tools
   (contacts, quotes, costs, stages) for later; the v1 tools of A§12.3 are core.
+
+## As built (v0.4.0, 2026-10-04)
+
+The three milestones shipped together as v0.4.0 (maintainer's request). Differences from the
+plan above:
+
+- **Search** is a case-insensitive substring search (`ILIKE`, escaped) over project titles and
+  descriptions, tasks, notes and list items; contacts aren't searched yet. Full-text ranking can
+  replace it without changing the tool.
+- **Undo** lives on the new **AI** page ("Recent AI changes"), next to the suggestions waiting
+  for approval, rather than in a project activity view (there isn't one yet).
+- **Authz matrix:** the OAuth endpoints apps call from their servers (register, token, revoke,
+  discovery, authorize) are `public` (they read no cookies, so cross-site calls carry no
+  ambient authority); `/mcp` has its own `mcp` class (an access token only; sessions get 401).
+- **Notifications:** a new "AI apps" group for suggestions (at most one alert per app per
+  hour), and a security notification when an app is connected.

@@ -5,7 +5,7 @@
 import { useSyncExternalStore } from 'react'
 
 /** Things a tour step or a "What's new" item can set up right there. */
-export type Action = 'calendar' | 'chores' | 'home-screen' | 'push' | 'notification-settings' | 'presence' | 'projects' | 'messages' | 'invite' | 'suppliers' | 'assets'
+export type Action = 'calendar' | 'chores' | 'home-screen' | 'push' | 'notification-settings' | 'presence' | 'projects' | 'messages' | 'invite' | 'suppliers' | 'assets' | 'ai'
 
 export type Item = {
   title: string
@@ -19,6 +19,31 @@ export type Item = {
 export type Release = { version: string; date: string; items: Item[] }
 
 export const RELEASES: Release[] = [
+  {
+    version: '0.4.0',
+    date: '2026-10-04',
+    items: [
+      {
+        title: 'Plan with Claude and other AI apps',
+        text: 'Connect Claude to PlanHaven. It can read your projects, answer questions about them and help you plan. You choose whether it may only read, suggest changes for you to approve, or make changes you can undo. It can never delete anything.',
+        steps: ['In Claude on a computer: Settings, Connectors, Add custom connector.', 'Type your PlanHaven address followed by /mcp and click Add, then Connect.', 'Choose what it may do and click Allow.'],
+        action: 'ai',
+        guide: 'ai-apps',
+        shot: 'ai-connect',
+      },
+      {
+        title: 'Approve or undo AI changes',
+        text: 'Suggested changes wait on the new AI page until you approve them. Changes an app made are listed there too, each with Undo.',
+        guide: 'ai-apps',
+        shot: 'ai',
+      },
+      {
+        title: 'Keep a project away from AI',
+        text: 'Tick Local AI only at the bottom of a project you own, and AI apps can\'t see it at all.',
+        guide: 'ai-apps',
+      },
+    ],
+  },
   {
     version: '0.3.4',
     date: '2026-10-02',

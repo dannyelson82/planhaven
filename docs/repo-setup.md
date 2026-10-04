@@ -87,7 +87,7 @@ Not available on personal-account repos without paid Advanced Security, and cove
 by Gitleaks in CI (`SECURITY.md` §8):
 
 - Non-provider patterns (generic passwords and keys)
-- Custom pattern for PlanHaven tokens: `phv_(sync|ics|pat|oat|ort|inv|setup|rst|shr)_[A-Za-z0-9_-]{32,}`
+- Custom pattern for PlanHaven tokens: `phv_(sync|ics|pat|oat|ort|occ|inv|setup|rst|shr)_[A-Za-z0-9_-]{32,}`
 
 ## 6. Settings → Actions
 
