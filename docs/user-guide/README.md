@@ -24,7 +24,8 @@ its screenshots, in the same change.
 14. [Messages](messages.md): one to one and groups, who's online
 15. [Notifications](notifications.md): the bell, phone alerts, quiet hours
 16. [Calendar and iPhone Reminders](calendar-and-reminders.md): due dates in your calendar, lists in Reminders
-17. [Your account and security](account-and-security.md): including experimental features
-18. [Admin](admin.md): inviting people, reset links, experimental features
+17. [AI apps](ai-apps.md): connect Claude, approve suggested changes, undo
+18. [Your account and security](account-and-security.md): including experimental features
+19. [Admin](admin.md): inviting people, reset links, experimental features
 
-Written for PlanHaven 0.3.4.
+Written for PlanHaven 0.4.0.
