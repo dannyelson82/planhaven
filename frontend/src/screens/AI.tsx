@@ -42,12 +42,14 @@ function AccessChoice({ value, onChange, allowWrite, name }: { value: Access; on
 /** /connect?request=…: an AI app asks to connect. Approving needs a fresh second factor. */
 export function ConnectScreen() {
   const params = new URLSearchParams(window.location.search)
-  const requestId = params.get('request') ?? ''
+  // Only an id like the server makes is used in a request address.
+  const raw = params.get('request') ?? ''
+  const requestId = /^[0-9a-f-]{36}$/i.test(raw) ? encodeURIComponent(raw) : ''
   const stepUp = useStepUp()
   const consent = useQuery({
     queryKey: ['oauth-request', requestId],
     queryFn: () => api<Consent>('GET', `/api/v1/oauth/requests/${requestId}`),
-    enabled: /^[0-9a-f-]{36}$/i.test(requestId),
+    enabled: requestId !== '',
     retry: false,
   })
   const [access, setAccess] = useState<Access>('approve')
