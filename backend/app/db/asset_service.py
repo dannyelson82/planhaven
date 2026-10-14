@@ -310,3 +310,25 @@ async def delete_record(conn: AsyncConnection, record_id: uuid.UUID) -> None:
         text("UPDATE service_records SET deleted_at = now() WHERE id = :id AND deleted_at IS NULL"),
         {"id": record_id},
     )
+
+
+async def deleted_parent(conn: AsyncConnection, kind: str, item_id: uuid.UUID) -> uuid.UUID | None:
+    """The asset of a deleted schedule or record (None when it isn't deleted)."""
+    sql = {
+        "schedule": "SELECT asset_id FROM service_schedules WHERE id = :id "
+        "AND deleted_at IS NOT NULL",
+        "record": "SELECT asset_id FROM service_records WHERE id = :id AND deleted_at IS NOT NULL",
+    }[kind]
+    value = await conn.scalar(text(sql), {"id": item_id})
+    return value if isinstance(value, uuid.UUID) else None
+
+
+async def restore(conn: AsyncConnection, kind: str, item_id: uuid.UUID) -> bool:
+    sql = {
+        "schedule": "UPDATE service_schedules SET deleted_at = NULL, updated_at = now(), "
+        "version = version + 1 WHERE id = :id AND deleted_at IS NOT NULL",
+        "record": "UPDATE service_records SET deleted_at = NULL "
+        "WHERE id = :id AND deleted_at IS NOT NULL",
+    }[kind]
+    result = await conn.execute(text(sql), {"id": item_id})
+    return result.rowcount == 1

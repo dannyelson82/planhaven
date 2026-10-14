@@ -358,3 +358,26 @@ async def suggestions(conn: AsyncConnection, query: str, limit: int) -> list[Sug
         {"pattern": pattern, "starts": pattern[1:], "limit": limit},
     )
     return [Suggestion(r.text, r.quantity, r.unit, r.price_cents) for r in rows]
+
+
+async def deleted_item_parent(conn: AsyncConnection, item_id: uuid.UUID) -> uuid.UUID | None:
+    """The project of a deleted item whose list still exists (None otherwise)."""
+    value = await conn.scalar(
+        text("""
+            SELECT i.project_id FROM list_items i JOIN lists l ON l.id = i.list_id
+            WHERE i.id = :id AND i.deleted_at IS NOT NULL AND l.deleted_at IS NULL
+        """),
+        {"id": item_id},
+    )
+    return value if isinstance(value, uuid.UUID) else None
+
+
+async def restore_item(conn: AsyncConnection, item_id: uuid.UUID) -> bool:
+    result = await conn.execute(
+        text(
+            "UPDATE list_items SET deleted_at = NULL, updated_at = now(), version = version + 1 "
+            "WHERE id = :id AND deleted_at > now() - interval '30 days'"
+        ),
+        {"id": item_id},
+    )
+    return result.rowcount == 1

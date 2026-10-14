@@ -54,6 +54,7 @@ class CurrentSession:
     user: User
     mfa_verified: bool
     reauth_at: datetime | None = None
+    ai_grant: bool = False  # an AI app acting as this person (app.services.ai_tools)
 
     @property
     def principal(self) -> authz.Principal:
@@ -62,6 +63,7 @@ class CurrentSession:
             is_admin=self.user.is_admin,
             mfa_verified=self.mfa_verified,
             reauth_at=self.reauth_at,
+            ai_grant=self.ai_grant,
         )
 
 
