@@ -41,6 +41,17 @@ and screenshots, a What's new entry.
 - [x] "Apply with undo": changes marked with the app's name; Undo on the AI page
 - [x] Notes from AI have `source = mcp:<app>`; per-client rate limits on writes
 
+## Milestone 4: Editing, deleting and sharing (v0.4.1, ADR 0020)
+
+- [x] Edit and delete projects, tasks (and un-complete), notes, lists, list items (check,
+      uncheck, move), files (delete only); Undo for each; the delete tool annotated destructive
+- [x] Add, edit and delete quotes, costs, contacts, assets (readings, schedules, records)
+- [x] Household members (editor/viewer) on projects and assets; never owners or the person's
+      own access; no share links
+- [x] Debugging help: error codes, fields and hints; `planhaven_connection_info`; one log line
+      per call (no content)
+- [x] Consent text, MCP instructions, user guide, What's new
+
 ## Wrap-up
 
 - [ ] Phase security review against SECURITY.md §11 (OAuth best-practice checklist included)
