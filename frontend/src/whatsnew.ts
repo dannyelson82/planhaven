@@ -20,6 +20,20 @@ export type Release = { version: string; date: string; items: Item[] }
 
 export const RELEASES: Release[] = [
   {
+    version: '0.4.1',
+    date: '2026-10-14',
+    items: [
+      {
+        title: 'Work on projects side by side with Claude',
+        text: 'AI apps you allow to change things can now edit and delete tasks, notes, lists, quotes, costs, contacts and assets, and share with people in your household. Deleted things go to the Trash, and you can undo every change on the AI page. Apps already allowed to change things get this too.',
+        steps: ['Open Account, then Connected AI apps.', 'Choose Suggest changes (you approve each one) or Make changes (you can undo each one).', 'In Claude, ask it to tidy up a project, fix a list or clear out finished tasks.'],
+        action: 'ai',
+        guide: 'ai-apps',
+        shot: 'ai',
+      },
+    ],
+  },
+  {
     version: '0.4.0',
     date: '2026-10-04',
     items: [

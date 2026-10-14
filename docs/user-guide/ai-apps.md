@@ -2,7 +2,9 @@
 
 Connect an AI app such as Claude to PlanHaven. It can then read your projects, answer questions
 about them and help you plan: "what's left on the boat?", "make a parts list for the brake job".
-If you allow it, it can also add tasks, notes and list items for you.
+If you allow it, it can also work on your projects with you: add, change and delete tasks,
+notes, lists, quotes, costs, contacts, assets and their services, and share a project or asset
+with people in your household.
 
 You choose what each app may do:
 
@@ -10,8 +12,12 @@ You choose what each app may do:
 - **Suggest changes**: it can also suggest changes. Nothing happens until you approve each one.
 - **Make changes**: changes happen straight away, and you can undo each one.
 
-An AI app can never delete anything. It sees every project you can see, except projects marked
+Anything an AI app deletes goes to the **Trash**, so you can bring it back for 30 days, and
+every change it makes can be undone. It sees every project you can see, except projects marked
 **Local AI only**. Only connect apps you trust.
+
+An AI app can never make share links, change who owns something, change your own access, change
+your account or security settings, empty the Trash, or upload or download files.
 
 ## Connect Claude
 
@@ -43,15 +49,22 @@ When an app set to **Suggest changes** wants to change something, you get a noti
 3. Tap **Approve** or **Decline**. **Approve all** does them all at once.
 
 If something changed since the suggestion was made (the task was deleted, say), approving it
-sets it aside instead.
+sets it aside instead. Approving a sharing change asks for your second factor.
 
 ![The AI page](screens/desktop/ai.jpg)
 
 ## Undo an AI change
 
-Under **Recent AI changes** on the **AI** page, tap **Undo** next to a change. Tasks, notes and
-items it added are moved to the Trash; a project it changed goes back to how it was; a task it
-ticked is unticked.
+Under **Recent AI changes** on the **AI** page, tap **Undo** next to a change.
+
+- Something it **added** is moved to the Trash.
+- Something it **changed** goes back to how it was.
+- Something it **deleted** comes back from the Trash. A deleted reading is added again.
+- Someone it **shared** with gets their old access back (or loses it again). PlanHaven asks
+  for your second factor first, as it does whenever sharing changes.
+
+If Undo can't work any more (you already restored the thing from the Trash, say), the page tells
+you so.
 
 ## Change or disconnect an app
 
@@ -72,4 +85,7 @@ can't see it at all.
 - Each person connects their own apps. An app sees only what that person can see, and can only
   change what that person can change.
 - Text in your projects is shown to the app as your content, not as instructions to it.
+- Claude asks you in the chat before deleting something, unless you asked it to.
+- For people building with AI apps: the **planhaven_connection_info** tool says what a
+  connection may do, and errors say why a change failed and what to try instead.
 - Choose when you're told about suggestions in **Account**, under **Notifications** ("AI apps").
