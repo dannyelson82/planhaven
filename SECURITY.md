@@ -141,8 +141,9 @@ Organized by STRIDE category. Details for each control are in §7.
 | Token leakage (ICS URL, sync token) | Info disclosure | Narrow scopes, hashed storage, revocation, "titles only" feeds, identifiable prefixes for secret scanning (§7.3) |
 | Malicious or impersonating AI app, stolen OAuth token | Spoofing / Elevation | Consent shows the app and its return host, needs a fresh second factor; PKCE S256, exact redirects, single-use codes; 1-hour access tokens, rotated refresh tokens with reuse revocation; scope and mode chosen by the person; disconnect at once (§7.18) |
 | Malicious upload (parser exploit, zip bomb, polyglot) | Elevation / DoS | Byte-sniffed type allowlist, size limits, no auto-extract of archives, sandboxed extractor subprocess with rlimits and timeouts (§7.5, §7.6) |
-| Prompt injection via documents or web content | Tampering / Info disclosure | Content delimited as data; AI acts only with the user's rights; no delete tools; propose-and-approve by default; scoped OAuth; `local_ai_only` projects hidden; audit + undo; features experimental until tested (§7.7) |
+| Prompt injection via documents or web content | Tampering / Info disclosure | Content delimited as data; AI acts only with the user's rights; no share-link, owner, account or permanent-delete tools; deletes go to the Trash, marked destructive; household members editor/viewer only (ADR 0020); propose-and-approve by default; scoped OAuth; `local_ai_only` projects hidden; audit + undo; features experimental until tested (§7.7) |
 | Over-privileged AI connector | Elevation | Read vs. write scopes chosen at consent, per-client revocation, 2FA at consent (§7.3, §7.7) |
+| AI app tricked into sharing a project or trashing its content | Info disclosure / Tampering | Household members only (no share links), editor or viewer only, never the person's own access; the person added is notified; deletes only to the Trash; every change listed on the AI page with Undo; approve first by default (§7.4, §7.7, ADR 0020) |
 | SSRF via configurable URLs | Elevation / Info disclosure | AI endpoints admin-only; push hosts allowlisted; no user-supplied fetch URLs in core (§7.8) |
 | Push subscription endpoint pointed at an internal or attacker host (the browser supplies it) | SSRF / Elevation | Endpoint must be HTTPS on port 443 at an allowlisted push-service host, checked when registered and again before each send; no redirects followed, timeouts, response read capped (`app/push/webpush.py`, §7.8) |
 | Phone alert content read by the push service or on a lock screen | Info disclosure | Payload encrypted for the device (RFC 8291) and signed (RFC 8292) with vetted libraries; only a title, a short line and an app path, never note text; each person chooses which kinds reach the phone |
@@ -264,7 +265,9 @@ read-only, feed-only, and defaults to "titles only" content. Tokens are never lo
   so IDs can't be probed.
 - **Shared one by one:** projects, assets, contacts and templates each have their own members
   (owner, editor, viewer); only owners share (with a fresh second factor), and each keeps at
-  least one owner. Using a template in a project also needs edit rights on that project.
+  least one owner. One exception: an AI app's write connection may add, change and remove
+  editors and viewers without one, since the person gave one when connecting it; never owners
+  or the person's own access, never share links (`authz.AI_STEP_UP_EXEMPT`, ADR 0020). Using a template in a project also needs edit rights on that project.
 - **Experimental features** (ADR 0012) are off unless an admin turns them on and makes each
   available (step-up, audited, stored where only the system context can write), and each
   person opts in for themselves (their own rows only). Code behind one checks both.
@@ -324,8 +327,11 @@ Prompt injection can't be fully prevented, so the design limits what a hijacked 
 
 - **Data, not instructions.** Retrieved chunks and attachment text are wrapped in delimited,
   labeled blocks and system prompts instruct models to treat them as untrusted content.
-- **Least privilege for MCP.** No delete tools, no sharing or account tools, no raw file
-  download. Read-only grants are offered at consent.
+- **Least privilege for MCP.** Write connections can edit and delete project content and
+  share with household members (ADR 0020), but every delete goes to the Trash and is undoable
+  for 30 days; there are no share-link, owner, permanent-delete, Trash, account or admin tools
+  and no raw file download. Delete
+  tools are annotated destructive. Read-only grants are offered at consent.
 - **Privacy flag.** `local_ai_only` projects are invisible to MCP clients and cannot be sent to
   commercial providers; enforced in the provider layer.
 - **Audit and undo.** Every AI-originated write is recorded with the app's name and can be
@@ -333,7 +339,7 @@ Prompt injection can't be fully prevented, so the design limits what a hijacked 
 - **Rate limits** per OAuth client on write tools.
 - **AI changes follow the assistant rules (ADR 0012).** Local and commercial models act only
   through assistant tools that run as the signed-in user (`authz.require` + RLS), never with
-  more rights. No delete, sharing, account or admin tools. Every change is attributed and
+  more rights. No sharing, account or admin tools; MCP deletes only to the Trash (ADR 0020). Every change is attributed and
   undoable. The default mode is **propose and approve**: nothing is written until the user
   approves the change set. "Apply directly" is a per-feature option the admin may allow.
 - **Experimental features are off by default.** Admin enables availability (step-up, audited),
@@ -558,13 +564,19 @@ Cross-Origin-Resource-Policy: same-origin
   refused (DNS rebinding); the key principal is limited to `mcp_read`/`mcp_write` in
   `authz.require`, and every tool runs as the person (`authz.require` + RLS), so an app never
   sees or changes more than the person could. `local_ai_only` projects are invisible.
-- **Tools:** read (list, get, keyword search) and add/change (project, note, tasks, list items,
-  complete a task); no delete, sharing, account, admin or file-download tools. Output labels
+- **Tools:** read (list, get, keyword search, contacts, assets, people by name) and add,
+  change and delete project content (ADR 0020); deletes go to the Trash and are undoable;
+  household members as editors or viewers only, never owners or the person's own access; no
+  share-link, permanent-delete, Trash, account, admin or file-download tools. Output labels
   project text as the person's content, not instructions. Write tools are refused on a
   read-only connection; rate limited per connection (all calls, and writes separately).
 - **Approve first / undo:** suggestions are stored and re-checked as of approval time (a change
   that's no longer allowed fails safely); applied changes are recorded with the app's name and
-  undone as the person.
+  undone as the person. Approving or undoing a sharing change asks for the person's fresh second
+  factor. An Undo that can't apply any more says so (409) instead of failing silently.
+- **Diagnostics:** tool errors carry a code, the argument at fault and a hint;
+  `planhaven_connection_info` describes the connection. One log line per call (tool, outcome,
+  duration, connection id), never arguments or content (§7.12).
 
 ## 8. Supply chain and security testing
 

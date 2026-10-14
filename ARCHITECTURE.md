@@ -554,19 +554,27 @@ Tool names use a `planhaven_` prefix. Every tool declares MCP annotations.
 | `planhaven_add_list_items` | write | not destructive |
 | `planhaven_complete_task` | write | not destructive, idempotent |
 
-Deliberately excluded: delete tools, sharing/membership changes, account settings, attachment
-download of raw files. Plugins may register additional tools (§14.4) subject to the same rules.
+**Edit, delete and share tools (ADR 0020):** with the same `projects:write` scope, a
+connection can edit and delete anything inside its person's projects: projects, tasks (and
+un-complete them), notes, lists, list items (check, uncheck, move), files (delete only), quotes,
+costs, contacts and assets with their readings, schedules and records; and give household
+members editor or viewer access to a project or asset (`planhaven_set_member`). Read tools add
+contacts, assets, people and `planhaven_connection_info`. Edit tools are annotated not
+destructive; `planhaven_delete` (one tool, a `kind` and an `id`) `destructiveHint: true`.
+Deletes go to the Trash (30 days). Code: `services/ai_tools.py` (reading, review, undo),
+`services/ai_writes.py` (one plan/apply/undo per write), `services/mcp.py` (protocol, schemas).
 
-Assistant write tools (experimental feature `assistant.mcp_write`, ADR 0012): add and
-update notes, tasks, list items, contacts, quotes and cost entries; change project stage.
-Still no delete, sharing, account or admin tools.
+Deliberately excluded: share links, owners and the person's own access, account, passkey,
+notification and admin settings, emptying the Trash or deleting for good, restoring from the
+Trash, raw file upload or download. Plugins may register additional tools (§14.4) subject to the same rules.
 
 ### 12.4 Rules
 
 - Projects with `local_ai_only = true` are invisible to MCP (not listed, not searchable,
   writes rejected as "not found").
-- Every MCP write creates an `AuditEvent` with client ID and can be undone from the project
-  activity view.
+- Every MCP write creates an `AuditEvent` with client ID and can be undone from the AI page:
+  an edit's Undo puts back the fields it overwrote; a delete's Undo restores it from the Trash
+  (ADR 0020).
 - Notes created via MCP have `source = mcp:<client_name>` so later local-model context shows
   where ideas came from.
 - Tool output returns data, never instructions; content from attachments is labeled as

@@ -44,6 +44,7 @@ class Principal:
     mfa_verified: bool
     reauth_at: datetime | None
     kind: str = "session"
+    ai_grant: bool = False  # an AI app's connection acting as this person (ADR 0019, 0020)
 
     def recently_verified(self, now: datetime | None = None) -> bool:
         now = now or datetime.now(UTC)
@@ -147,6 +148,11 @@ RULES: dict[Action, Rule] = {
     Action.MCP_WRITE: Rule(),
 }
 
+# An AI app's write connection may change household members (ADR 0020) without a fresh second
+# factor, which it can't give: the person gave one when connecting it. Never owners, and never
+# the person's own membership (require_ai_member_change). Share links stay step-up only.
+AI_STEP_UP_EXEMPT = frozenset({Action.PROJECT_SHARE, Action.ASSET_SHARE})
+
 # What a key principal (Principal.kind) may do: nothing else (SECURITY.md §7.3).
 KEY_ACTIONS: dict[str, frozenset[Action]] = {
     "ics": frozenset({Action.FEED_READ}),
@@ -197,7 +203,8 @@ def require(principal: Principal, action: Action, resource: ProjectAccess | None
         raise NotFoundError("Not found.")
     if rule.verified and not principal.mfa_verified:
         raise ForbiddenError("Second factor required.")
-    if rule.recent and not principal.recently_verified():
+    exempt = principal.ai_grant and action in AI_STEP_UP_EXEMPT
+    if rule.recent and not exempt and not principal.recently_verified():
         raise StepUpRequiredError("Confirm it's you with your second factor to continue.")
     if action in PROJECT_ROLES:
         if resource is None or resource.role is None:
@@ -205,6 +212,18 @@ def require(principal: Principal, action: Action, resource: ProjectAccess | None
             raise NotFoundError("Not found.")
         if resource.role not in PROJECT_ROLES[action]:
             raise ForbiddenError("Your role doesn't allow that.")
+
+
+def require_ai_member_change(
+    principal: Principal, user_id: uuid.UUID, current_role: str | None, new_role: str | None
+) -> None:
+    """What an AI app may change about who is on a project or asset (ADR 0020), on top of
+    require(..., PROJECT_SHARE/ASSET_SHARE): editors and viewers only, never the person's own
+    access. Applies to its suggestions too, whoever approves them."""
+    if user_id == principal.user_id:
+        raise ForbiddenError("An AI app can't change your own access.")
+    if "owner" in (current_role, new_role):
+        raise ForbiddenError("An AI app can't add, change or remove owners.")
 
 
 @dataclass(frozen=True, slots=True)

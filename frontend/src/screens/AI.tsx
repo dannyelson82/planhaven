@@ -14,8 +14,8 @@ type Change = { id: string; client_name: string; project_id: string | null; kind
 
 const ACCESS: Record<Access, { label: string; help: string }> = {
   read: { label: 'Read only', help: 'It can read and search your projects. It can\'t change anything.' },
-  approve: { label: 'Suggest changes', help: 'It can also suggest changes. Nothing happens until you approve each one on the AI page.' },
-  apply: { label: 'Make changes', help: 'It can add and change things straight away. You can undo each change on the AI page. Nothing can be deleted.' },
+  approve: { label: 'Suggest changes', help: 'It can also suggest changes, including deleting things and sharing with people in your household. Nothing happens until you approve each one on the AI page.' },
+  apply: { label: 'Make changes', help: 'It can add, change and delete things, and share with people in your household, straight away. Deleted things go to the Trash. You can undo each change on the AI page.' },
 }
 const accessOf = (c: { scope: string; write_mode: string }): Access => (c.scope === 'read' ? 'read' : c.write_mode === 'apply' ? 'apply' : 'approve')
 const body = (a: Access) => ({ scope: a === 'read' ? 'read' : 'write', write_mode: a === 'apply' ? 'apply' : 'approve' })
@@ -143,25 +143,28 @@ export function ConnectedAppsCard() {
 /** /ai: suggestions waiting for approval, and recent AI changes with Undo. */
 export function AiScreen() {
   const client = useQueryClient()
+  const stepUp = useStepUp()
   const suggestions = useQuery({ queryKey: ['ai-suggestions'], queryFn: () => api<Suggestion[]>('GET', '/api/v1/ai/suggestions') })
   const changes = useQuery({ queryKey: ['ai-changes'], queryFn: () => api<Change[]>('GET', '/api/v1/ai/changes') })
   const refresh = async () => {
     await client.invalidateQueries({ queryKey: ['ai-suggestions'] })
     await client.invalidateQueries({ queryKey: ['ai-changes'] })
     await client.invalidateQueries({ queryKey: ['projects'] })
+    await client.invalidateQueries({ queryKey: ['trash'] })
   }
   const [note, setNote] = useState('')
   const decide = useMutation({
-    mutationFn: ({ id, ok }: { id: string; ok: boolean }) => api<{ status: string }>('POST', `/api/v1/ai/suggestions/${id}/${ok ? 'approve' : 'decline'}`),
+    mutationFn: ({ id, ok }: { id: string; ok: boolean }) => stepUp(() => api<{ status: string }>('POST', `/api/v1/ai/suggestions/${id}/${ok ? 'approve' : 'decline'}`)),
     onSuccess: (r) => setNote(r.status === 'failed' ? 'That change couldn\'t be made any more (something changed since). It was set aside.' : ''),
     onSettled: refresh,
   })
   const all = useMutation({
-    mutationFn: () => api<{ approved: number; failed: number }>('POST', '/api/v1/ai/suggestions/approve-all'),
+    mutationFn: () => stepUp(() => api<{ approved: number; failed: number }>('POST', '/api/v1/ai/suggestions/approve-all')),
     onSuccess: (r) => setNote(r.failed ? `${r.approved} made; ${r.failed} couldn't be made any more.` : ''),
     onSettled: refresh,
   })
-  const undo = useMutation({ mutationFn: (id: string) => api('POST', `/api/v1/ai/changes/${id}/undo`), onSettled: refresh })
+  // Sharing changes need a fresh second factor from you, like sharing does anywhere else.
+  const undo = useMutation({ mutationFn: (id: string) => stepUp(() => api('POST', `/api/v1/ai/changes/${id}/undo`)), onSettled: refresh })
   const pending = suggestions.data ?? []
   return (
     <div className="space-y-4">

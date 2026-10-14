@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Path, Request
+from fastapi import APIRouter, HTTPException, Path, Request
 from pydantic import BaseModel, ConfigDict
 
 from app.api import deps
@@ -151,4 +151,7 @@ async def changes(session: SessionDep, request: Request) -> list[ChangeOut]:
 
 @router.post("/changes/{change_id}/undo", status_code=204)
 async def undo(change_id: Id, session: SessionDep, request: Request) -> None:
-    await ai_tools.undo(deps.database(request), session, change_id)
+    try:
+        await ai_tools.undo(deps.database(request), session, change_id)
+    except ai_tools.ToolError as exc:
+        raise HTTPException(409, str(exc)) from None
