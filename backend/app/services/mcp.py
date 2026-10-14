@@ -464,7 +464,8 @@ TOOLS: list[dict[str, Any]] = [
         _DESTRUCTIVE,
     ),
 ]
-_TOOL_NAMES = {t["name"] for t in TOOLS}
+# Our own copy of each name: what gets logged never comes from the request.
+_TOOL_NAMES: dict[str, str] = {t["name"]: t["name"] for t in TOOLS}
 _HINTS = {
     "invalid_argument": "Fix the argument named in 'field' and call the tool again.",
     "not_found": "Use an id from a read tool's result; local-AI-only projects are hidden.",
@@ -541,12 +542,13 @@ async def handle(
         args = params.get("arguments") or {}
         if name not in _TOOL_NAMES or not isinstance(args, dict):
             return _error(id_, -32602, "Unknown tool or bad arguments")
+        tool = _TOOL_NAMES[name]
         started = time.perf_counter()
-        result, outcome = await _call(db, connection, str(name), args, version=version)
+        result, outcome = await _call(db, connection, tool, args, version=version)
         log.info(
             "mcp tool call",
             extra={
-                "tool": name,
+                "tool": tool,
                 "outcome": outcome,
                 "duration_ms": round((time.perf_counter() - started) * 1000, 1),
                 "grant_id": str(connection.grant.id),
