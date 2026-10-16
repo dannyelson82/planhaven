@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  
+  <rect width="512" height="512" rx="112" ry="112" fill="#1f8a64"/>
+  <!-- roof (Haven family) -->
+  <polyline points="96,200 256,84 416,200" fill="none" stroke="#ffffff" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- clipboard -->
+  <rect x="146" y="214" width="220" height="230" rx="26" fill="#ffffff"/>
+  <rect x="211" y="194" width="90" height="42" rx="12" fill="#5eead4"/>
+  <!-- checklist: two done, one to do -->
+  <polyline points="178,284 194,300 222,268" fill="none" stroke="#1f8a64" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="242" y="276" width="94" height="16" rx="8" fill="#94a3b8"/>
+  <polyline points="178,344 194,360 222,328" fill="none" stroke="#1f8a64" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="242" y="336" width="94" height="16" rx="8" fill="#94a3b8"/>
+  <rect x="180" y="384" width="38" height="38" rx="8" fill="none" stroke="#94a3b8" stroke-width="10"/>
+  <rect x="242" y="395" width="94" height="16" rx="8" fill="#cbd5e1"/>
+</svg>
