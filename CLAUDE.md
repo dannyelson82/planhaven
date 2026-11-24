@@ -42,6 +42,10 @@ and/or adds an ADR in the same PR.
   real server IPs, hostnames, domains, container names or network layout in committed files.
   Use `example.com` and RFC 5737 addresses (`192.0.2.x`) in docs. Local setup notes go in
   `.local/` (gitignored).
+- CI's **Privacy check** (`.github/scripts/privacy-check.py`) fails when new
+  commits add real private or Tailscale addresses or real `*.ts.net` names,
+  or use a computer's local address as commit email (it must be the GitHub
+  noreply address). Genuine example addresses go in `.privacy-allow`.
 
 ## Non-negotiables
 
