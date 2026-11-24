@@ -54,4 +54,4 @@ and screenshots, a What's new entry.
 
 ## Wrap-up
 
-- [ ] Phase security review against SECURITY.md §11 (OAuth best-practice checklist included)
+- [x] Phase security review against SECURITY.md §11 (`docs/releases/v0.4.2-security-review.md`, OAuth best-practice checklist included)
