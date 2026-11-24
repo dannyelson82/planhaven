@@ -10,6 +10,11 @@
   rotated on each use; a used one coming back (a replay) revokes the whole family.
 - A registered client can do nothing until a person approves it on the consent screen, after a
   fresh second factor, choosing read or write and, for writes, approve-first or apply-with-undo.
+
+The iPhone app (ADR 0021) is a built-in client of the same server: a private-use redirect that
+registration refuses for anyone else, its own audience (/api/v1) and token prefixes, one sign-in
+per device, refresh tokens that end after a configurable time without use, and a "Signed-in
+apps" list to sign devices out.
 """
 
 import base64
@@ -29,7 +34,7 @@ from app.db import auth as audit
 from app.db import oauth as store
 from app.db.database import Database
 from app.services import limits
-from app.services.auth import CurrentSession
+from app.services.auth import CurrentSession, user_from_row
 
 ACCESS_SECONDS = 3600
 REFRESH_SECONDS = 30 * 24 * 3600
@@ -38,6 +43,12 @@ MODES = ("approve", "apply")
 ACCESS_PREFIX = "phv_oat_"
 REFRESH_PREFIX = "phv_ort_"
 CODE_PREFIX = "phv_occ_"  # authorization codes (never logged: in the URL query, redacted)
+# The iPhone app (ADR 0021): tokens for /api/v1 only, and live-update tickets.
+APP_CLIENT_ID = "phc_planhaven_ios"
+APP_ACCESS_PREFIX = "phv_aat_"
+APP_REFRESH_PREFIX = "phv_art_"
+TICKET_PREFIX = "phv_wst_"
+DEFAULT_APP_REFRESH_SECONDS = 90 * 24 * 3600
 
 
 class OAuthError(Exception):
@@ -106,6 +117,8 @@ def _scope_of(raw: str | None) -> str:
 
 
 def scope_text(scope: str) -> str:
+    if scope == "app":
+        return "app"
     return "projects:read projects:write" if scope == "write" else "projects:read"
 
 
@@ -152,8 +165,11 @@ async def start(
     state: str | None,
     resource: str | None,
     mcp_url: str,
+    api_url: str = "",
+    device_name: str | None = None,
 ) -> uuid.UUID:
-    """Check an authorization request and keep it for the consent screen."""
+    """Check an authorization request and keep it for the consent screen. The iPhone app asks
+    for the REST API (`resource` = /api/v1) and may name its device."""
     async with db.system_transaction() as conn:
         client = await store.client(conn, client_id or "")
     if client is None:
@@ -167,12 +183,19 @@ async def start(
         raise RedirectError(redirect_uri, "unsupported_response_type", "Only code.", state)
     if code_challenge_method != "S256" or not code_challenge or len(code_challenge) != 43:
         raise RedirectError(redirect_uri, "invalid_request", "PKCE S256 is required.", state)
-    if resource and resource.rstrip("/") != mcp_url.rstrip("/"):
-        raise RedirectError(redirect_uri, "invalid_target", "Unknown resource.", state)
-    try:
-        asked = _scope_of(scope)
-    except ValueError:
-        raise RedirectError(redirect_uri, "invalid_scope", "Unknown scope.", state) from None
+    if client.first_party:
+        if resource and resource.rstrip("/") != api_url.rstrip("/"):
+            raise RedirectError(redirect_uri, "invalid_target", "Unknown resource.", state)
+        asked = "app"
+        device = " ".join((device_name or "").split())[:100] or None
+    else:
+        if resource and resource.rstrip("/") != mcp_url.rstrip("/"):
+            raise RedirectError(redirect_uri, "invalid_target", "Unknown resource.", state)
+        try:
+            asked = _scope_of(scope)
+        except ValueError:
+            raise RedirectError(redirect_uri, "invalid_scope", "Unknown scope.", state) from None
+        device = None
     async with db.system_transaction() as conn:
         return await store.create_request(
             conn,
@@ -181,6 +204,7 @@ async def start(
             code_challenge=code_challenge,
             scope=asked,
             state=state,
+            device_name=device,
         )
 
 
@@ -188,17 +212,19 @@ async def start(
 class Consent:
     client_name: str
     redirect_host: str
-    scope: str  # the most it may be given: read or write
+    scope: str  # the most it may be given: read or write; "app" for the iPhone app
+    device_name: str | None = None
 
 
 async def consent(db: Database, session: CurrentSession, request_id: uuid.UUID) -> Consent:
-    authz.require(session.principal, authz.Action.USE_APP)
+    authz.require(session.principal, authz.Action.AI_MANAGE)
     async with db.system_transaction() as conn:
         req = await store.request(conn, request_id)
         client = await store.client_by_id(conn, req.client_id) if req else None
     if req is None or client is None:
         raise authz.NotFoundError("This request has expired. Start again from the AI app.")
-    return Consent(client.client_name, urlsplit(req.redirect_uri).hostname or "", req.scope)
+    host = urlsplit(req.redirect_uri).hostname or urlsplit(req.redirect_uri).scheme
+    return Consent(client.client_name, host, req.scope, req.device_name)
 
 
 async def approve(
@@ -212,22 +238,32 @@ async def approve(
     ip: str | None,
 ) -> str:
     """The person approves: a connection (grant) and a single-use code. Returns where to send
-    the browser back to (the app's redirect URI with the code)."""
+    the browser back to (the app's redirect URI with the code). For the iPhone app there's
+    nothing to choose: it signs in as the person (ADR 0021)."""
+    # Both kinds need a fresh second factor, checked before the request is even looked up.
     authz.require(session.principal, authz.Action.AI_CONNECT)
-    if scope not in ("read", "write") or write_mode not in MODES:
-        raise authz.ForbiddenError("Unknown choice.")
     async with db.system_transaction() as conn:
         req = await store.request(conn, request_id)
-        if req is None:
-            raise authz.NotFoundError("This request has expired. Start again from the AI app.")
+    if req is None:
+        raise authz.NotFoundError("This request has expired. Start again from the AI app.")
+    if req.scope == "app":
+        authz.require(session.principal, authz.Action.APP_SIGN_IN)
+        scope, write_mode = "app", "approve"
+    else:
+        if scope not in ("read", "write") or write_mode not in MODES:
+            raise authz.ForbiddenError("Unknown choice.")
         if req.scope == "read" and scope == "write":
             scope = "read"  # never more than the app asked for
+    async with db.system_transaction() as conn:
+        if await store.request(conn, request_id) is None:
+            raise authz.NotFoundError("This request has expired. Start again from the AI app.")
         grant_id = await store.create_grant(
             conn,
             user_id=session.user.id,
             client_id=req.client_id,
             scope=scope,
             write_mode=write_mode,
+            device_name=req.device_name,
         )
         code = tokens.new_token(CODE_PREFIX)
         await store.create_code(
@@ -238,22 +274,24 @@ async def approve(
             code_challenge=req.code_challenge,
         )
         await store.delete_request(conn, request_id)
+        app = scope == "app"
         await audit.record_audit(
             conn,
-            action="oauth.connected",
+            action="app.signed_in" if app else "oauth.connected",
             actor_user_id=session.user.id,
             ip=ip,
             resource_type="oauth_grant",
             resource_id=grant_id,
         )
+        change = "app_signed_in" if app else "ai_app_connected"
         await admin_store.notify(
-            conn, session.user.id, "security_change", {"change": "ai_app_connected", "ip": ip}
+            conn, session.user.id, "security_change", {"change": change, "ip": ip}
         )
     return _with_query(req.redirect_uri, {"code": code, "state": req.state, "iss": issuer})
 
 
 async def deny(db: Database, session: CurrentSession, request_id: uuid.UUID) -> str:
-    authz.require(session.principal, authz.Action.USE_APP)
+    authz.require(session.principal, authz.Action.AI_MANAGE)
     async with db.system_transaction() as conn:
         req = await store.request(conn, request_id)
         if req is None:
@@ -276,10 +314,17 @@ class Tokens:
 
 
 async def _issue(
-    conn: AsyncConnection, grant_id: uuid.UUID, family_id: uuid.UUID
+    conn: AsyncConnection,
+    grant: store.GrantRow,
+    family_id: uuid.UUID,
+    app_refresh_seconds: int = DEFAULT_APP_REFRESH_SECONDS,
 ) -> tuple[str, str]:
-    access = tokens.new_token(ACCESS_PREFIX)
-    refresh = tokens.new_token(REFRESH_PREFIX)
+    """A new access and refresh token. The iPhone app's (scope `app`) are for /api/v1 and have
+    their own prefixes; its refresh token lasts `app_refresh_seconds` from each use."""
+    app = grant.scope == "app"
+    access = tokens.new_token(APP_ACCESS_PREFIX if app else ACCESS_PREFIX)
+    refresh = tokens.new_token(APP_REFRESH_PREFIX if app else REFRESH_PREFIX)
+    grant_id = grant.id
     await store.add_token(
         conn,
         grant_id=grant_id,
@@ -294,9 +339,31 @@ async def _issue(
         family_id=family_id,
         kind="refresh",
         token_hash=tokens.token_hash(refresh),
-        lifetime_seconds=REFRESH_SECONDS,
+        lifetime_seconds=app_refresh_seconds if app else REFRESH_SECONDS,
     )
     return access, refresh
+
+
+async def _app_audit(
+    conn: AsyncConnection, grant: store.GrantRow, action: str, ip: str | None
+) -> None:
+    if grant.scope == "app":
+        await audit.record_audit(
+            conn,
+            action=action,
+            actor_user_id=grant.user_id,
+            ip=ip,
+            resource_type="oauth_grant",
+            resource_id=grant.id,
+        )
+
+
+async def _client_limit(db: Database, client_id: str, ip: str | None) -> None:
+    await limits.check(db, [(limits.OAUTH_TOKEN_IP, limits.key(limits.OAUTH_TOKEN_IP, ip))], ip=ip)
+    client = client_id[:80] or "none"
+    await limits.check(
+        db, [(limits.OAUTH_TOKEN_CLIENT, limits.key(limits.OAUTH_TOKEN_CLIENT, client))], ip=ip
+    )
 
 
 def _failed(ip: str | None, reason: str) -> OAuthError:
@@ -312,8 +379,10 @@ async def exchange_code(
     client_id: str,
     code_verifier: str,
     ip: str | None,
+    device_name: str | None = None,
+    app_refresh_seconds: int = DEFAULT_APP_REFRESH_SECONDS,
 ) -> Tokens:
-    await limits.check(db, [(limits.OAUTH_TOKEN_IP, limits.key(limits.OAUTH_TOKEN_IP, ip))], ip=ip)
+    await _client_limit(db, client_id, ip)
     # Failures are raised after the transaction commits: the code stays spent, and a reused
     # code's revocations stick.
     problem = None
@@ -340,14 +409,30 @@ async def exchange_code(
         elif not pkce_ok(code_verifier, row.code_challenge):
             problem = "pkce"
         else:
-            access, refresh = await _issue(conn, grant.id, uuid.uuid7())
+            access, refresh = await _issue(conn, grant, uuid.uuid7(), app_refresh_seconds)
+            name = " ".join((device_name or "").split())[:100]
+            if grant.scope == "app" and name:
+                await store.set_device_name(conn, grant.id, name)
+            await _app_audit(conn, grant, "app_token.issued", ip)
     if problem is not None or grant is None:
         raise _failed(ip, problem or "code_mismatch")
     return Tokens(access, refresh, scope_text(grant.scope))
 
 
-async def refresh(db: Database, *, refresh_token: str, client_id: str, ip: str | None) -> Tokens:
-    await limits.check(db, [(limits.OAUTH_TOKEN_IP, limits.key(limits.OAUTH_TOKEN_IP, ip))], ip=ip)
+async def refresh(
+    db: Database,
+    *,
+    refresh_token: str,
+    client_id: str,
+    ip: str | None,
+    app_refresh_seconds: int = DEFAULT_APP_REFRESH_SECONDS,
+) -> Tokens:
+    await _client_limit(db, client_id, ip)
+    async with db.system_transaction() as conn:
+        found = await store.token(conn, tokens.token_hash(refresh_token))
+    if found is not None:
+        family = limits.key(limits.OAUTH_REFRESH_FAMILY, found.family_id)
+        await limits.check(db, [(limits.OAUTH_REFRESH_FAMILY, family)], ip=ip)
     problem = None  # raised after commit, so a reuse's revocation sticks
     async with db.system_transaction() as conn:
         row = await store.token(conn, tokens.token_hash(refresh_token))
@@ -362,20 +447,28 @@ async def refresh(db: Database, *, refresh_token: str, client_id: str, ip: str |
         elif row.used or not await store.use_refresh(conn, row.id):
             # A rotated refresh token came back: someone has a copy. End the whole family.
             await store.revoke_family(conn, row.family_id)
+            await _app_audit(conn, grant, "app_token.reuse_detected", ip)
             problem = "refresh_reused"
         else:
-            access, new_refresh = await _issue(conn, grant.id, row.family_id)
+            access, new_refresh = await _issue(conn, grant, row.family_id, app_refresh_seconds)
+            await _app_audit(conn, grant, "app_token.refreshed", ip)
     if problem is not None or grant is None:
         raise _failed(ip, problem or "refresh_invalid")
     return Tokens(access, new_refresh, scope_text(grant.scope))
 
 
-async def revoke(db: Database, *, token: str) -> None:
-    """RFC 7009: always succeeds from the client's point of view."""
+async def revoke(db: Database, *, token: str, ip: str | None = None) -> None:
+    """RFC 7009: always succeeds from the client's point of view. The iPhone app signing out
+    ends its whole sign-in (it leaves the Signed-in apps list)."""
     async with db.system_transaction() as conn:
         row = await store.token(conn, tokens.token_hash(token))
         if row is not None:
             await store.revoke_family(conn, row.family_id)
+            grant = await store.grant(conn, row.grant_id)
+            if grant is not None and grant.scope == "app" and grant.revoked_at is None:
+                await store.revoke_grant(conn, grant.id)
+                await store.revoke_grant_tokens(conn, grant.id)
+                await _app_audit(conn, grant, "app_token.revoked", ip)
 
 
 @dataclass(frozen=True, slots=True)
@@ -394,7 +487,7 @@ async def authenticate(db: Database, token: str) -> Connection | None:
         if row is None or row.kind != "access" or row.expired or row.revoked:
             return None
         grant = await store.grant(conn, row.grant_id)
-        if grant is None:
+        if grant is None or grant.scope not in ("read", "write"):
             return None
         await store.grant_used(conn, grant.id)
     kind = "mcp_write" if grant.scope == "write" else "mcp_read"
@@ -407,7 +500,7 @@ async def authenticate(db: Database, token: str) -> Connection | None:
 async def connections(db: Database, session: CurrentSession) -> list[store.GrantRow]:
     """The person's own connections (read in system context because app names live with the
     system-only client records; filtered to this person)."""
-    authz.require(session.principal, authz.Action.USE_APP)
+    authz.require(session.principal, authz.Action.AI_MANAGE)
     async with db.system_transaction() as conn:
         return await store.grants_of(conn, session.user.id)
 
@@ -415,7 +508,12 @@ async def connections(db: Database, session: CurrentSession) -> list[store.Grant
 async def _own_grant(db: Database, session: CurrentSession, grant_id: uuid.UUID) -> store.GrantRow:
     async with db.system_transaction() as conn:
         grant = await store.grant(conn, grant_id)
-    if grant is None or grant.user_id != session.user.id or grant.revoked_at is not None:
+    if (
+        grant is None
+        or grant.user_id != session.user.id
+        or grant.revoked_at is not None
+        or grant.scope == "app"
+    ):
         raise authz.NotFoundError("Not found.")
     return grant
 
@@ -425,6 +523,7 @@ async def change(
 ) -> None:
     """Narrowing (to read, or to approve-first) needs nothing more; widening needs a fresh
     second factor, like connecting."""
+    authz.require(session.principal, authz.Action.AI_MANAGE)
     if scope not in ("read", "write") or write_mode not in MODES:
         raise authz.ForbiddenError("Unknown choice.")
     before = await _own_grant(db, session, grant_id)
@@ -433,7 +532,7 @@ async def change(
             write_mode == "apply" and before.write_mode == "approve"
         )
         authz.require(
-            session.principal, authz.Action.AI_CONNECT if widening else authz.Action.USE_APP
+            session.principal, authz.Action.AI_CONNECT if widening else authz.Action.AI_MANAGE
         )
         await store.update_grant(conn, grant_id, scope=scope, write_mode=write_mode)
 
@@ -441,7 +540,7 @@ async def change(
 async def disconnect(
     db: Database, session: CurrentSession, grant_id: uuid.UUID, ip: str | None
 ) -> None:
-    authz.require(session.principal, authz.Action.USE_APP)
+    authz.require(session.principal, authz.Action.AI_MANAGE)
     await _own_grant(db, session, grant_id)
     async with db.user_transaction(session.user.id) as conn:
         await store.revoke_grant(conn, grant_id)
@@ -455,3 +554,94 @@ async def disconnect(
         )
     async with db.system_transaction() as conn:
         await store.revoke_grant_tokens(conn, grant_id)
+
+
+# ---------------------------------------------------------------- the iPhone app (ADR 0021)
+
+
+async def _app_session(conn: AsyncConnection, grant: store.GrantRow) -> CurrentSession | None:
+    user = await audit.user_by_id(conn, grant.user_id)
+    if user is None or user.disabled:
+        return None
+    # The second factor was given when the app signed in; never counted as recent.
+    return CurrentSession(grant.id, "", user_from_row(user), True, None, app_grant=grant.id)
+
+
+async def authenticate_app(db: Database, token: str, ip: str | None) -> CurrentSession | None:
+    """The iPhone app's access token (`phv_aat_`, audience /api/v1) as the person's session.
+    AI apps' tokens never work here, and app tokens never work on /mcp."""
+    if not token.startswith(APP_ACCESS_PREFIX) or len(token) > 120:
+        return None
+    async with db.system_transaction() as conn:
+        row = await store.token(conn, tokens.token_hash(token))
+        if row is None or row.kind != "access" or row.expired or row.revoked:
+            return None
+        grant = await store.grant(conn, row.grant_id)
+        if grant is None or grant.scope != "app" or grant.revoked_at is not None:
+            return None
+        await store.grant_used(conn, grant.id, ip)
+        return await _app_session(conn, grant)
+
+
+async def app_still_signed_in(db: Database, session: CurrentSession) -> bool:
+    """For long-lived connections: is the app's sign-in still live?"""
+    if session.app_grant is None:
+        return False
+    async with db.system_transaction() as conn:
+        grant = await store.grant(conn, session.app_grant)
+        return (
+            grant is not None
+            and grant.revoked_at is None
+            and (await _app_session(conn, grant)) is not None
+        )
+
+
+async def live_ticket(db: Database, session: CurrentSession) -> str:
+    """A single-use, 30-second ticket for a live-update WebSocket, so the app's bearer token
+    never travels in a WebSocket URL."""
+    authz.require(session.principal, authz.Action.USE_APP)
+    if session.app_grant is None:
+        raise authz.ForbiddenError("Only the iPhone app needs a ticket.")
+    bucket = limits.key(limits.LIVE_TICKET_GRANT, session.app_grant)
+    await limits.check(db, [(limits.LIVE_TICKET_GRANT, bucket)], ip=None, user_id=session.user.id)
+    ticket = tokens.new_token(TICKET_PREFIX)
+    async with db.system_transaction() as conn:
+        await store.add_ticket(conn, tokens.token_hash(ticket), session.user.id, session.app_grant)
+    return ticket
+
+
+async def use_live_ticket(db: Database, ticket: str) -> CurrentSession | None:
+    if not ticket.startswith(TICKET_PREFIX) or len(ticket) > 120:
+        return None
+    async with db.system_transaction() as conn:
+        grant_id = await store.take_ticket(conn, tokens.token_hash(ticket))
+        grant = await store.grant(conn, grant_id) if grant_id else None
+        if grant is None or grant.scope != "app" or grant.revoked_at is not None:
+            return None
+        return await _app_session(conn, grant)
+
+
+async def apps(db: Database, session: CurrentSession) -> list[store.GrantRow]:
+    """The person's signed-in iPhone apps (Account, Signed-in apps). Web only."""
+    authz.require(session.principal, authz.Action.MANAGE_OWN_SESSIONS)
+    async with db.system_transaction() as conn:
+        return await store.grants_of(conn, session.user.id, apps=True)
+
+
+async def sign_out_app(
+    db: Database, session: CurrentSession, grant_id: uuid.UUID, ip: str | None
+) -> None:
+    authz.require(session.principal, authz.Action.MANAGE_OWN_SESSIONS)
+    async with db.system_transaction() as conn:
+        grant = await store.grant(conn, grant_id)
+        if (
+            grant is None
+            or grant.user_id != session.user.id
+            or grant.scope != "app"
+            or grant.revoked_at is not None
+        ):
+            raise authz.NotFoundError("Not found.")
+        await store.revoke_grant(conn, grant_id)
+        await store.revoke_grant_tokens(conn, grant_id)
+        await _app_audit(conn, grant, "app_token.revoked", ip)
+    security_log.event("app_signed_out", ip=ip, user_id=session.user.id)

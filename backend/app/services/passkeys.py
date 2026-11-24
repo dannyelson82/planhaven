@@ -370,6 +370,7 @@ async def login(
 
 
 async def list_passkeys(db: Database, session: CurrentSession) -> list[PasskeyInfo]:
+    authz.require(session.principal, authz.Action.VIEW_SECURITY)
     async with db.user_transaction(session.user.id) as conn:
         rows = await store.for_user(conn, session.user.id)
     return [PasskeyInfo(r.id, r.name, r.created_at, r.last_used_at) for r in rows]

@@ -7,7 +7,7 @@ import { useStepUp } from '../stepupContext.ts'
 import { AuthPage, Button, Card, ErrorText, Link } from '../ui.tsx'
 
 type Access = 'read' | 'approve' | 'apply'
-type Consent = { client_name: string; redirect_host: string; scope: 'read' | 'write' }
+type Consent = { client_name: string; redirect_host: string; scope: 'read' | 'write' | 'app'; device_name: string | null }
 type Connection = { id: string; client_name: string; scope: 'read' | 'write'; write_mode: 'approve' | 'apply'; created_at: string; last_used_at: string | null }
 type Suggestion = { id: string; client_name: string; project_id: string | null; tool: string; summary: string; created_at: string }
 type Change = { id: string; client_name: string; project_id: string | null; kind: string; summary: string; created_at: string; undone_at: string | null }
@@ -71,6 +71,8 @@ export function ConnectScreen() {
     )
   if (!consent.data) return <AuthPage title="Connect an AI app"><p className="text-stone-500">Loading…</p></AuthPage>
   const c = consent.data
+  if (c.scope === 'app') return <AppSignIn consent={c} onAllow={() => approve.mutate('read')} onDeny={() => deny.mutate()}
+    busy={approve.isPending || deny.isPending || approve.isSuccess || deny.isSuccess} error={approve.error ?? deny.error} />
   const chosen = c.scope === 'read' ? 'read' : access
   const busy = approve.isPending || deny.isPending || approve.isSuccess || deny.isSuccess
   return (
@@ -87,6 +89,29 @@ export function ConnectScreen() {
           <Button variant="ghost" onPress={() => deny.mutate()} isDisabled={busy}>Don't allow</Button>
         </div>
         <p className="text-sm text-stone-500">You can change this or disconnect any time in Account, Connected AI apps.</p>
+      </div>
+    </AuthPage>
+  )
+}
+
+/** The PlanHaven iPhone app signing in (ADR 0021): nothing to choose, it acts as you. */
+function AppSignIn({ consent, onAllow, onDeny, busy, error }: { consent: Consent; onAllow: () => void; onDeny: () => void; busy: boolean; error: unknown }) {
+  const device = consent.device_name ?? 'this device'
+  return (
+    <AuthPage title="Sign in to the app">
+      <div className="space-y-4">
+        <p>Sign in to <strong>{consent.client_name}</strong> on <strong>{device}</strong>?</p>
+        <p className="text-sm text-stone-600 dark:text-stone-400">
+          The app can do what you can do in PlanHaven, except change your password, second factors,
+          signed-in devices, AI apps, calendar and sync keys or share links: those stay on the web.
+          Only allow this if you just started signing in from the app.
+        </p>
+        <ErrorText error={error} />
+        <div className="flex flex-wrap gap-2">
+          <Button onPress={onAllow} isDisabled={busy}>Sign in</Button>
+          <Button variant="ghost" onPress={onDeny} isDisabled={busy}>Cancel</Button>
+        </div>
+        <p className="text-sm text-stone-500">You can sign it out any time in Account, Signed-in apps.</p>
       </div>
     </AuthPage>
   )

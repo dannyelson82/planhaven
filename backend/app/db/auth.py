@@ -201,12 +201,21 @@ async def revoke_session(conn: AsyncConnection, session_id: uuid.UUID) -> None:
 async def revoke_other_sessions(
     conn: AsyncConnection, user_id: uuid.UUID, keep: uuid.UUID | None
 ) -> int:
+    """Sign out the person's other browser sessions, and every signed-in app."""
     result = await conn.execute(
         text(
             "UPDATE sessions SET revoked_at = now() WHERE user_id = :uid "
             "AND revoked_at IS NULL AND (CAST(:keep AS uuid) IS NULL OR id <> :keep)"
         ),
         {"uid": user_id, "keep": keep},
+    )
+    # Signed-in iPhone apps go too (ADR 0021): their tokens check the grant.
+    await conn.execute(
+        text(
+            "UPDATE oauth_grants SET revoked_at = now() "
+            "WHERE user_id = :u AND scope = 'app' AND revoked_at IS NULL"
+        ),
+        {"u": user_id},
     )
     return result.rowcount
 

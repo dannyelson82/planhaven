@@ -22,6 +22,7 @@ class ClientRow:
     client_name: str
     redirect_uris: list[str]
     created_at: datetime
+    first_party: bool = False
 
 
 async def create_client(
@@ -44,7 +45,7 @@ async def client(conn: AsyncConnection, client_id: str) -> ClientRow | None:
     row = (
         await conn.execute(
             text("""
-                SELECT id, client_id, client_name, redirect_uris, created_at
+                SELECT id, client_id, client_name, redirect_uris, created_at, first_party
                 FROM oauth_clients WHERE client_id = :c
             """),
             {"c": client_id},
@@ -57,7 +58,7 @@ async def client_by_id(conn: AsyncConnection, id_: uuid.UUID) -> ClientRow | Non
     row = (
         await conn.execute(
             text("""
-                SELECT id, client_id, client_name, redirect_uris, created_at
+                SELECT id, client_id, client_name, redirect_uris, created_at, first_party
                 FROM oauth_clients WHERE id = :i
             """),
             {"i": id_},
@@ -78,6 +79,7 @@ class RequestRow:
     scope: str
     state: str | None
     expires_at: datetime
+    device_name: str | None = None
 
 
 async def create_request(
@@ -88,15 +90,23 @@ async def create_request(
     code_challenge: str,
     scope: str,
     state: str | None,
+    device_name: str | None = None,
 ) -> uuid.UUID:
     await conn.execute(text("DELETE FROM oauth_requests WHERE expires_at < now()"))
     value = await conn.scalar(
         text("""
             INSERT INTO oauth_requests (client_id, redirect_uri, code_challenge, scope, state,
-                                        expires_at)
-            VALUES (:c, :r, :ch, :s, :st, now() + interval '15 minutes') RETURNING id
+                                        device_name, expires_at)
+            VALUES (:c, :r, :ch, :s, :st, :d, now() + interval '15 minutes') RETURNING id
         """),
-        {"c": client_id, "r": redirect_uri, "ch": code_challenge, "s": scope, "st": state},
+        {
+            "c": client_id,
+            "r": redirect_uri,
+            "ch": code_challenge,
+            "s": scope,
+            "st": state,
+            "d": device_name,
+        },
     )
     if not isinstance(value, uuid.UUID):
         raise RuntimeError("request not created")
@@ -107,7 +117,8 @@ async def request(conn: AsyncConnection, request_id: uuid.UUID) -> RequestRow | 
     row = (
         await conn.execute(
             text("""
-                SELECT id, client_id, redirect_uri, code_challenge, scope, state, expires_at
+                SELECT id, client_id, redirect_uri, code_challenge, scope, state, expires_at,
+                       device_name
                 FROM oauth_requests WHERE id = :i AND expires_at > now()
             """),
             {"i": request_id},
@@ -134,44 +145,72 @@ class GrantRow:
     created_at: datetime
     last_used_at: datetime | None
     revoked_at: datetime | None
+    device_name: str | None = None
+    last_ip: str | None = None
 
 
 async def create_grant(
-    conn: AsyncConnection, *, user_id: uuid.UUID, client_id: uuid.UUID, scope: str, write_mode: str
+    conn: AsyncConnection,
+    *,
+    user_id: uuid.UUID,
+    client_id: uuid.UUID,
+    scope: str,
+    write_mode: str,
+    device_name: str | None = None,
 ) -> uuid.UUID:
-    """One live connection per person and app: connecting again replaces the old one."""
-    await conn.execute(
-        text("""
-            UPDATE oauth_grants SET revoked_at = now()
-            WHERE user_id = :u AND client_id = :c AND revoked_at IS NULL
-        """),
-        {"u": user_id, "c": client_id},
-    )
+    """One live connection per person and AI app: connecting again replaces the old one. The
+    iPhone app (scope `app`) gets one sign-in per device instead (ADR 0021)."""
+    if scope != "app":
+        await conn.execute(
+            text("""
+                UPDATE oauth_grants SET revoked_at = now()
+                WHERE user_id = :u AND client_id = :c AND revoked_at IS NULL
+            """),
+            {"u": user_id, "c": client_id},
+        )
     value = await conn.scalar(
         text("""
-            INSERT INTO oauth_grants (user_id, client_id, scope, write_mode)
-            VALUES (:u, :c, :s, :m) RETURNING id
+            INSERT INTO oauth_grants (user_id, client_id, scope, write_mode, device_name)
+            VALUES (:u, :c, :s, :m, :d) RETURNING id
         """),
-        {"u": user_id, "c": client_id, "s": scope, "m": write_mode},
+        {"u": user_id, "c": client_id, "s": scope, "m": write_mode, "d": device_name},
     )
     if not isinstance(value, uuid.UUID):
         raise RuntimeError("grant not created")
     return value
 
 
-async def grants_of(conn: AsyncConnection, user_id: uuid.UUID) -> list[GrantRow]:
+async def grants_of(
+    conn: AsyncConnection, user_id: uuid.UUID, *, apps: bool = False
+) -> list[GrantRow]:
+    """A person's live AI connections, or (apps=True) their signed-in iPhone apps."""
     rows = await conn.execute(
         text(
             """
             SELECT g.id, g.user_id, g.client_id, c.client_name, g.scope, g.write_mode,
-                   g.created_at, g.last_used_at, g.revoked_at
+                   g.created_at, g.last_used_at, g.revoked_at, g.device_name,
+                   host(g.last_ip) AS last_ip
             FROM oauth_grants g JOIN oauth_clients c ON c.id = g.client_id
-            WHERE g.user_id = :u AND g.revoked_at IS NULL ORDER BY g.created_at
+            WHERE g.user_id = :u AND g.revoked_at IS NULL AND (g.scope = 'app') = :apps
+            ORDER BY g.created_at
             """
         ),
-        {"u": user_id},
+        {"u": user_id, "apps": apps},
     )
     return [GrantRow(**r._mapping) for r in rows]
+
+
+async def revoke_app_grants(conn: AsyncConnection, user_id: uuid.UUID) -> int:
+    """Sign out every iPhone app of this person (password change, second-factor reset, "sign
+    out all other devices"). Their tokens stop at once: token() checks the grant."""
+    result = await conn.execute(
+        text("""
+            UPDATE oauth_grants SET revoked_at = now()
+            WHERE user_id = :u AND scope = 'app' AND revoked_at IS NULL
+        """),
+        {"u": user_id},
+    )
+    return result.rowcount
 
 
 async def grant(conn: AsyncConnection, grant_id: uuid.UUID) -> GrantRow | None:
@@ -180,7 +219,8 @@ async def grant(conn: AsyncConnection, grant_id: uuid.UUID) -> GrantRow | None:
             text(
                 """
                 SELECT g.id, g.user_id, g.client_id, c.client_name, g.scope, g.write_mode,
-                       g.created_at, g.last_used_at, g.revoked_at
+                       g.created_at, g.last_used_at, g.revoked_at, g.device_name,
+                       host(g.last_ip) AS last_ip
                 FROM oauth_grants g JOIN oauth_clients c ON c.id = g.client_id
                 WHERE g.id = :i
                 """
@@ -212,14 +252,56 @@ async def revoke_grant(conn: AsyncConnection, grant_id: uuid.UUID) -> bool:
     return result.rowcount == 1
 
 
-async def grant_used(conn: AsyncConnection, grant_id: uuid.UUID) -> None:
+async def grant_used(conn: AsyncConnection, grant_id: uuid.UUID, ip: str | None = None) -> None:
     await conn.execute(
         text("""
-            UPDATE oauth_grants SET last_used_at = now()
-            WHERE id = :i AND (last_used_at IS NULL OR last_used_at < now() - interval '1 minute')
+            UPDATE oauth_grants SET last_used_at = now(),
+                   last_ip = coalesce(CAST(:ip AS inet), last_ip)
+            WHERE id = :i AND (last_used_at IS NULL OR last_used_at < now() - interval '1 minute'
+                               OR last_ip IS DISTINCT FROM coalesce(CAST(:ip AS inet), last_ip))
         """),
-        {"i": grant_id},
+        {"i": grant_id, "ip": ip},
     )
+
+
+async def set_device_name(conn: AsyncConnection, grant_id: uuid.UUID, name: str) -> None:
+    await conn.execute(
+        text("UPDATE oauth_grants SET device_name = :n WHERE id = :i AND device_name IS NULL"),
+        {"i": grant_id, "n": name},
+    )
+
+
+# ---------------------------------------------------------------- live-update tickets (system)
+
+
+TICKET_SECONDS = 30
+
+
+async def add_ticket(
+    conn: AsyncConnection, ticket_hash: bytes, user_id: uuid.UUID, grant_id: uuid.UUID
+) -> None:
+    await conn.execute(text("DELETE FROM live_tickets WHERE expires_at < now()"))
+    await conn.execute(
+        text("""
+            INSERT INTO live_tickets (ticket_hash, user_id, grant_id, expires_at)
+            VALUES (:h, :u, :g, now() + make_interval(secs => :s))
+        """),
+        {"h": ticket_hash, "u": user_id, "g": grant_id, "s": TICKET_SECONDS},
+    )
+
+
+async def take_ticket(conn: AsyncConnection, ticket_hash: bytes) -> uuid.UUID | None:
+    """Use a ticket once: delete it and return its grant, if it hadn't expired."""
+    row = (
+        await conn.execute(
+            text("""
+                DELETE FROM live_tickets WHERE ticket_hash = :h
+                RETURNING grant_id, expires_at > now() AS live
+            """),
+            {"h": ticket_hash},
+        )
+    ).first()
+    return row.grant_id if row and row.live else None
 
 
 # ---------------------------------------------------------------- codes and tokens (system)

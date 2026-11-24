@@ -20,6 +20,18 @@ export type Release = { version: string; date: string; items: Item[] }
 
 export const RELEASES: Release[] = [
   {
+    version: '0.5.0',
+    date: '2026-11-24',
+    items: [
+      {
+        title: 'Sign in to the PlanHaven iPhone app',
+        text: 'The PlanHaven app for iPhone and iPad now signs in on this site\'s own sign-in page, with a passkey if you use one, and stays signed in while you use it. Each device is listed under Signed-in apps in Account, where you can sign it out.',
+        steps: ['In the app, tap Sign In.', 'Sign in as usual, then tap Sign in to confirm the device.', 'To sign a device out, open Account, then Signed-in apps.'],
+        guide: 'account-and-security',
+      },
+    ],
+  },
+  {
     version: '0.4.1',
     date: '2026-10-14',
     items: [

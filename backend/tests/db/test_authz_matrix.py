@@ -1,9 +1,13 @@
 """Behavioural half of the authorization matrix: every route called as every kind of
 principal must be allowed or refused exactly as tests/authz_matrix.py says."""
 
+import base64
+import hashlib
+import secrets
 import uuid
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from urllib.parse import parse_qs, urlsplit
 
 import httpx2
 import pytest
@@ -12,7 +16,7 @@ from sqlalchemy import text
 
 from app.db.database import Database
 from app.main import create_app
-from tests.authz_matrix import BODIES, EXPECT, MATRIX
+from tests.authz_matrix import BODIES, EXPECT, MATRIX, app_expect
 from tests.db.conftest import _settings
 from tests.db.test_auth import GOOD_PASSWORD, ORIGIN, _setup_admin
 from tests.db.test_mfa import enroll_totp
@@ -97,6 +101,7 @@ async def callers(owner_db: Database, db: Database) -> AsyncIterator[dict[str, C
     await _make_stale(db, "admin2@example.com")
 
     result = {
+        "app": await _app_caller(app, fresh),
         "anon": Caller(_client(app, 6), None),
         "partial": partial,
         "stale": stale,
@@ -108,6 +113,54 @@ async def callers(owner_db: Database, db: Database) -> AsyncIterator[dict[str, C
     for caller in result.values():
         await caller.client.aclose()
     await app.state.db.dispose()
+
+
+APP_REDIRECT = "app.planhaven.ios:/oauth/callback"
+
+
+async def _app_caller(app: FastAPI, person: Caller) -> Caller:
+    """The iPhone app signed in as `person` (ADR 0021): a bearer token, no cookie, no Origin."""
+    verifier = secrets.token_urlsafe(48)
+    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
+    anon = _client(app, 7)
+    r = await anon.get(
+        "/oauth/authorize",
+        params={
+            "response_type": "code",
+            "client_id": "phc_planhaven_ios",
+            "redirect_uri": APP_REDIRECT,
+            "code_challenge": challenge.rstrip(b"=").decode(),
+            "code_challenge_method": "S256",
+            "resource": f"{ORIGIN}/api/v1",
+            "device_name": "Test iPhone",
+        },
+    )
+    request_id = r.headers["location"].split("=", 1)[1]
+    approved = await person.client.post(
+        f"/api/v1/oauth/requests/{request_id}/approve",
+        headers={"x-csrf-token": person.csrf or ""},
+        json={},
+    )
+    code = parse_qs(urlsplit(approved.json()["redirect"]).query)["code"][0]
+    tokens = await anon.post(
+        "/oauth/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": APP_REDIRECT,
+            "client_id": "phc_planhaven_ios",
+            "code_verifier": verifier,
+        },
+    )
+    await anon.aclose()
+    access = tokens.json()["access_token"]
+    assert access.startswith("phv_aat_")
+    client = httpx2.AsyncClient(
+        transport=httpx2.ASGITransport(app=app, client=("198.51.100.8", 1)),
+        base_url=ORIGIN,
+        headers={"authorization": f"Bearer {access}"},
+    )
+    return Caller(client, None)
 
 
 def _url(path: str) -> str:
@@ -181,4 +234,22 @@ async def test_public_unsafe_routes_need_our_origin(callers: dict[str, Caller]) 
         )
         if response.status_code != 403:
             failures.append(f"{method} {path}: {response.status_code} from a foreign origin")
+    assert failures == []
+
+
+async def test_every_route_with_the_iphone_apps_token(callers: dict[str, Caller]) -> None:
+    """ADR 0021: the app's token works where a verified session does, except account security
+    (403 "Do this in PlanHaven on the web."), and never needs a CSRF token."""
+    failures = []
+    for method, path in _ordered():
+        expected = app_expect(method, path)
+        status = await _call(callers["app"], method, path)
+        if expected == "ok":
+            cls = MATRIX[(method, path)]
+            refused = {401, 403} | ({404} if cls == "admin" and "{" not in path else set())
+            ok = status not in refused
+        else:
+            ok = status == expected
+        if not ok:
+            failures.append(f"{method} {path} as the app: got {status}, expected {expected}")
     assert failures == []
