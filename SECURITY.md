@@ -293,7 +293,7 @@ read-only, feed-only, and defaults to "titles only" content. Tokens are never lo
     metadata (colour profile kept) in a separate process that sets its own CPU, memory,
     file-size and open-file limits before reading input, with an empty environment, a
     30-second timeout, a 50-megapixel cap and only the JPEG, PNG, GIF and WebP decoders.
-    It still runs as the app's user until the 0.5 extraction sandbox (§7.6). iPhone (HEIC)
+    It still runs as the app's user until the extraction sandbox in phase 0.6 (§7.6). iPhone (HEIC)
     photos are first decoded to JPEG by libheif's separate command-line decoder (Debian
     package, decoder plugin only; the build fails if the GPL x265 encoder is present) under
     `prlimit` (CPU, memory, file size, open files, no core dumps) with an empty environment

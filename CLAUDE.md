@@ -4,11 +4,11 @@ Guidance for Claude Code (and other AI agents) working in this repository.
 
 ## Project status
 
-PlanHaven is building **phase 0.4, the AI connector** (checklist: `docs/roadmap/phase-0.4.md`; 0.1 to 0.3 are done; the roadmap was renumbered by ADR 0019). The source of truth is:
+PlanHaven is building **phase 0.5, iPhone app support on the server** (checklist: `docs/roadmap/phase-0.5.md`; 0.1 to 0.4 are done; the roadmap was renumbered by ADR 0019 and ADR 0021). The iPhone app itself is a separate repository. The source of truth is:
 
 - `ARCHITECTURE.md`: how it's built and why (cited as A§n)
 - `SECURITY.md`: threat model, controls, release criteria (cited as S§n)
-- `docs/adr/`: decision records (ADRs 0001–0019; index in `docs/adr/README.md`)
+- `docs/adr/`: decision records (ADRs 0001–0021; index in `docs/adr/README.md`)
 - `docs/repo-setup.md`: GitHub hardening checklist
 
 Read the relevant sections before implementing anything. If code and docs disagree, stop and
@@ -42,6 +42,10 @@ and/or adds an ADR in the same PR.
   real server IPs, hostnames, domains, container names or network layout in committed files.
   Use `example.com` and RFC 5737 addresses (`192.0.2.x`) in docs. Local setup notes go in
   `.local/` (gitignored).
+- CI's **Privacy check** (`.github/scripts/privacy-check.py`) fails when new
+  commits add real private or Tailscale addresses or real `*.ts.net` names,
+  or use a computer's local address as commit email (it must be the GitHub
+  noreply address). Genuine example addresses go in `.privacy-allow`.
 
 ## Non-negotiables
 
@@ -92,6 +96,8 @@ image. Full table in A§5; layout in A§6.
 
 - `main` is protected: work on a branch and open a PR. The PR template's security checklist
   must be filled in honestly.
+- **Claude merges** its own and Dependabot's PRs (squash) once every required check passes,
+  without waiting for review. Tagging or publishing a release still needs the maintainer's OK.
 - Commits **must be signed**. This clone is set up for SSH signing
   (`commit.gpgsign=true`, key `~/.ssh/id_ed25519_signing`). Never pass `--no-gpg-sign` or
   otherwise bypass signing. Check with `git log --show-signature -1`.

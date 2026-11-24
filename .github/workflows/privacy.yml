@@ -1,0 +1,34 @@
+name: Privacy
+
+# Fails when new commits would make personal infrastructure details public: a
+# computer's local email address as commit author, real private or Tailscale
+# addresses, or real tailnet names (.github/scripts/privacy-check.py, CLAUDE.md).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  privacy:
+    name: Privacy check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check new commits
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          base="${PR_BASE:-$PUSH_BEFORE}"
+          if [ -z "$base" ] || [ "$base" = 0000000000000000000000000000000000000000 ]; then
+            base="$(git merge-base origin/main HEAD)"
+          fi
+          python3 -I .github/scripts/privacy-check.py "$base" HEAD

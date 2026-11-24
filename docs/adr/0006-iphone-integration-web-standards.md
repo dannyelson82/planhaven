@@ -5,6 +5,9 @@
 
 > **Update 2026-09-28:** native iPhone and Android apps are now planned for later
 > (ARCHITECTURE.md §18, §19.2). This decision still holds for phase 0.3.
+>
+> **Update 2026-11-24:** a native iPhone app is being built; its server support is phase 0.5
+> (ADR 0021). The Shortcut, ICS feed, Web Push and PWA stay for people without the app.
 
 ## Context
 
