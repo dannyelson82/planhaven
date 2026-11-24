@@ -121,6 +121,20 @@ jobs:
           subject-digest: ${{ steps.manifest.outputs.digest }}
           push-to-registry: true
 
+      # The REST API's OpenAPI schema for this exact version (ADR 0021): the iPhone app builds
+      # and checks its client against it. Not served by the running server (A§8.2).
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          working-directory: backend
+          enable-cache: false
+      - name: OpenAPI schema
+        working-directory: backend
+        env:
+          REF: ${{ github.ref_name }}
+        run: |
+          uv sync --locked --no-dev
+          uv run --no-sync python -m app.openapi_schema ../openapi.json "${REF#v}"
+
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -139,4 +153,4 @@ jobs:
           \`\`\`
           NOTES
           gh release create "$REF" --repo "${{ github.repository }}" --title "PlanHaven $REF" \
-            --notes-file notes.md --verify-tag sbom.spdx.json
+            --notes-file notes.md --verify-tag sbom.spdx.json openapi.json
