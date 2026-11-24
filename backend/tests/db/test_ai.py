@@ -356,3 +356,40 @@ def test_token_endpoint_rejects_junk(team: Team) -> None:
     assert r.json()["error"] == "unsupported_grant_type"
     r = owner.client.post("/oauth/token", data={"grant_type": "password"})
     assert r.json()["error"] == "unsupported_grant_type"
+
+
+def _rate_limited(result: dict[str, Any]) -> bool:
+    return bool(result.get("isError")) and '"rate_limited"' in result["content"][0]["text"]
+
+
+def test_registration_and_token_endpoint_are_rate_limited(team: Team) -> None:
+    owner = team[0]
+    for _ in range(10):  # OAUTH_REGISTER_IP: 10 at once per address
+        _register(owner)
+    r = owner.client.post("/oauth/register", json={"redirect_uris": [REDIRECT]})
+    assert r.status_code == 429
+    assert int(r.headers["retry-after"]) > 0
+
+    for _ in range(30):  # OAUTH_TOKEN_IP: 30 at once per address, wrong tokens included
+        bad = _token(owner, grant_type="refresh_token", refresh_token="phv_ort_x", client_id="x")
+        assert bad.status_code == 400
+    r = _token(owner, grant_type="refresh_token", refresh_token="phv_ort_x", client_id="x")
+    assert r.status_code == 429
+
+
+def test_tool_calls_and_changes_are_rate_limited_per_connection(team: Team) -> None:
+    owner, _, _, pid, _ = team
+    first = _connect(owner)["access_token"]
+    second = _connect(owner)["access_token"]
+    # MCP_WRITE_GRANT: 30 changes at once; a refused or invalid change still counts.
+    for _ in range(30):
+        result = _tool(owner, first, "planhaven_add_note", project_id=pid, title="", text="")
+        assert not _rate_limited(result)
+    assert _rate_limited(_tool(owner, first, "planhaven_add_note", project_id=pid, title="x"))
+    # Reading still works until MCP_GRANT (120 calls at once) runs out: 31 used so far.
+    for _ in range(120 - 31):
+        assert not _rate_limited(_tool(owner, first, "planhaven_connection_info"))
+    assert _rate_limited(_tool(owner, first, "planhaven_connection_info"))
+    # Each connection has its own buckets.
+    assert not _rate_limited(_tool(owner, second, "planhaven_connection_info"))
+    assert not _rate_limited(_tool(owner, second, "planhaven_add_note", project_id=pid, title="x"))
