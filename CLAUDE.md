@@ -92,6 +92,8 @@ image. Full table in A§5; layout in A§6.
 
 - `main` is protected: work on a branch and open a PR. The PR template's security checklist
   must be filled in honestly.
+- **Claude merges** its own and Dependabot's PRs (squash) once every required check passes,
+  without waiting for review. Tagging or publishing a release still needs the maintainer's OK.
 - Commits **must be signed**. This clone is set up for SSH signing
   (`commit.gpgsign=true`, key `~/.ssh/id_ed25519_signing`). Never pass `--no-gpg-sign` or
   otherwise bypass signing. Check with `git log --show-signature -1`.
