@@ -17,6 +17,7 @@ from enum import StrEnum
 from typing import Literal
 
 STEP_UP_WINDOW = timedelta(minutes=5)
+WEB_ONLY = "Do this in PlanHaven on the web."
 
 
 class AuthzError(Exception):
@@ -37,13 +38,16 @@ class StepUpRequiredError(ForbiddenError):
 
 @dataclass(frozen=True, slots=True)
 class Principal:
-    """Who is asking. Token and OAuth principals are added with those features."""
+    """Who is asking. `kind` is "session" for a browser, "app" for the iPhone app's token
+    (ADR 0021; the person with their second factor done, never a recent one), or a key
+    principal (KEY_ACTIONS)."""
 
     user_id: uuid.UUID
     is_admin: bool
     mfa_verified: bool
     reauth_at: datetime | None
     kind: str = "session"
+    ai_grant: bool = False  # an AI app's connection acting as this person (ADR 0019, 0020)
 
     def recently_verified(self, now: datetime | None = None) -> bool:
         now = now or datetime.now(UTC)
@@ -62,6 +66,7 @@ class Action(StrEnum):
     CHANGE_SIGN_IN = "account.change_sign_in"  # changing the password
     MANAGE_SECOND_FACTORS = "account.manage_second_factors"
     MANAGE_OWN_SESSIONS = "account.manage_sessions"
+    VIEW_SECURITY = "account.view_security"  # passkeys and other sign-in methods
     READ_NOTIFICATIONS = "account.read_notifications"
     # Administration (users, invites, settings; never project data)
     ADMIN = "admin.manage"
@@ -100,6 +105,12 @@ class Action(StrEnum):
     AI_CONNECT = "ai.connect"
     MCP_READ = "mcp.read"
     MCP_WRITE = "mcp.write"
+    # Seeing and changing AI connections, and the consent screen (web only, ADR 0021).
+    AI_MANAGE = "ai.manage"
+    # Seeing and revoking calendar and sync keys (web only, ADR 0021).
+    TOKEN_MANAGE = "token.manage"  # noqa: S105  # nosec B105 (an action name, not a secret)
+    # Signing the iPhone app in on its consent page: a fresh second factor (ADR 0021).
+    APP_SIGN_IN = "app.sign_in"
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,6 +126,7 @@ RULES: dict[Action, Rule] = {
     Action.CHANGE_SIGN_IN: Rule(recent=True),
     Action.MANAGE_SECOND_FACTORS: Rule(recent=True),
     Action.MANAGE_OWN_SESSIONS: Rule(),
+    Action.VIEW_SECURITY: Rule(),
     Action.READ_NOTIFICATIONS: Rule(),
     Action.ADMIN: Rule(recent=True, admin=True),
     Action.PROJECT_VIEW: Rule(),
@@ -145,7 +157,33 @@ RULES: dict[Action, Rule] = {
     Action.AI_CONNECT: Rule(recent=True),
     Action.MCP_READ: Rule(),
     Action.MCP_WRITE: Rule(),
+    Action.AI_MANAGE: Rule(),
+    Action.TOKEN_MANAGE: Rule(),
+    Action.APP_SIGN_IN: Rule(recent=True),
 }
+
+# What the iPhone app's token may never do (ADR 0021): account security stays on the web, so a
+# stolen phone token can't take the account over or open new ways in.
+APP_REFUSED = frozenset(
+    {
+        Action.ADMIN,
+        Action.CHANGE_SIGN_IN,
+        Action.MANAGE_SECOND_FACTORS,
+        Action.MANAGE_OWN_SESSIONS,
+        Action.VIEW_SECURITY,
+        Action.TOKEN_CREATE,
+        Action.TOKEN_MANAGE,
+        Action.AI_CONNECT,
+        Action.AI_MANAGE,
+        Action.APP_SIGN_IN,
+        Action.PROJECT_SHARE_LINK,
+    }
+)
+
+# An AI app's write connection may change household members (ADR 0020) without a fresh second
+# factor, which it can't give: the person gave one when connecting it. Never owners, and never
+# the person's own membership (require_ai_member_change). Share links stay step-up only.
+AI_STEP_UP_EXEMPT = frozenset({Action.PROJECT_SHARE, Action.ASSET_SHARE})
 
 # What a key principal (Principal.kind) may do: nothing else (SECURITY.md §7.3).
 KEY_ACTIONS: dict[str, frozenset[Action]] = {
@@ -190,6 +228,8 @@ def require(principal: Principal, action: Action, resource: ProjectAccess | None
     rule = RULES[action]
     if principal.kind in KEY_ACTIONS and action not in KEY_ACTIONS[principal.kind]:
         raise ForbiddenError("This key can't do that.")
+    if principal.kind == "app" and action in APP_REFUSED:
+        raise ForbiddenError(WEB_ONLY)
     key_only = (Action.FEED_READ, Action.SYNC_USE, Action.MCP_READ, Action.MCP_WRITE)
     if action in key_only and principal.kind not in KEY_ACTIONS:
         raise ForbiddenError("Use a key or an AI app's token.")
@@ -197,7 +237,8 @@ def require(principal: Principal, action: Action, resource: ProjectAccess | None
         raise NotFoundError("Not found.")
     if rule.verified and not principal.mfa_verified:
         raise ForbiddenError("Second factor required.")
-    if rule.recent and not principal.recently_verified():
+    exempt = principal.ai_grant and action in AI_STEP_UP_EXEMPT
+    if rule.recent and not exempt and not principal.recently_verified():
         raise StepUpRequiredError("Confirm it's you with your second factor to continue.")
     if action in PROJECT_ROLES:
         if resource is None or resource.role is None:
@@ -205,6 +246,25 @@ def require(principal: Principal, action: Action, resource: ProjectAccess | None
             raise NotFoundError("Not found.")
         if resource.role not in PROJECT_ROLES[action]:
             raise ForbiddenError("Your role doesn't allow that.")
+
+
+def require_web(principal: Principal, action: Action) -> None:
+    """Refuse the iPhone app's token (ADR 0021) before anything is looked up, for actions it may
+    never do (APP_REFUSED). The full check is still `require`."""
+    if principal.kind == "app" and action in APP_REFUSED:
+        raise ForbiddenError(WEB_ONLY)
+
+
+def require_ai_member_change(
+    principal: Principal, user_id: uuid.UUID, current_role: str | None, new_role: str | None
+) -> None:
+    """What an AI app may change about who is on a project or asset (ADR 0020), on top of
+    require(..., PROJECT_SHARE/ASSET_SHARE): editors and viewers only, never the person's own
+    access. Applies to its suggestions too, whoever approves them."""
+    if user_id == principal.user_id:
+        raise ForbiddenError("An AI app can't change your own access.")
+    if "owner" in (current_role, new_role):
+        raise ForbiddenError("An AI app can't add, change or remove owners.")
 
 
 @dataclass(frozen=True, slots=True)

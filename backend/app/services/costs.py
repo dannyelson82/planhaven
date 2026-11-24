@@ -97,6 +97,15 @@ async def create_quote(
     return quote
 
 
+async def get_quote(db: Database, session: CurrentSession, quote_id: uuid.UUID) -> QuoteRow:
+    async with db.user_transaction(session.user.id) as conn:
+        quote = await store.get_quote(conn, quote_id)
+        if quote is None:
+            raise authz.NotFoundError("Not found.")
+        _require(session, await _project_access(conn, quote.project_id), write=False)
+    return quote
+
+
 async def update_quote(
     db: Database,
     session: CurrentSession,

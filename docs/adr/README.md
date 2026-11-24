@@ -24,3 +24,5 @@ A decision is changed by adding a new ADR that supersedes the old one, not by re
 | [0017](0017-project-page-tiles.md) | Project pages arranged as tiles, per person | Accepted |
 | [0018](0018-notifications-messages-presence.md) | Notifications screen, messages between users, online status | Accepted |
 | [0019](0019-ai-connector-first.md) | The AI connector comes next (roadmap renumbered); per-connection write mode | Accepted |
+| [0020](0020-ai-connector-full-control.md) | AI apps can edit, delete and share project content (to the Trash, undoable; no share links) | Accepted |
+| [0021](0021-iphone-app-support-and-app-sign-in.md) | Server support for the iPhone app comes next (roadmap renumbered); app sign-in with a first-party OAuth client | Accepted |

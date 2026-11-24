@@ -12,7 +12,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 from app import authz
 from app.db import asset_service as store
@@ -193,7 +193,7 @@ async def add_reading(
     distance: Decimal | None,
     hours: Decimal | None,
     ip: str | None,
-) -> None:
+) -> uuid.UUID:
     if distance is None and hours is None:
         raise ServiceError("Enter a distance or hours.")
     async with db.user_transaction(session.user.id) as conn:
@@ -207,6 +207,7 @@ async def add_reading(
             hours=hours,
         )
         await _audit(conn, session, "asset_reading.created", "asset_reading", reading_id, ip)
+    return reading_id
 
 
 async def delete_reading(
@@ -362,3 +363,51 @@ async def delete_record(
         _can(session, await _access(conn, before.asset_id), write=True)
         await store.delete_record(conn, record_id)
         await _audit(conn, session, "service_record.deleted", "service_record", record_id, ip)
+
+
+async def restore(
+    db: Database,
+    session: CurrentSession,
+    kind: Literal["schedule", "record"],
+    item_id: uuid.UUID,
+    ip: str | None,
+) -> None:
+    """Bring back a deleted schedule or record (Undo of an AI delete); same rights as deleting."""
+    async with db.user_transaction(session.user.id) as conn:
+        asset_id = await store.deleted_parent(conn, kind, item_id)
+        if asset_id is None:
+            raise authz.NotFoundError("Not found.")
+        _can(session, await _access(conn, asset_id), write=True)
+        if not await store.restore(conn, kind, item_id):
+            raise authz.NotFoundError("Not found.")
+        name = "service_schedule" if kind == "schedule" else "service_record"
+        await _audit(conn, session, f"{name}.restored", name, item_id, ip)
+
+
+async def get_schedule(
+    db: Database, session: CurrentSession, schedule_id: uuid.UUID
+) -> ScheduleRow:
+    async with db.user_transaction(session.user.id) as conn:
+        schedule = await store.get_schedule(conn, schedule_id)
+        if schedule is None:
+            raise authz.NotFoundError("Not found.")
+        _can(session, await _access(conn, schedule.asset_id), write=False)
+    return schedule
+
+
+async def get_reading(db: Database, session: CurrentSession, reading_id: uuid.UUID) -> ReadingRow:
+    async with db.user_transaction(session.user.id) as conn:
+        reading = await store.get_reading(conn, reading_id)
+        if reading is None:
+            raise authz.NotFoundError("Not found.")
+        _can(session, await _access(conn, reading.asset_id), write=False)
+    return reading
+
+
+async def get_record(db: Database, session: CurrentSession, record_id: uuid.UUID) -> RecordRow:
+    async with db.user_transaction(session.user.id) as conn:
+        record = await store.get_record(conn, record_id)
+        if record is None:
+            raise authz.NotFoundError("Not found.")
+        _can(session, await _access(conn, record.asset_id), write=False)
+    return record

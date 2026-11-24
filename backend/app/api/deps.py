@@ -1,5 +1,9 @@
 """Request dependencies shared by routers: settings, database, client address, the current
-session, and CSRF protection (SECURITY.md §7.2)."""
+session, and CSRF protection (SECURITY.md §7.2).
+
+The iPhone app (ADR 0021) sends `Authorization: Bearer phv_aat_...` instead of a cookie. It
+counts as a verified session (no CSRF or Origin checks: nothing ambient), is refused (403) on
+routes that need a password-only session or an admin, and can't also send a session cookie."""
 
 from typing import Annotated, Any
 
@@ -56,6 +60,17 @@ def require_same_origin(request: Request) -> None:
         raise HTTPException(403, "Cross-origin request refused.")
 
 
+def bearer_token(request: Request) -> str | None:
+    scheme, _, token = request.headers.get("authorization", "").partition(" ")
+    token = token.strip()
+    return token if scheme.lower() == "bearer" and token else None
+
+
+def _no_cookie_with_bearer(request: Request) -> None:
+    if session_cookie_name(settings(request)) in request.cookies:
+        raise HTTPException(400, "Send a session cookie or an app token, not both.")
+
+
 async def optional_session(request: Request) -> CurrentSession | None:
     token = request.cookies.get(session_cookie_name(settings(request)), "")
     return await auth_service.authenticate(database(request), token)
@@ -64,7 +79,11 @@ async def optional_session(request: Request) -> CurrentSession | None:
 async def require_session(
     request: Request, session: Annotated[CurrentSession | None, Depends(optional_session)]
 ) -> CurrentSession:
-    """A signed-in session. Unsafe methods also need the session's CSRF token."""
+    """A signed-in session. Unsafe methods also need the session's CSRF token. The iPhone app's
+    token isn't one: routes for password-only sessions and admins are web only."""
+    if bearer_token(request) is not None:
+        _no_cookie_with_bearer(request)
+        raise HTTPException(403, authz.WEB_ONLY)
     if session is None:
         raise HTTPException(401, "Sign in to continue.")
     if request.method in UNSAFE_METHODS:
@@ -76,10 +95,26 @@ async def require_session(
 
 
 async def require_verified_session(
-    session: Annotated[CurrentSession, Depends(require_session)],
+    request: Request, cookie: Annotated[CurrentSession | None, Depends(optional_session)]
 ) -> CurrentSession:
     """A session that has completed the second factor. Everything except sign-in, the second
-    factor itself and sign-out requires this (SECURITY.md §7.1)."""
+    factor itself and sign-out requires this (SECURITY.md §7.1). The iPhone app's access token
+    counts as one (ADR 0021); what it may not do is refused in `authz.require`."""
+    token = bearer_token(request)
+    if token is not None:
+        from app.services import oauth
+
+        _no_cookie_with_bearer(request)
+        app_session = await oauth.authenticate_app(database(request), token, client_ip(request))
+        if app_session is None:
+            raise HTTPException(
+                401,
+                "This sign-in has ended.",
+                headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
+            )
+        session = app_session
+    else:
+        session = await require_session(request, cookie)
     authz.require(session.principal, authz.Action.USE_APP)
     return session
 
@@ -123,9 +158,18 @@ async def require_admin(
 async def websocket_session(websocket: Any) -> CurrentSession | None:
     """Authenticate a WebSocket handshake (SECURITY.md §7.15): the browser-set Origin must be
     ours (no cross-site WebSocket hijacking), and the session cookie must belong to a session
-    that has completed its second factor."""
+    that has completed its second factor. The iPhone app instead passes a single-use ticket
+    (`?ticket=phv_wst_...`, ADR 0021); it sends no Origin, and a foreign one is refused."""
     settings_: Settings = websocket.app.state.settings
-    if websocket.headers.get("origin") != settings_.base_origin:
+    origin = websocket.headers.get("origin")
+    ticket = websocket.query_params.get("ticket")
+    if ticket is not None:
+        from app.services import oauth
+
+        if origin is not None and origin != settings_.base_origin:
+            return None
+        return await oauth.use_live_ticket(websocket.app.state.db, ticket)
+    if origin != settings_.base_origin:
         return None
     token = websocket.cookies.get(session_cookie_name(settings_), "")
     session = await auth_service.authenticate(websocket.app.state.db, token)
@@ -135,6 +179,10 @@ async def websocket_session(websocket: Any) -> CurrentSession | None:
 
 
 async def session_still_valid(websocket: Any, session: CurrentSession) -> bool:
+    if session.app_grant is not None:
+        from app.services import oauth
+
+        return await oauth.app_still_signed_in(websocket.app.state.db, session)
     return await auth_service.still_active(websocket.app.state.db, session)
 
 

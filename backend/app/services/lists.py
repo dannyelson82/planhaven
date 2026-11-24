@@ -390,6 +390,29 @@ async def delete_item(
     live.publish(before.project_id, "lists")
 
 
+async def restore_item(
+    db: Database, session: CurrentSession, item_id: uuid.UUID, ip: str | None
+) -> None:
+    """Bring back a deleted item (Undo of an AI delete); same rights as deleting it."""
+    async with db.user_transaction(session.user.id) as conn:
+        project_id = await store.deleted_item_parent(conn, item_id)
+        if project_id is None:
+            raise authz.NotFoundError("Not found.")
+        _can(session, await _access(conn, project_id), write=True)
+        if not await store.restore_item(conn, item_id):
+            raise authz.NotFoundError("Not found.")
+        await audit.record_audit(
+            conn,
+            action="list_item.restored",
+            actor_user_id=session.user.id,
+            ip=ip,
+            project_id=project_id,
+            resource_type="list_item",
+            resource_id=item_id,
+        )
+    live.publish(project_id, "lists")
+
+
 Suggestion = store.Suggestion
 MAX_SUGGESTIONS = 8
 

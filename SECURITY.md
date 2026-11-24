@@ -141,8 +141,12 @@ Organized by STRIDE category. Details for each control are in §7.
 | Token leakage (ICS URL, sync token) | Info disclosure | Narrow scopes, hashed storage, revocation, "titles only" feeds, identifiable prefixes for secret scanning (§7.3) |
 | Malicious or impersonating AI app, stolen OAuth token | Spoofing / Elevation | Consent shows the app and its return host, needs a fresh second factor; PKCE S256, exact redirects, single-use codes; 1-hour access tokens, rotated refresh tokens with reuse revocation; scope and mode chosen by the person; disconnect at once (§7.18) |
 | Malicious upload (parser exploit, zip bomb, polyglot) | Elevation / DoS | Byte-sniffed type allowlist, size limits, no auto-extract of archives, sandboxed extractor subprocess with rlimits and timeouts (§7.5, §7.6) |
-| Prompt injection via documents or web content | Tampering / Info disclosure | Content delimited as data; AI acts only with the user's rights; no delete tools; propose-and-approve by default; scoped OAuth; `local_ai_only` projects hidden; audit + undo; features experimental until tested (§7.7) |
+| Prompt injection via documents or web content | Tampering / Info disclosure | Content delimited as data; AI acts only with the user's rights; no share-link, owner, account or permanent-delete tools; deletes go to the Trash, marked destructive; household members editor/viewer only (ADR 0020); propose-and-approve by default; scoped OAuth; `local_ai_only` projects hidden; audit + undo; features experimental until tested (§7.7) |
+| Stolen iPhone app token or lost phone | Spoofing / Elevation | Access tokens 1 hour, refresh tokens rotated with reuse revocation and ended after 90 days unused; account security, AI connections, keys and share links refused with an app token; never a recent second factor; Signed-in apps list with Sign out; password change or "sign out all other devices" ends every app (§7.19) |
+| Another app on the phone claiming the iPhone app's redirect scheme | Spoofing | PKCE S256 (the verifier never leaves the app), ephemeral browser session, single-use 2-minute codes; the scheme is accepted only for the built-in client (§7.19, RFC 8252 §8.1) |
+| App token used where only AI apps' tokens (or the reverse) belong | Elevation | Separate audiences and prefixes (`/api/v1` vs `/mcp`), checked on every request (§7.19) |
 | Over-privileged AI connector | Elevation | Read vs. write scopes chosen at consent, per-client revocation, 2FA at consent (§7.3, §7.7) |
+| AI app tricked into sharing a project or trashing its content | Info disclosure / Tampering | Household members only (no share links), editor or viewer only, never the person's own access; the person added is notified; deletes only to the Trash; every change listed on the AI page with Undo; approve first by default (§7.4, §7.7, ADR 0020) |
 | SSRF via configurable URLs | Elevation / Info disclosure | AI endpoints admin-only; push hosts allowlisted; no user-supplied fetch URLs in core (§7.8) |
 | Push subscription endpoint pointed at an internal or attacker host (the browser supplies it) | SSRF / Elevation | Endpoint must be HTTPS on port 443 at an allowlisted push-service host, checked when registered and again before each send; no redirects followed, timeouts, response read capped (`app/push/webpush.py`, §7.8) |
 | Phone alert content read by the push service or on a lock screen | Info disclosure | Payload encrypted for the device (RFC 8291) and signed (RFC 8292) with vetted libraries; only a title, a short line and an app path, never note text; each person chooses which kinds reach the phone |
@@ -229,8 +233,9 @@ Organized by STRIDE category. Details for each control are in §7.
 - Users see active sessions (device, approximate location from IP, last used) and can revoke
   any or all. Password change revokes all other sessions.
 - CSRF: synchronizer token for state-changing requests from the browser, plus `Origin` header
-  verification against `BASE_URL`. Token-authenticated endpoints (sync, MCP) don't use cookies
-  and are not CSRF-susceptible.
+  verification against `BASE_URL`. Token-authenticated endpoints (sync, MCP, the iPhone app's
+  bearer token on `/api/v1`) don't use cookies and are not CSRF-susceptible; a request with
+  both a session cookie and a bearer token is refused (§7.19).
 
 ### 7.3 Tokens
 
@@ -245,6 +250,9 @@ scanners (GitHub custom secret-scanning patterns are provided in `docs/`).
 | Personal API token | `phv_pat_` | User-selected scopes | Max 1 year, expiry required | User scripts |
 | OAuth access token (MCP) | `phv_oat_` | `projects:read` and/or `projects:write`, audience `/mcp` | 1 hour | AI provider |
 | OAuth refresh token | `phv_ort_` | Obtain new access tokens | 30 days, rotated on use, reuse revokes family | AI provider |
+| iPhone app access token | `phv_aat_` | The person's REST API (`/api/v1`), except web-only routes (§7.19) | 1 hour | The app's Keychain |
+| iPhone app refresh token | `phv_art_` | Obtain new app access tokens | 90 days without use (`APP_SIGNIN_IDLE_DAYS`), rotated on use, reuse revokes family | The app's Keychain |
+| Live-update ticket | `phv_wst_` | Open one live-update WebSocket for the app | 30 seconds, single use | WebSocket URL |
 | Invite | `phv_inv_` | Create one account | 72 hours, single use | Invite link |
 | Setup token | `phv_setup_` | Create the first admin account | 24 hours or first use; replaced on every boot while no admin exists | Container log |
 
@@ -264,7 +272,9 @@ read-only, feed-only, and defaults to "titles only" content. Tokens are never lo
   so IDs can't be probed.
 - **Shared one by one:** projects, assets, contacts and templates each have their own members
   (owner, editor, viewer); only owners share (with a fresh second factor), and each keeps at
-  least one owner. Using a template in a project also needs edit rights on that project.
+  least one owner. One exception: an AI app's write connection may add, change and remove
+  editors and viewers without one, since the person gave one when connecting it; never owners
+  or the person's own access, never share links (`authz.AI_STEP_UP_EXEMPT`, ADR 0020). Using a template in a project also needs edit rights on that project.
 - **Experimental features** (ADR 0012) are off unless an admin turns them on and makes each
   available (step-up, audited, stored where only the system context can write), and each
   person opts in for themselves (their own rows only). Code behind one checks both.
@@ -290,7 +300,7 @@ read-only, feed-only, and defaults to "titles only" content. Tokens are never lo
     metadata (colour profile kept) in a separate process that sets its own CPU, memory,
     file-size and open-file limits before reading input, with an empty environment, a
     30-second timeout, a 50-megapixel cap and only the JPEG, PNG, GIF and WebP decoders.
-    It still runs as the app's user until the 0.5 extraction sandbox (§7.6). iPhone (HEIC)
+    It still runs as the app's user until the extraction sandbox in phase 0.6 (§7.6). iPhone (HEIC)
     photos are first decoded to JPEG by libheif's separate command-line decoder (Debian
     package, decoder plugin only; the build fails if the GPL x265 encoder is present) under
     `prlimit` (CPU, memory, file size, open files, no core dumps) with an empty environment
@@ -324,8 +334,11 @@ Prompt injection can't be fully prevented, so the design limits what a hijacked 
 
 - **Data, not instructions.** Retrieved chunks and attachment text are wrapped in delimited,
   labeled blocks and system prompts instruct models to treat them as untrusted content.
-- **Least privilege for MCP.** No delete tools, no sharing or account tools, no raw file
-  download. Read-only grants are offered at consent.
+- **Least privilege for MCP.** Write connections can edit and delete project content and
+  share with household members (ADR 0020), but every delete goes to the Trash and is undoable
+  for 30 days; there are no share-link, owner, permanent-delete, Trash, account or admin tools
+  and no raw file download. Delete
+  tools are annotated destructive. Read-only grants are offered at consent.
 - **Privacy flag.** `local_ai_only` projects are invisible to MCP clients and cannot be sent to
   commercial providers; enforced in the provider layer.
 - **Audit and undo.** Every AI-originated write is recorded with the app's name and can be
@@ -333,7 +346,7 @@ Prompt injection can't be fully prevented, so the design limits what a hijacked 
 - **Rate limits** per OAuth client on write tools.
 - **AI changes follow the assistant rules (ADR 0012).** Local and commercial models act only
   through assistant tools that run as the signed-in user (`authz.require` + RLS), never with
-  more rights. No delete, sharing, account or admin tools. Every change is attributed and
+  more rights. No sharing, account or admin tools; MCP deletes only to the Trash (ADR 0020). Every change is attributed and
   undoable. The default mode is **propose and approve**: nothing is written until the user
   approves the change set. "Apply directly" is a per-feature option the admin may allow.
 - **Experimental features are off by default.** Admin enables availability (step-up, audited),
@@ -399,8 +412,9 @@ Cross-Origin-Resource-Policy: same-origin
   `TRUSTED_PROXIES`; otherwise the peer address is used. In `PUBLIC_MODE` the app refuses to
   start without `TRUSTED_PROXIES` and an `https` `BASE_URL`.
 - Rate limits (token bucket, stored in PostgreSQL/in-memory):
-  login and 2FA per IP and per account; invite and OAuth registration per IP; MCP write tools
-  per client; sync per token; uploads per user; AI questions per user.
+  login and 2FA per IP and per account; invite and OAuth registration per IP; the OAuth token
+  endpoint per IP and per client, refreshes per token family; MCP write tools per client; sync
+  per token; live-update tickets per app sign-in; uploads per user; AI questions per user.
 - Lockout on failed logins: token buckets per IP (20, then 1 per 30 s), per account per IP (5,
   then 1 per minute; reset on success) and per account across all IPs (50, then 1 per minute),
   so an attacker elsewhere can't lock a real user out. Second-factor attempts: 10 per user,
@@ -420,8 +434,9 @@ Cross-Origin-Resource-Policy: same-origin
 - **Audit log** (database, append-only for the app role): who did what, when, from where, via
   which client (UI, token, MCP client). Visible per project to members and globally to admins
   (metadata only, not content).
-- Users are notified (push/in-app) of new sign-ins, new MCP client approvals, and token
-  creation.
+- Users are notified (push/in-app) of new sign-ins, new MCP client approvals, new iPhone app
+  sign-ins, and token creation. App sign-ins are audited (`app.signed_in`, `app_token.issued`,
+  `.refreshed`, `.reuse_detected`, `.revoked`).
 
 ### 7.13 Container hardening
 
@@ -536,6 +551,33 @@ Cross-Origin-Resource-Policy: same-origin
   paths); wrong keys are security events (`key_failed`, counted by the fail2ban filter and
   CrowdSec scenario) and limited per address; valid keys rate limited per key.
 
+### 7.19 The iPhone app's sign-in (phase 0.5, ADR 0021)
+
+- **Built-in client:** `phc_planhaven_ios`, created by a migration, with one private-use redirect
+  (`app.planhaven.ios:/oauth/callback`, RFC 8252 §7.1). Registration still refuses custom
+  schemes for everyone else, and redirects are matched exactly. PKCE S256 required; the app
+  signs in on the server's own page in an ephemeral browser session (passkeys work there).
+- **Consent:** one question naming the device; approving needs a fresh second factor; the
+  person is notified. Each device is its own sign-in (signing in again elsewhere doesn't end
+  another device's).
+- **Tokens:** audience `/api/v1`; `phv_aat_` 1 hour, `phv_art_` rotated on every use with reuse
+  revoking the family, ending after `APP_SIGNIN_IDLE_DAYS` (default 90) without use; hashed.
+  App tokens are refused on `/mcp`, and AI apps' tokens on `/api/v1`.
+- **What a token can't do:** it's a principal of kind `app` in `authz.require`, refused (403 "Do
+  this in PlanHaven on the web.") for admin, password, second factors and passkeys, signed-in
+  devices and apps, AI connections and consent, calendar and sync keys, and share links
+  (`APP_REFUSED`); routes for password-only sessions and admins refuse it too. It never counts
+  as a recent second factor, so other step-up actions (sharing) also stay on the web. Every
+  route's expectation for an app token is tested (`tests/authz_matrix.py`, `app_expect`).
+- **Ending it:** Account › Signed-in apps (Sign out, at once: tokens are looked up, not
+  self-contained); the app's own revocation call; a password change, password reset, "sign out
+  all other devices", an admin resetting the person's second factor or disabling the account.
+- **Live updates:** `POST /api/v1/live/ticket` gives a single-use, 30-second ticket (hashed,
+  system-only table) for the WebSocket handshake; a foreign `Origin` is refused; the
+  connection closes when the sign-in ends.
+- **Logs:** the new prefixes are redacted and in the secret-scanning patterns; WebSocket query
+  strings aren't logged; token-endpoint failures are `oauth_failed` security events.
+
 ### 7.18 AI apps: OAuth and MCP (phase 0.4, ADR 0019)
 
 - **Sign-in (OAuth 2.1, ADR 0007):** public clients only, PKCE S256 required (43-character
@@ -558,13 +600,19 @@ Cross-Origin-Resource-Policy: same-origin
   refused (DNS rebinding); the key principal is limited to `mcp_read`/`mcp_write` in
   `authz.require`, and every tool runs as the person (`authz.require` + RLS), so an app never
   sees or changes more than the person could. `local_ai_only` projects are invisible.
-- **Tools:** read (list, get, keyword search) and add/change (project, note, tasks, list items,
-  complete a task); no delete, sharing, account, admin or file-download tools. Output labels
+- **Tools:** read (list, get, keyword search, contacts, assets, people by name) and add,
+  change and delete project content (ADR 0020); deletes go to the Trash and are undoable;
+  household members as editors or viewers only, never owners or the person's own access; no
+  share-link, permanent-delete, Trash, account, admin or file-download tools. Output labels
   project text as the person's content, not instructions. Write tools are refused on a
   read-only connection; rate limited per connection (all calls, and writes separately).
 - **Approve first / undo:** suggestions are stored and re-checked as of approval time (a change
   that's no longer allowed fails safely); applied changes are recorded with the app's name and
-  undone as the person.
+  undone as the person. Approving or undoing a sharing change asks for the person's fresh second
+  factor. An Undo that can't apply any more says so (409) instead of failing silently.
+- **Diagnostics:** tool errors carry a code, the argument at fault and a hint;
+  `planhaven_connection_info` describes the connection. One log line per call (tool, outcome,
+  duration, connection id), never arguments or content (§7.12).
 
 ## 8. Supply chain and security testing
 

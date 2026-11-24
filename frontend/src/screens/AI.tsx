@@ -7,15 +7,15 @@ import { useStepUp } from '../stepupContext.ts'
 import { AuthPage, Button, Card, ErrorText, Link } from '../ui.tsx'
 
 type Access = 'read' | 'approve' | 'apply'
-type Consent = { client_name: string; redirect_host: string; scope: 'read' | 'write' }
+type Consent = { client_name: string; redirect_host: string; scope: 'read' | 'write' | 'app'; device_name: string | null }
 type Connection = { id: string; client_name: string; scope: 'read' | 'write'; write_mode: 'approve' | 'apply'; created_at: string; last_used_at: string | null }
 type Suggestion = { id: string; client_name: string; project_id: string | null; tool: string; summary: string; created_at: string }
 type Change = { id: string; client_name: string; project_id: string | null; kind: string; summary: string; created_at: string; undone_at: string | null }
 
 const ACCESS: Record<Access, { label: string; help: string }> = {
   read: { label: 'Read only', help: 'It can read and search your projects. It can\'t change anything.' },
-  approve: { label: 'Suggest changes', help: 'It can also suggest changes. Nothing happens until you approve each one on the AI page.' },
-  apply: { label: 'Make changes', help: 'It can add and change things straight away. You can undo each change on the AI page. Nothing can be deleted.' },
+  approve: { label: 'Suggest changes', help: 'It can also suggest changes, including deleting things and sharing with people in your household. Nothing happens until you approve each one on the AI page.' },
+  apply: { label: 'Make changes', help: 'It can add, change and delete things, and share with people in your household, straight away. Deleted things go to the Trash. You can undo each change on the AI page.' },
 }
 const accessOf = (c: { scope: string; write_mode: string }): Access => (c.scope === 'read' ? 'read' : c.write_mode === 'apply' ? 'apply' : 'approve')
 const body = (a: Access) => ({ scope: a === 'read' ? 'read' : 'write', write_mode: a === 'apply' ? 'apply' : 'approve' })
@@ -71,6 +71,8 @@ export function ConnectScreen() {
     )
   if (!consent.data) return <AuthPage title="Connect an AI app"><p className="text-stone-500">Loading…</p></AuthPage>
   const c = consent.data
+  if (c.scope === 'app') return <AppSignIn consent={c} onAllow={() => approve.mutate('read')} onDeny={() => deny.mutate()}
+    busy={approve.isPending || deny.isPending || approve.isSuccess || deny.isSuccess} error={approve.error ?? deny.error} />
   const chosen = c.scope === 'read' ? 'read' : access
   const busy = approve.isPending || deny.isPending || approve.isSuccess || deny.isSuccess
   return (
@@ -87,6 +89,29 @@ export function ConnectScreen() {
           <Button variant="ghost" onPress={() => deny.mutate()} isDisabled={busy}>Don't allow</Button>
         </div>
         <p className="text-sm text-stone-500">You can change this or disconnect any time in Account, Connected AI apps.</p>
+      </div>
+    </AuthPage>
+  )
+}
+
+/** The PlanHaven iPhone app signing in (ADR 0021): nothing to choose, it acts as you. */
+function AppSignIn({ consent, onAllow, onDeny, busy, error }: { consent: Consent; onAllow: () => void; onDeny: () => void; busy: boolean; error: unknown }) {
+  const device = consent.device_name ?? 'this device'
+  return (
+    <AuthPage title="Sign in to the app">
+      <div className="space-y-4">
+        <p>Sign in to <strong>{consent.client_name}</strong> on <strong>{device}</strong>?</p>
+        <p className="text-sm text-stone-600 dark:text-stone-400">
+          The app can do what you can do in PlanHaven, except change your password, second factors,
+          signed-in devices, AI apps, calendar and sync keys or share links: those stay on the web.
+          Only allow this if you just started signing in from the app.
+        </p>
+        <ErrorText error={error} />
+        <div className="flex flex-wrap gap-2">
+          <Button onPress={onAllow} isDisabled={busy}>Sign in</Button>
+          <Button variant="ghost" onPress={onDeny} isDisabled={busy}>Cancel</Button>
+        </div>
+        <p className="text-sm text-stone-500">You can sign it out any time in Account, Signed-in apps.</p>
       </div>
     </AuthPage>
   )
@@ -143,25 +168,28 @@ export function ConnectedAppsCard() {
 /** /ai: suggestions waiting for approval, and recent AI changes with Undo. */
 export function AiScreen() {
   const client = useQueryClient()
+  const stepUp = useStepUp()
   const suggestions = useQuery({ queryKey: ['ai-suggestions'], queryFn: () => api<Suggestion[]>('GET', '/api/v1/ai/suggestions') })
   const changes = useQuery({ queryKey: ['ai-changes'], queryFn: () => api<Change[]>('GET', '/api/v1/ai/changes') })
   const refresh = async () => {
     await client.invalidateQueries({ queryKey: ['ai-suggestions'] })
     await client.invalidateQueries({ queryKey: ['ai-changes'] })
     await client.invalidateQueries({ queryKey: ['projects'] })
+    await client.invalidateQueries({ queryKey: ['trash'] })
   }
   const [note, setNote] = useState('')
   const decide = useMutation({
-    mutationFn: ({ id, ok }: { id: string; ok: boolean }) => api<{ status: string }>('POST', `/api/v1/ai/suggestions/${id}/${ok ? 'approve' : 'decline'}`),
+    mutationFn: ({ id, ok }: { id: string; ok: boolean }) => stepUp(() => api<{ status: string }>('POST', `/api/v1/ai/suggestions/${id}/${ok ? 'approve' : 'decline'}`)),
     onSuccess: (r) => setNote(r.status === 'failed' ? 'That change couldn\'t be made any more (something changed since). It was set aside.' : ''),
     onSettled: refresh,
   })
   const all = useMutation({
-    mutationFn: () => api<{ approved: number; failed: number }>('POST', '/api/v1/ai/suggestions/approve-all'),
+    mutationFn: () => stepUp(() => api<{ approved: number; failed: number }>('POST', '/api/v1/ai/suggestions/approve-all')),
     onSuccess: (r) => setNote(r.failed ? `${r.approved} made; ${r.failed} couldn't be made any more.` : ''),
     onSettled: refresh,
   })
-  const undo = useMutation({ mutationFn: (id: string) => api('POST', `/api/v1/ai/changes/${id}/undo`), onSettled: refresh })
+  // Sharing changes need a fresh second factor from you, like sharing does anywhere else.
+  const undo = useMutation({ mutationFn: (id: string) => stepUp(() => api('POST', `/api/v1/ai/changes/${id}/undo`)), onSettled: refresh })
   const pending = suggestions.data ?? []
   return (
     <div className="space-y-4">

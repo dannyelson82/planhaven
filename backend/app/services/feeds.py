@@ -78,7 +78,7 @@ class NewKey:
 
 
 async def keys(db: Database, session: CurrentSession) -> list[TokenRow]:
-    authz.require(session.principal, authz.Action.USE_APP)
+    authz.require(session.principal, authz.Action.TOKEN_MANAGE)
     async with db.user_transaction(session.user.id) as conn:
         return await store.own(conn, session.user.id)
 
@@ -125,7 +125,7 @@ async def make_key(
 async def revoke_key(
     db: Database, session: CurrentSession, token_id: uuid.UUID, ip: str | None
 ) -> None:
-    authz.require(session.principal, authz.Action.USE_APP)
+    authz.require(session.principal, authz.Action.TOKEN_MANAGE)
     async with db.user_transaction(session.user.id) as conn:
         if not await store.revoke(conn, session.user.id, token_id):
             raise authz.NotFoundError("Not found.")
@@ -140,7 +140,7 @@ async def revoke_key(
 
 
 async def set_feed_details(db: Database, session: CurrentSession, details: bool) -> None:
-    authz.require(session.principal, authz.Action.USE_APP)
+    authz.require(session.principal, authz.Action.TOKEN_MANAGE)
     async with db.user_transaction(session.user.id) as conn:
         await store.set_details(conn, session.user.id, details)
 
