@@ -384,7 +384,9 @@ Reverse proxy ─► Middleware (trusted-proxy resolution, security headers, req
 
 ### 8.2 API conventions
 
-- REST under `/api/v1`, JSON only, OpenAPI schema generated and published in CI artifacts.
+- REST under `/api/v1`, JSON only. The OpenAPI schema isn't served by the running server; it's
+  generated from the code (`python -m app.openapi_schema`, tested in CI) and attached to every
+  GitHub release as `openapi.json`, so clients like the iPhone app can pin a version (ADR 0021).
 - Cursor-based pagination (`?cursor=…&limit=…`, max limit 200).
 - Optimistic concurrency: updates send `If-Match: <version>`; mismatch returns `409`.
   **Merge when safe** (maintainer decision, 2026-10-02): task and list item updates send only
