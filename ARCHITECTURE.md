@@ -180,6 +180,7 @@ Layout of `/config`:
 | `PUBLIC_MODE` | no | `true` | When true, refuses to start with insecure settings (no `BASE_URL` https, no `TRUSTED_PROXIES`) |
 | `ADMIN_ALLOWED_CIDRS` | no | empty (any) | Restrict admin panel to these networks, e.g. LAN |
 | `MAX_UPLOAD_MB` | no | `100` | Per-file upload limit |
+| `APP_SIGNIN_IDLE_DAYS` | no | `90` | The iPhone app is signed out after this many days without use (1–365; ADR 0021) |
 | `LOG_LEVEL` | no | `info` | |
 
 AI provider endpoints and keys are **not** environment variables; they are configured by an
@@ -537,6 +538,9 @@ work without external identity infrastructure:
 - **Per person** (owner request, 2026-09-28): each user connects their own assistant, e.g.
   Claude for one person and ChatGPT for another. A connection belongs to that user and that
   client, sees only what that user can see, and is invisible to other users and to admins.
+- **The iPhone app** (ADR 0021) is a built-in first-party client of the same server, with a
+  private-use redirect scheme, its own audience (`/api/v1`) and token prefixes (`phv_aat_`,
+  `phv_art_`); its tokens never work on `/mcp`, and AI apps' tokens never work on `/api/v1`.
 
 ### 12.3 Tools (v1)
 
@@ -582,7 +586,7 @@ Trash, raw file upload or download. Plugins may register additional tools (§14.
 - Writes, per connection (ADR 0019): **approve first** (default: changes wait in an "AI
   suggestions" list until the person approves them) or **apply with undo**; or read-only.
 - A connection sees all its person's projects except `local_ai_only` ones. Search is keyword
-  (full-text) until local AI (0.5) adds meaning-based search.
+  (full-text) until local AI (0.6) adds meaning-based search.
 - The OAuth server and `/mcp` are written in PlanHaven, with no new dependencies (ADR 0019).
 
 ---
@@ -828,7 +832,7 @@ Decided in ADR 0018; built in phase 0.3.
   `PGID`, `TZ`, `BASE_URL`, `TRUSTED_PROXIES`, `ADMIN_ALLOWED_CIDRS`, support/project links,
   icon.
 - Template's overview text states that a reverse proxy with TLS is required for internet use.
-- Submitted to Community Applications after v0.5 (§18).
+- Submitted to Community Applications after v0.6 (§18).
 
 ---
 
@@ -842,10 +846,11 @@ Every phase ships meeting `SECURITY.md` §11.
 | **0.2 — Daily use** | Lists, notes, attachments (upload pipeline, EXIF strip), assets, contacts/quotes, sharing UI, PWA with offline lists. Real-time collaborative note editing and live list updates (ADR 0011). |
 | **0.3 — People and reminders** | Notifications screen, Web Push, notification preferences; messages between users and online status (ADR 0018); Shortcuts sync + published Shortcut, ICS feed. Chores: assigned and scheduled tasks, reminders, proof of completion and approval, limited assignee access (ADR 0013). |
 | **0.4 — MCP connector** | OAuth authorization server, `/mcp` tools, consent UI, connected-clients management, undo for AI changes. Assistant write tools for commercial AI (experimental, ADR 0012).  Moved up 2026-10-04 (ADR 0019): writes approve-first or apply-with-undo per connection. |
-| **0.5 — Local AI** | Extraction sandbox, OCR, embeddings, hybrid retrieval, Q&A with citations, `local_ai_only`. Experimental-features framework; local AI project assistant (experimental, ADR 0012). Unraid CA submission. |
-| **0.6 — Time planner** | Work rotations and away periods, capacity with rest first, home-stretch plans, in-progress limit, next small step, stalled projects review, remote-doable tasks (ADR 0013).  Postponed by the maintainer (ADR 0019). |
-| **0.7 — Cut list plugin** | Reference plugin end-to-end; plugin API v1 frozen; `docs/plugin-api.md`. |
-| **Later** | Native iPhone and Android apps (owner request, 2026-09-28; see §19.2). Voice chat with a local speech server (experimental, ADR 0012), recurrence by asset meter, plugin process isolation, backup encryption, separate files origin, more plugins (vehicle log, Home Assistant bridge, electronics BOM). |
+| **0.5 — iPhone app support (server)** | App sign-in for the native iPhone app (a first-party OAuth client, `phv_aat_`/`phv_art_` tokens on `/api/v1`, signed-in apps list), the OpenAPI file published with each release; then APNs push, a change feed for offline use and universal links, each designed with the maintainer first (ADR 0021). The app itself is a separate repository. |
+| **0.6 — Local AI** | Extraction sandbox, OCR, embeddings, hybrid retrieval, Q&A with citations, `local_ai_only`. Experimental-features framework; local AI project assistant (experimental, ADR 0012). Unraid CA submission. |
+| **0.7 — Time planner** | Work rotations and away periods, capacity with rest first, home-stretch plans, in-progress limit, next small step, stalled projects review, remote-doable tasks (ADR 0013).  Postponed by the maintainer (ADR 0019); renumbered by ADR 0021. |
+| **0.8 — Cut list plugin** | Reference plugin end-to-end; plugin API v1 frozen; `docs/plugin-api.md`. |
+| **Later** | Android app (owner request, 2026-09-28; see §19.2). Voice chat with a local speech server (experimental, ADR 0012), recurrence by asset meter, plugin process isolation, backup encryption, separate files origin, more plugins (vehicle log, Home Assistant bridge, electronics BOM). |
 
 ---
 
@@ -872,19 +877,22 @@ Every phase ships meeting `SECURITY.md` §11.
 | 0015 | External share links with per-component permissions |
 | 0016 | Notes saved on Done; live co-editing paused |
 | 0017 | Project pages arranged as tiles, per person |
+| 0018 | Notifications screen, messages between users, online status |
+| 0019 | The AI connector comes next (roadmap renumbered); per-connection write mode |
+| 0020 | AI apps can edit, delete and share project content (to the Trash, undoable; no share links) |
+| 0021 | Server support for the native iPhone app comes next (roadmap renumbered); app sign-in with a first-party OAuth client |
 
 ### 19.2 Open questions
 
 - ~~Final project name~~ — decided: PlanHaven (pending trademark and domain checks).
 - ~~License~~ — decided: Apache-2.0, with a dependency license policy (ADR 0010).
 - ~~UI component library~~ — decided: React Aria Components + Tailwind CSS (ADR 0014).
-- **Native apps (later).** The PWA stays the first mobile app (ADR 0006). Native iPhone and
-  Android apps would use the same API; sign in with OAuth 2.1 + PKCE (§12.2) and passkeys;
-  push through APNs/FCM (new outbound destinations, S§7.8); an offline store like the PWA's.
-  Approach (wrapping this app with Capacitor, or React Native) to be decided in an ADR when
-  scheduled.
+- ~~Native iPhone app~~ — decided: a native SwiftUI app in its own repository; the server
+  side is phase 0.5 (ADR 0021). The PWA, Shortcut, ICS feed and Web Push stay (ADR 0006).
+- **Android app (later).** Would use the same API and the same sign-in as the iPhone app
+  (ADR 0021); push through FCM (a new outbound destination, S§7.8).
 - PDF extraction library: PyMuPDF is excluded by ADR 0010; pypdfium2 is the leading
-  candidate, final choice in phase 0.5.
+  candidate, final choice in phase 0.6.
 - Rich-text editor for notes (Markdown-first vs. block editor); must bind to Yjs and work
   under the CSP (ADR 0011).
 - Whether commercial chat providers are offered for in-app Q&A or only via MCP.
@@ -902,7 +910,7 @@ New or risky capabilities ship behind named feature flags (ADR 0012).
 - Everything experimental is labelled "Experimental" in the UI.
 - Graduating from experimental needs tests, a SECURITY.md threat-model entry and the
   maintainer's sign-off.
-- First features: `assistant.local` (phase 0.5), `assistant.mcp_write` (after 0.4), `voice.chat`
+- First features: `assistant.local` (phase 0.6), `assistant.mcp_write` (after 0.4), `voice.chat`
   (later).
 
 ---
@@ -924,7 +932,7 @@ Decided in ADR 0013; built in phase 0.3.
 
 ## 22. Time planner
 
-Decided in ADR 0013; phase 0.6 (renumbered and postponed by ADR 0019).
+Decided in ADR 0013; phase 0.7 (postponed by ADR 0019, renumbered by ADR 0019 and ADR 0021).
 
 - Availability from a work rotation (e.g. 14 on / 14 off, anchor date) and away periods.
 - Daily capacity for home days, with rest days planned first; plans never exceed capacity.

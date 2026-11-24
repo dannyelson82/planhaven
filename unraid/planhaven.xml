@@ -24,5 +24,6 @@
   <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID for files the app writes." Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
   <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID for files the app writes." Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
   <Config Name="MAX_UPLOAD_MB" Target="MAX_UPLOAD_MB" Default="100" Mode="" Description="Largest file upload in MB." Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+  <Config Name="APP_SIGNIN_IDLE_DAYS" Target="APP_SIGNIN_IDLE_DAYS" Default="90" Mode="" Description="The PlanHaven iPhone app is signed out after this many days without use (1-365)." Type="Variable" Display="advanced" Required="false" Mask="false">90</Config>
   <Config Name="LOG_LEVEL" Target="LOG_LEVEL" Default="info" Mode="" Description="debug, info, warning or error." Type="Variable" Display="advanced" Required="false" Mask="false">info</Config>
 </Container>

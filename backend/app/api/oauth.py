@@ -8,6 +8,7 @@ are read there, so they are public by design (no CSRF exposure) and rate limited
 
 import json
 import uuid
+from datetime import datetime
 from typing import Annotated, Any, Literal
 from urllib.parse import parse_qs, urlencode
 
@@ -145,6 +146,8 @@ async def authorize(request: Request) -> RedirectResponse:
             state=q.get("state"),
             resource=q.get("resource"),
             mcp_url=f"{_base(request)}/mcp",
+            api_url=f"{_base(request)}/api/v1",
+            device_name=(q.get("device_name") or "")[:200] or None,
         )
     except service.AuthorizeError:
         return RedirectResponse("/connect?problem=unknown", status_code=303)
@@ -175,6 +178,7 @@ async def token(request: Request) -> JSONResponse:
     grant_type = form.get("grant_type")
     db = deps.database(request)
     ip = deps.client_ip(request)
+    app_refresh = deps.settings(request).app_signin_idle_days * 24 * 3600
     try:
         if grant_type == "authorization_code":
             result = await service.exchange_code(
@@ -184,6 +188,8 @@ async def token(request: Request) -> JSONResponse:
                 client_id=form.get("client_id", ""),
                 code_verifier=form.get("code_verifier", ""),
                 ip=ip,
+                device_name=form.get("device_name", "")[:200] or None,
+                app_refresh_seconds=app_refresh,
             )
         elif grant_type == "refresh_token":
             result = await service.refresh(
@@ -191,6 +197,7 @@ async def token(request: Request) -> JSONResponse:
                 refresh_token=form.get("refresh_token", ""),
                 client_id=form.get("client_id", ""),
                 ip=ip,
+                app_refresh_seconds=app_refresh,
             )
         else:
             raise service.OAuthError("unsupported_grant_type", "Unsupported grant type.")
@@ -211,7 +218,9 @@ async def token(request: Request) -> JSONResponse:
 @router.post("/oauth/revoke", include_in_schema=False)
 async def revoke(request: Request) -> JSONResponse:
     form = await _form(request)
-    await service.revoke(deps.database(request), token=form.get("token", "")[:200])
+    await service.revoke(
+        deps.database(request), token=form.get("token", "")[:200], ip=deps.client_ip(request)
+    )
     return JSONResponse({}, headers=NO_STORE)
 
 
@@ -221,12 +230,13 @@ async def revoke(request: Request) -> JSONResponse:
 class ConsentOut(BaseModel):
     client_name: str
     redirect_host: str
-    scope: str
+    scope: str  # read or write (AI apps), or app (the iPhone app: nothing to choose)
+    device_name: str | None = None
 
 
 class ApproveIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    scope: Literal["read", "write"]
+    scope: Literal["read", "write"] = "read"
     write_mode: Literal["approve", "apply"] = "approve"
 
 
@@ -237,7 +247,12 @@ class RedirectOut(BaseModel):
 @router.get("/api/v1/oauth/requests/{request_id}")
 async def consent(request_id: uuid.UUID, session: SessionDep, request: Request) -> ConsentOut:
     c = await service.consent(deps.database(request), session, request_id)
-    return ConsentOut(client_name=c.client_name, redirect_host=c.redirect_host, scope=c.scope)
+    return ConsentOut(
+        client_name=c.client_name,
+        redirect_host=c.redirect_host,
+        scope=c.scope,
+        device_name=c.device_name,
+    )
 
 
 @router.post("/api/v1/oauth/requests/{request_id}/approve")
@@ -260,3 +275,48 @@ async def approve(
 async def deny(request_id: uuid.UUID, session: SessionDep, request: Request) -> RedirectOut:
     url = await service.deny(deps.database(request), session, request_id)
     return RedirectOut(redirect=url)
+
+
+# ---------------------------------------------------------------- signed-in apps (ADR 0021)
+
+
+class SignedInAppOut(BaseModel):
+    id: str
+    app_name: str
+    device_name: str | None
+    created_at: datetime
+    last_used_at: datetime | None
+    last_ip: str | None
+
+
+@router.get("/api/v1/account/apps")
+async def signed_in_apps(session: SessionDep, request: Request) -> list[SignedInAppOut]:
+    rows = await service.apps(deps.database(request), session)
+    return [
+        SignedInAppOut(
+            id=str(g.id),
+            app_name=g.client_name,
+            device_name=g.device_name,
+            created_at=g.created_at,
+            last_used_at=g.last_used_at,
+            last_ip=g.last_ip,
+        )
+        for g in rows
+    ]
+
+
+@router.delete("/api/v1/account/apps/{grant_id}", status_code=204)
+async def sign_out_app(grant_id: uuid.UUID, session: SessionDep, request: Request) -> None:
+    await service.sign_out_app(deps.database(request), session, grant_id, deps.client_ip(request))
+
+
+class TicketOut(BaseModel):
+    ticket: str
+    expires_in: int
+
+
+@router.post("/api/v1/live/ticket")
+async def live_ticket(session: SessionDep, request: Request) -> JSONResponse:
+    """For the iPhone app: a single-use ticket for a live-update WebSocket (30 seconds)."""
+    ticket = await service.live_ticket(deps.database(request), session)
+    return JSONResponse(TicketOut(ticket=ticket, expires_in=30).model_dump(), headers=NO_STORE)

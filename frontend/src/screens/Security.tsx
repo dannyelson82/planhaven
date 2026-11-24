@@ -10,6 +10,7 @@ import { createPasskey, passkeysSupported } from '../webauthn.ts'
 
 type Passkey = { id: string; name: string; created_at: string; last_used_at: string | null }
 type SessionInfo = { id: string; last_seen_at: string; ip: string | null; user_agent: string | null; current: boolean }
+type SignedInApp = { id: string; app_name: string; device_name: string | null; created_at: string; last_used_at: string | null; last_ip: string | null }
 type Options = { challenge_id: string; options: Record<string, unknown> }
 
 export function PasswordCard() {
@@ -126,6 +127,41 @@ export function DevicesCard() {
       </ul>
       {hasOthers && <Button variant="secondary" onPress={() => others.mutate()} isDisabled={others.isPending}>Sign out all other devices</Button>}
       <ErrorText error={signOut.error ?? others.error} />
+    </Card>
+  )
+}
+
+/** The PlanHaven iPhone app on each device (ADR 0021), with Sign out. */
+export function SignedInAppsCard() {
+  const client = useQueryClient()
+  const apps = useQuery({ queryKey: ['signed-in-apps'], queryFn: () => api<SignedInApp[]>('GET', '/api/v1/account/apps') })
+  const signOut = useMutation({
+    mutationFn: (id: string) => api('DELETE', `/api/v1/account/apps/${encodeURIComponent(id)}`),
+    onSettled: () => client.invalidateQueries({ queryKey: ['signed-in-apps'] }),
+  })
+  const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : 'not yet')
+  return (
+    <Card className="space-y-2">
+      <h2 className="font-semibold">Signed-in apps</h2>
+      <p className="text-sm text-stone-600 dark:text-stone-400">The PlanHaven app on your iPhone or iPad. Signing out here ends it straight away.</p>
+      {apps.data?.length === 0 && <p className="text-sm text-stone-500">None.</p>}
+      <ul className="space-y-2 text-sm">
+        {(apps.data ?? []).map((a) => {
+          const name = a.device_name ?? a.app_name
+          return (
+            <li key={a.id} className="flex items-center justify-between gap-2">
+              <span className="min-w-0">
+                <span className="font-medium">{name}</span>
+                <span className="block text-xs text-stone-500">
+                  {a.app_name} · signed in {new Date(a.created_at).toLocaleDateString()} · last used {when(a.last_used_at)}{a.last_ip ? ` from ${a.last_ip}` : ''}
+                </span>
+              </span>
+              <Button variant="danger-ghost" aria-label={`Sign out ${name}`} onPress={() => signOut.mutate(a.id)} isDisabled={signOut.isPending}>Sign out</Button>
+            </li>
+          )
+        })}
+      </ul>
+      <ErrorText error={signOut.error} />
     </Card>
   )
 }

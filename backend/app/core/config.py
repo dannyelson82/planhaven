@@ -52,6 +52,8 @@ class Settings:
     data_dir: str = "/data"
     # Release version baked into the image (Dockerfile); "dev" when run from source.
     version: str = "dev"
+    # The iPhone app stays signed in until it goes this many days unused (ADR 0021).
+    app_signin_idle_days: int = 90
 
     @property
     def base_scheme(self) -> str:
@@ -149,6 +151,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         frontend_dir=env.get("PLANHAVEN_FRONTEND_DIR", "/app/frontend"),
         data_dir=env.get("PLANHAVEN_DATA_DIR", "/data"),
         version=env.get("PLANHAVEN_VERSION", "dev")[:40],
+        app_signin_idle_days=_int(env, "APP_SIGNIN_IDLE_DAYS", default=90, low=1, high=365),
         plugin_dirs=tuple(
             d
             for d in env.get("PLANHAVEN_PLUGIN_DIRS", "/app/plugins:/config/plugins").split(":")

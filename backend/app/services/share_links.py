@@ -98,6 +98,7 @@ async def create_link(
     base_url: str,
     ip: str | None,
 ) -> NewLink:
+    authz.require_web(session.principal, authz.Action.PROJECT_SHARE_LINK)
     if not 1 <= boxes.days <= MAX_DAYS:
         raise LinkError(f"A link can last from 1 day to {MAX_DAYS} days.")
     if boxes.tasks_tick and boxes.tasks_view == "none":

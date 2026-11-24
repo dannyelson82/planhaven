@@ -6,7 +6,7 @@ import { PresenceCard } from './Messages.tsx'
 import { FeedsCard } from './Feeds.tsx'
 import { ConnectedAppsCard } from './AI.tsx'
 import { SignOutButton } from './Auth.tsx'
-import { DevicesCard, PasswordCard, SecondFactorCard } from './Security.tsx'
+import { DevicesCard, PasswordCard, SecondFactorCard, SignedInAppsCard } from './Security.tsx'
 
 export function AccountScreen({ session }: { session: Session }) {
   return (
@@ -47,6 +47,7 @@ export function AccountScreen({ session }: { session: Session }) {
       <PasswordCard />
       <SecondFactorCard />
       <DevicesCard />
+      <SignedInAppsCard />
       {/* On a phone the bottom bar has the bell instead of Sign out. */}
       <SignOutButton className="w-full md:hidden" />
     </div>
