@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import { createHash, randomBytes } from 'node:crypto'
-import { expect, test } from '@playwright/test'
+import { expect, request as playwrightRequest, test } from '@playwright/test'
 import { ADMIN, row, tick, totp, watchForProblems } from './helpers.ts'
 
 // The first user's whole path through the app, in a real browser: setup, mandatory second
@@ -433,6 +433,44 @@ test('first boot to first project', async ({ page }) => {
   await suggest('Add stabilizer to the fuel') // left waiting, for the guide's picture
   await page.goto('/account')
   await expect(page.getByRole('region', { name: 'Connected AI apps' }).getByText('Test AI')).toBeVisible()
+
+  // The iPhone app signs in (ADR 0021). Its private-use redirect can't open in a browser, so
+  // the approval answer is read here and the page is sent to the stand-in address instead.
+  const site = new URL(page.url()).origin
+  const appVerifier = randomBytes(48).toString('base64url')
+  const appAuthorize = new URLSearchParams({
+    response_type: 'code', client_id: 'phc_planhaven_ios', redirect_uri: 'app.planhaven.ios:/oauth/callback',
+    code_challenge: createHash('sha256').update(appVerifier).digest('base64url'), code_challenge_method: 'S256',
+    state: 'e2e-app', resource: `${site}/api/v1`, device_name: 'E2E iPhone',
+  })
+  let appRedirect = ''
+  await page.route('**/api/v1/oauth/requests/*/approve', async (r) => {
+    const real = await r.fetch()
+    appRedirect = (await real.json()).redirect
+    await r.fulfill({ response: real, json: { redirect: 'http://127.0.0.1:9/app' } })
+  })
+  await page.goto(`/oauth/authorize?${appAuthorize}`)
+  await expect(page.getByRole('heading', { name: 'Sign in to the app' })).toBeVisible()
+  await expect(page.getByText('E2E iPhone')).toBeVisible()
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await page.waitForURL(/127\.0\.0\.1:9\/app/)
+  expect(appRedirect).toMatch(/^app\.planhaven\.ios:\/oauth\/callback\?/)
+  const appBack = new URL(appRedirect.replace('app.planhaven.ios:', 'https://app.invalid'))
+  const appTokens = await (await page.request.post('/oauth/token', {
+    form: { grant_type: 'authorization_code', code: appBack.searchParams.get('code')!, redirect_uri: 'app.planhaven.ios:/oauth/callback', client_id: 'phc_planhaven_ios', code_verifier: appVerifier },
+  })).json()
+  expect(appTokens.access_token).toMatch(/^phv_aat_/)
+  // The app's calls carry its token and no cookie.
+  const bare = await playwrightRequest.newContext({ baseURL: site })
+  const asApp = { headers: { Authorization: `Bearer ${appTokens.access_token}` } }
+  expect((await bare.get('/api/v1/projects', asApp)).status()).toBe(200)
+  await page.goto('/account')
+  const appsCard = page.getByRole('heading', { name: 'Signed-in apps' }).locator('..')
+  await expect(appsCard.getByText('E2E iPhone')).toBeVisible()
+  await appsCard.getByRole('button', { name: 'Sign out E2E iPhone' }).click()
+  await expect(appsCard.getByText('None.')).toBeVisible()
+  expect((await bare.get('/api/v1/projects', asApp)).status()).toBe(401)
+  await bare.dispose()
   await page.goto('/projects')
   await page.goto('/projects')
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()

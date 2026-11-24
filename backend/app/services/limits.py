@@ -45,6 +45,12 @@ OAUTH_REGISTER_IP = Limit("oauth-register-ip", capacity=10, per_second=1 / 360)
 OAUTH_TOKEN_IP = Limit("oauth-token-ip", capacity=30, per_second=1 / 10)
 MCP_GRANT = Limit("mcp-grant", capacity=120, per_second=1)
 MCP_WRITE_GRANT = Limit("mcp-write-grant", capacity=30, per_second=1 / 10)
+# The token endpoint per client, and refreshes per token family (ADR 0021): an app refreshes
+# about once an hour; anything much faster is a stolen token being hammered.
+OAUTH_TOKEN_CLIENT = Limit("oauth-token-client", capacity=60, per_second=1 / 5)
+OAUTH_REFRESH_FAMILY = Limit("oauth-refresh-family", capacity=10, per_second=1 / 300)
+# Live-update tickets for the iPhone app, per sign-in.
+LIVE_TICKET_GRANT = Limit("live-ticket-grant", capacity=20, per_second=1 / 10)
 # Wrong feed or sync keys, per address (only failures count).
 KEY_FAIL_IP = Limit("key-fail-ip", capacity=10, per_second=1 / 60)
 # Messages (ADR 0018): sending and starting conversations, per person.

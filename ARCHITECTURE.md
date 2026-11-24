@@ -180,6 +180,7 @@ Layout of `/config`:
 | `PUBLIC_MODE` | no | `true` | When true, refuses to start with insecure settings (no `BASE_URL` https, no `TRUSTED_PROXIES`) |
 | `ADMIN_ALLOWED_CIDRS` | no | empty (any) | Restrict admin panel to these networks, e.g. LAN |
 | `MAX_UPLOAD_MB` | no | `100` | Per-file upload limit |
+| `APP_SIGNIN_IDLE_DAYS` | no | `90` | The iPhone app is signed out after this many days without use (1–365; ADR 0021) |
 | `LOG_LEVEL` | no | `info` | |
 
 AI provider endpoints and keys are **not** environment variables; they are configured by an

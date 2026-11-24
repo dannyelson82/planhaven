@@ -159,6 +159,14 @@ async def revoke_all_sessions(conn: AsyncConnection, user_id: uuid.UUID) -> None
         text("UPDATE sessions SET revoked_at = now() WHERE user_id = :u AND revoked_at IS NULL"),
         {"u": user_id},
     )
+    # Signed-in iPhone apps go too (ADR 0021): their tokens check the grant.
+    await conn.execute(
+        text(
+            "UPDATE oauth_grants SET revoked_at = now() "
+            "WHERE user_id = :u AND scope = 'app' AND revoked_at IS NULL"
+        ),
+        {"u": user_id},
+    )
 
 
 # ---------------------------------------------------------------- notifications

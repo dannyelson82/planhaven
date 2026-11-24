@@ -21,7 +21,8 @@ def test_masks_planhaven_tokens_in_messages() -> None:
 
 
 @pytest.mark.parametrize(
-    "kind", ["sync", "ics", "pat", "oat", "ort", "occ", "inv", "setup", "rst", "shr"]
+    "kind",
+    ["sync", "ics", "pat", "oat", "ort", "occ", "aat", "art", "wst", "inv", "setup", "rst", "shr"],
 )
 def test_masks_every_token_type(kind: str) -> None:
     token = f"phv_{kind}_" + "Ab3_-" * 9
