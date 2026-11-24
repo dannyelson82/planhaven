@@ -46,7 +46,7 @@ to the order things will ship (as in ADR 0019).
 
 1. **Built-in client.** A fixed client `phc_planhaven_ios`, "PlanHaven for iPhone", created by
    a migration (not by dynamic registration). Its one redirect URI is the private-use scheme
-   the app's bundle ID in reverse-DNS form (`com.example.planhaven:/oauth/callback` in examples; RFC 8252 §7.1); `redirect_allowed()` keeps
+   `app.planhaven.ios:/oauth/callback` (the app's bundle ID, RFC 8252 §7.1); `redirect_allowed()` keeps
    refusing custom schemes for every other client. Public client, PKCE S256 required.
 2. **Sign-in on the server's own pages.** The app opens `/oauth/authorize` with
    `resource=<base>/api/v1` in an ephemeral `ASWebAuthenticationSession`. The person signs in
@@ -101,3 +101,29 @@ prompts wait for the app's version-1 feature choices.
   people who don't install the app.
 - Security impact: S§6 (new threat rows), S§7.2, §7.3 (new token types), §7.11, §7.12 and a new
   section for the app, written with the implementation.
+
+## As built (milestone 1, 2026-11-24)
+
+- **Redirect:** the app's bundle ID is `app.planhaven.ios` (maintainer's choice, 2026-11-24: a
+  neutral ID rather than one containing a person's name), so the redirect is
+  `app.planhaven.ios:/oauth/callback`. The client is added by migration 0035.
+- **Grants:** a new scope `app` on the existing grants (no separate table). Each device is its
+  own grant; connecting again doesn't end another device's sign-in, unlike AI apps.
+- **Device name:** the app may send `device_name` on `/oauth/authorize` (shown on the consent
+  page) and on the token request (used if the first was missing).
+- **Approximate place:** PlanHaven has no location lookup (it would be a new data source or
+  outbound call), so "Signed-in apps" shows the last address used, like "Signed-in devices".
+- **Refusals:** a new principal kind `app` in `authz.require` with `APP_REFUSED`; new actions
+  `AI_MANAGE`, `TOKEN_MANAGE`, `VIEW_SECURITY` and `APP_SIGN_IN` so the consent screen, AI
+  connections, keys and passkey list are refusable. Routes for password-only sessions
+  (including `GET /api/v1/auth/session` and sign-out) and admin routes answer 403 to a bearer
+  token. The app signs out with `/oauth/revoke`, which also ends its grant.
+- **Ending sign-ins:** "sign out all other devices", a password change or reset, an admin
+  second-factor reset or disabling the account end every app sign-in (there's no way to turn
+  2FA off: it's mandatory).
+- **Refresh lifetime:** `APP_SIGNIN_IDLE_DAYS` (1–365, default 90): each refresh token lasts that
+  long from its issue, and every use issues a new one.
+- **Rate limits:** the token endpoint per address (as before) and per client; refreshes per token
+  family (10, then 1 every 5 minutes); live tickets per sign-in.
+- **Sharing with household members** needs a fresh second factor, which an app token never has,
+  so it stays on the web for now.

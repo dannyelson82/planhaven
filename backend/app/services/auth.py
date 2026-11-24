@@ -55,6 +55,9 @@ class CurrentSession:
     mfa_verified: bool
     reauth_at: datetime | None = None
     ai_grant: bool = False  # an AI app acting as this person (app.services.ai_tools)
+    # The iPhone app's sign-in (ADR 0021): its grant id. Such a "session" has no cookie, no
+    # CSRF token and never a recent second factor; `id` is the grant id too.
+    app_grant: uuid.UUID | None = None
 
     @property
     def principal(self) -> authz.Principal:
@@ -63,6 +66,7 @@ class CurrentSession:
             is_admin=self.user.is_admin,
             mfa_verified=self.mfa_verified,
             reauth_at=self.reauth_at,
+            kind="app" if self.app_grant else "session",
             ai_grant=self.ai_grant,
         )
 
@@ -287,6 +291,7 @@ class SessionInfo:
 
 
 async def list_sessions(db: Database, session: CurrentSession) -> list[SessionInfo]:
+    authz.require(session.principal, authz.Action.MANAGE_OWN_SESSIONS)
     async with db.user_transaction(session.user.id) as conn:
         rows = await store.own_active_sessions(conn, session.user.id)
     return [
@@ -298,6 +303,7 @@ async def list_sessions(db: Database, session: CurrentSession) -> list[SessionIn
 async def revoke_own_session(
     db: Database, session: CurrentSession, session_id: uuid.UUID, ip: str | None
 ) -> bool:
+    authz.require(session.principal, authz.Action.MANAGE_OWN_SESSIONS)
     async with db.user_transaction(session.user.id) as conn:
         revoked = await store.revoke_own_session(conn, session.user.id, session_id)
         if revoked:
@@ -310,6 +316,7 @@ async def revoke_own_session(
 
 
 async def revoke_other_sessions(db: Database, session: CurrentSession, ip: str | None) -> int:
+    authz.require(session.principal, authz.Action.MANAGE_OWN_SESSIONS)
     async with db.user_transaction(session.user.id) as conn:
         count = await store.revoke_other_sessions(conn, session.user.id, keep=session.id)
         await store.record_audit(

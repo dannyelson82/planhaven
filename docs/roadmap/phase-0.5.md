@@ -1,6 +1,6 @@
 # Phase 0.5: iPhone app support (server)
 
-> **Status:** Planned · **Planned with the maintainer:** 2026-11-24
+> **Status:** Milestone 1 built (v0.5.0, not yet released) · **Planned with the maintainer:** 2026-11-24
 > Scope: ARCHITECTURE.md §12.2, §18 (0.5), §19.2; ADR 0021 (extends ADR 0007). Every release
 > meets SECURITY.md §11.
 
@@ -20,25 +20,25 @@ check, user guide and screenshots, a What's new entry.
 
 ## Milestone 1: App sign-in (v0.5.0)
 
-- [ ] Built-in client `phc_planhaven_ios` created by a migration; private-use redirect
-      the app's bundle ID (`com.example.planhaven:/oauth/callback` in examples), allowed for that client only; PKCE S256
-- [ ] Consent for the app: one question naming the device, a fresh second factor; `iss` in
+- [x] Built-in client `phc_planhaven_ios` created by a migration; private-use redirect
+      `app.planhaven.ios:/oauth/callback`, allowed for that client only; PKCE S256
+- [x] Consent for the app: one question naming the device, a fresh second factor; `iss` in
       the response
-- [ ] Audience `<base>/api/v1`; `phv_aat_` (1 hour) and `phv_art_` (rotated, reuse revokes the
+- [x] Audience `<base>/api/v1`; `phv_aat_` (1 hour) and `phv_art_` (rotated, reuse revokes the
       family, 90 days without use, configurable); hashed; `device_name` on the token request;
       the new prefixes in the secret-scanning regex, `.gitleaks.toml` and log redaction
-- [ ] Bearer path in `deps.require_session`: no CSRF or `Origin` checks for bearer requests;
+- [x] Bearer path in `deps.require_session`: no CSRF or `Origin` checks for bearer requests;
       cookie plus bearer refused (400); MCP tokens refused on `/api/v1` and app tokens on `/mcp`
-- [ ] Routes refused with an app token (403 "Do this in PlanHaven on the web."): admin;
+- [x] Routes refused with an app token (403 "Do this in PlanHaven on the web."): admin;
       password, TOTP, passkey and recovery-code changes; ending other sessions; AI connections
       and sync keys; creating share links. An app-token class for every route in the authz
       matrix; CI fails without it
-- [ ] `POST /api/v1/live/ticket`: single-use WebSocket ticket, 30 seconds
-- [ ] Account, "Signed-in apps": device name, first sign-in, last use, approximate place,
+- [x] `POST /api/v1/live/ticket`: single-use WebSocket ticket, 30 seconds
+- [x] Account, "Signed-in apps": device name, first sign-in, last use, approximate place,
       Sign out; a password change or turning 2FA off signs out every app
-- [ ] Rate limits on the token endpoint (per address, per client) and refreshes per family;
+- [x] Rate limits on the token endpoint (per address, per client) and refreshes per family;
       audit events `app_token.issued`, `.refreshed`, `.reuse_detected`, `.revoked`
-- [ ] SECURITY.md: threat rows (§6), sessions and tokens (§7.2, §7.3), rate limits (§7.11),
+- [x] SECURITY.md: threat rows (§6), sessions and tokens (§7.2, §7.3), rate limits (§7.11),
       audit (§7.12) and a section for the app; user guide; What's new
 
 ## Milestone 2: OpenAPI file with each release (v0.5.0)

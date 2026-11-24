@@ -11,6 +11,11 @@ Classes:
 - share         a share-link guest (ADR 0015): only their link session counts; accounts get 401
 - sync          a sync key only (accounts get 401)
 - mcp           an AI app's access token only (ADR 0019; accounts get 401)
+- app_only      the iPhone app's access token only (ADR 0021; browser sessions get 403)
+
+The iPhone app's token (ADR 0021) is a column of its own: see `app_expect`. It works wherever a
+verified session does, except the routes in APP_WEB_ONLY (account security, AI connections,
+keys, share links), and never on partial, enroll, step-up or admin routes.
 
 The OAuth endpoints AI apps call from their own servers (register, token, revoke) are
 "public": they read no cookies, so cross-origin calls carry no ambient authority.
@@ -45,6 +50,9 @@ MATRIX: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/oauth/requests/{request_id}"): "verified",
     ("POST", "/api/v1/oauth/requests/{request_id}/approve"): "step_up",
     ("POST", "/api/v1/oauth/requests/{request_id}/deny"): "verified",
+    ("GET", "/api/v1/account/apps"): "verified",
+    ("DELETE", "/api/v1/account/apps/{grant_id}"): "verified",
+    ("POST", "/api/v1/live/ticket"): "app_only",
     ("GET", "/api/v1/ai/connections"): "verified",
     # Widening a connection needs step-up; that is checked in the service (tests/db/test_ai).
     ("PATCH", "/api/v1/ai/connections/{grant_id}"): "verified",
@@ -406,6 +414,14 @@ EXPECT: dict[str, dict[str, object]] = {
     "share": {p: 401 for p in ("anon", "partial", "stale", "fresh", "admin_stale", "admin_fresh")},
     "sync": {p: 401 for p in ("anon", "partial", "stale", "fresh", "admin_stale", "admin_fresh")},
     "mcp": {p: 401 for p in ("anon", "partial", "stale", "fresh", "admin_stale", "admin_fresh")},
+    "app_only": {
+        "anon": 401,
+        "partial": 403,
+        "stale": 403,
+        "fresh": 403,
+        "admin_stale": 403,
+        "admin_fresh": 403,
+    },
     "admin": {
         "anon": 401,
         "partial": 404,
@@ -428,6 +444,7 @@ GUARDS: dict[str, set[str]] = {
     "share": {"require_share_session"},
     "sync": {"require_sync_key"},
     "mcp": {"require_mcp_token"},
+    "app_only": {"require_verified_session"},
 }
 SESSION_GUARDS = {
     "require_session",
@@ -445,3 +462,42 @@ WEBSOCKETS: dict[str, str] = {
     "/api/v1/live/projects/{project_id}": "verified",
     "/api/v1/live/me": "verified",
 }
+
+
+# Verified routes the iPhone app's token may not use (ADR 0021): 403 "Do this in PlanHaven on
+# the web." Every other verified route works with it.
+APP_WEB_ONLY: set[tuple[str, str]] = {
+    ("GET", "/api/v1/oauth/requests/{request_id}"),
+    ("POST", "/api/v1/oauth/requests/{request_id}/deny"),
+    ("GET", "/api/v1/ai/connections"),
+    ("PATCH", "/api/v1/ai/connections/{grant_id}"),
+    ("DELETE", "/api/v1/ai/connections/{grant_id}"),
+    ("GET", "/api/v1/auth/sessions"),
+    ("DELETE", "/api/v1/auth/sessions/{session_id}"),
+    ("POST", "/api/v1/auth/sessions/revoke-others"),
+    ("GET", "/api/v1/auth/passkeys"),
+    ("GET", "/api/v1/keys"),
+    ("DELETE", "/api/v1/keys/{key_id}"),
+    ("PUT", "/api/v1/keys/feed-details"),
+    ("POST", "/api/v1/projects/{project_id}/share-links"),
+    ("GET", "/api/v1/account/apps"),
+    ("DELETE", "/api/v1/account/apps/{grant_id}"),
+}
+
+UNSAFE = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+def app_expect(method: str, path: str) -> int | str:
+    """What the iPhone app's token gets on each route: "ok" or a status."""
+    cls = MATRIX[(method, path)]
+    if cls in ("public", "app_only"):
+        return "ok"
+    if cls == "public_origin":  # the app sends no Origin
+        return 403 if method in UNSAFE else "ok"
+    if cls == "share":
+        return 403 if method in UNSAFE else 401
+    if cls in ("sync", "mcp"):
+        return 401
+    if cls == "verified":
+        return 403 if (method, path) in APP_WEB_ONLY else "ok"
+    return 403  # partial, enroll, step_up, admin
