@@ -51,6 +51,12 @@ MATRIX: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/oauth/requests/{request_id}/approve"): "step_up",
     ("POST", "/api/v1/oauth/requests/{request_id}/deny"): "verified",
     # The change feed for offline copies (ADR 0021): the person's own view.
+    # Each person's project folders (ADR 0022).
+    ("GET", "/api/v1/folders"): "verified",
+    ("POST", "/api/v1/folders"): "verified",
+    ("PATCH", "/api/v1/folders/{folder_id}"): "verified",
+    ("DELETE", "/api/v1/folders/{folder_id}"): "verified",
+    ("PUT", "/api/v1/projects/{project_id}/folder"): "verified",
     ("GET", "/api/v1/changes"): "verified",
     ("GET", "/api/v1/changes/snapshot"): "verified",
     ("GET", "/api/v1/account/apps"): "verified",
@@ -339,6 +345,8 @@ BODIES: dict[tuple[str, str], object] = {
     ("PUT", "/api/v1/tasks/{task_id}/chore"): {"assignee_id": None},
     ("POST", "/api/v1/sync/push"): {"done": []},
     ("POST", "/oauth/register"): {"redirect_uris": ["https://ai.example.com/callback"]},
+    ("POST", "/api/v1/folders"): {"name": "Cars"},
+    ("PUT", "/api/v1/projects/{project_id}/folder"): {"folder_id": None},
     ("POST", "/api/v1/oauth/requests/{request_id}/approve"): {"scope": "read"},
     ("PATCH", "/api/v1/ai/connections/{grant_id}"): {"scope": "read", "write_mode": "approve"},
     ("POST", "/api/v1/keys"): {"kind": "sync", "label": "Matrix"},

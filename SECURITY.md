@@ -279,6 +279,9 @@ read-only, feed-only, and defaults to "titles only" content. Tokens are never lo
 - **Experimental features** (ADR 0012) are off unless an admin turns them on and makes each
   available (step-up, audited, stored where only the system context can write), and each
   person opts in for themselves (their own rows only). Code behind one checks both.
+- **Project folders** (ADR 0022) are each person's own rows (RLS: own rows only, admins
+  included); a project can be filed only if the person can read it, into their own folder only.
+  Folders never grant or remove access to a project.
 - **Authorization test matrix:** CI generates tests for every route × role (owner, editor,
   viewer, non-member, admin, each token type) and asserts the expected result. A new route
   without an entry in the matrix fails the build.
