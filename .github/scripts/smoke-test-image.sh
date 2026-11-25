@@ -136,6 +136,9 @@ uvicorn_uids="$(docker top "$name" -eo pid,uid,args | awk '/uvicorn/ {print $2}'
 [[ "$uvicorn_uids" == "99" ]] || fail "app not running as UID 99 (got: $uvicorn_uids)"
 pg_users="$(docker top "$name" -eo pid,user,args | awk '/postgres -D/ {print $2}' | sort -u)"
 pg_uid="$(docker exec "$name" id -u postgres)"
+# Fixed IDs: existing installs' database files belong to them (docker/Dockerfile).
+[[ "$pg_uid:$(docker exec "$name" id -g postgres)" == "100:102" ]] \
+  || fail "postgres user must be 100:102 (got $pg_uid:$(docker exec "$name" id -g postgres))"
 docker top "$name" -eo pid,uid,args | awk -v u="$pg_uid" '/postgres -D/ && $2 != u {bad=1} END {exit bad}' \
   || fail "postgres not running as the postgres user ($pg_users)"
 worker_uids="$(docker top "$name" -eo pid,uid,args | awk '/app.workers/ {print $2}' | sort -u)"
@@ -189,6 +192,18 @@ docker stop -t 30 "$name" >/dev/null
 elapsed=$((SECONDS - start))
 [[ $elapsed -lt 25 ]] || fail "shutdown took ${elapsed}s (services not stopping cleanly)"
 echo "ok: clean shutdown in ${elapsed}s"
+
+# Database files left by an image with other postgres IDs (v0.5.0 had 997:997) are given back
+# to this image's postgres user at startup, and the database comes up.
+sudo chown -R 997:997 "$work/config/pgdata" "$work/config/backups"
+docker start "$name" >/dev/null
+wait_ready
+[[ "$(sudo find "$work/config/pgdata" "$work/config/backups" ! -uid "$pg_uid" | wc -l)" == 0 ]] \
+  || fail "database files not given back to the postgres user"
+docker logs "$name" 2>&1 | grep -q "giving /config/pgdata back to the postgres user" \
+  || fail "ownership repair not logged"
+docker stop -t 30 "$name" >/dev/null
+echo "ok: database files from other postgres IDs are repaired"
 
 # A symlinked volume directory must stop startup, not be followed by root.
 sudo rm -rf "$work/config/logs"

@@ -81,7 +81,15 @@ LABEL org.opencontainers.image.title="PlanHaven" \
 # Debian's package would create a default cluster on install; we disable that and create our
 # own cluster in /config at first boot.
 COPY docker/pgdg-archive-key.asc /usr/share/keyrings/pgdg-archive-key.asc
+# The postgres user's IDs are fixed: the database files in /config/pgdata belong to them, so
+# they must not change between images. (Base image 13.8 made the package pick 997:997 instead
+# of the 100:102 every earlier release used, and PostgreSQL couldn't read existing data.)
+ARG PG_UID=100
+ARG PG_GID=102
 RUN set -eu; \
+    groupadd --system --gid "${PG_GID}" postgres; \
+    useradd --system --uid "${PG_UID}" --gid postgres --home-dir /var/lib/postgresql \
+      --shell /bin/bash --comment "PostgreSQL administrator" postgres; \
     mkdir -p /etc/postgresql-common; \
     echo 'create_main_cluster = false' > /etc/postgresql-common/createcluster.conf; \
     printf '%s\n' \
