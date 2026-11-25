@@ -14,6 +14,7 @@ from datetime import timedelta
 
 from sqlalchemy import text
 
+from app.db import changes as changes_store
 from app.db import jobs as job_store
 from app.db import oauth as oauth_store
 from app.db import rate_limits
@@ -65,8 +66,8 @@ class Worker:
 
     async def maintenance(self) -> None:
         """Hourly housekeeping: drop idle rate-limit buckets, old passkey challenges,
-        week-old idempotency keys, ended share-link sessions and spent AI sign-in codes and
-        tokens."""
+        week-old idempotency keys, ended share-link sessions, spent AI sign-in codes and
+        tokens, and change-feed entries older than 30 days."""
         async with self.db.system_transaction() as conn:
             await rate_limits.purge_idle(conn)
             await conn.execute(
@@ -78,6 +79,7 @@ class Worker:
             # Share-link guest sessions end within 12 hours; drop the ended ones.
             await conn.execute(text("DELETE FROM share_sessions WHERE expires_at < now()"))
             await oauth_store.purge(conn)
+            await changes_store.purge(conn)
         await trash_service.purge(self.db)
         await notification_service.remind(self.db)
         if self.blobs is not None:

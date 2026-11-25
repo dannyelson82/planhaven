@@ -50,6 +50,9 @@ MATRIX: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/oauth/requests/{request_id}"): "verified",
     ("POST", "/api/v1/oauth/requests/{request_id}/approve"): "step_up",
     ("POST", "/api/v1/oauth/requests/{request_id}/deny"): "verified",
+    # The change feed for offline copies (ADR 0021): the person's own view.
+    ("GET", "/api/v1/changes"): "verified",
+    ("GET", "/api/v1/changes/snapshot"): "verified",
     ("GET", "/api/v1/account/apps"): "verified",
     ("DELETE", "/api/v1/account/apps/{grant_id}"): "verified",
     ("POST", "/api/v1/live/ticket"): "app_only",
