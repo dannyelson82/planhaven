@@ -14,6 +14,17 @@ own_dir /config/logs    "$PUID" "$PGID" 0750
 # Backups are written by the postgres user (they contain every row) and readable only by it.
 own_dir /config/backups "$pg_uid" "$pg_gid" 0700
 own_dir /config/plugins "$PUID" "$PGID" 0750
+# Database files made under a different postgres user ID (an image whose IDs differed) would
+# be unreadable: give everything inside back to this image's postgres user. -h and -R without
+# -L never follow symlinks; /config is root-owned, so the app can't plant a link here.
+for dir in "$PGDATA" /config/backups; do
+  if [ -e "$dir/PG_VERSION" ] || [ "$dir" = /config/backups ]; then
+    if find "$dir" -mindepth 1 \( ! -uid "$pg_uid" -o ! -gid "$pg_gid" \) -print -quit | grep -q .; then
+      echo "planhaven: giving $dir back to the postgres user ($pg_uid:$pg_gid)"
+      chown -R -h "$pg_uid:$pg_gid" "$dir"
+    fi
+  fi
+done
 own_dir "$PGDATA"       "$pg_uid" "$pg_gid" 0700
 own_dir /data           "$PUID" "$PGID" 0750
 
