@@ -50,7 +50,7 @@ expect_refusal() { # message docker-run-args...
   [[ "$(docker inspect -f '{{.State.Running}}' "$name")" == "false" ]] \
     || fail "container kept running; expected refusal: $message"
   for _ in $(seq 1 10); do  # log output can lag the container exit
-    docker logs "$name" 2>&1 | grep -qF "$message" && return 0
+    grep -qF "$message" <<<"$(docker logs "$name" 2>&1)" && return 0
     sleep 1
   done
   fail "missing refusal message: $message"
@@ -200,7 +200,9 @@ docker start "$name" >/dev/null
 wait_ready
 [[ "$(sudo find "$work/config/pgdata" "$work/config/backups" ! -uid "$pg_uid" | wc -l)" == 0 ]] \
   || fail "database files not given back to the postgres user"
-docker logs "$name" 2>&1 | grep -q "giving /config/pgdata back to the postgres user" \
+# (Read the log first: with pipefail, `docker logs | grep -q` fails when grep stops early.)
+repair_log="$(docker logs "$name" 2>&1)"
+grep -q "giving /config/pgdata back to the postgres user" <<<"$repair_log" \
   || fail "ownership repair not logged"
 docker stop -t 30 "$name" >/dev/null
 echo "ok: database files from other postgres IDs are repaired"
