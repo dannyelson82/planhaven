@@ -435,3 +435,42 @@ def test_write_limits_match_the_web_app() -> None:
         20000
     )
     assert tools["planhaven_update_list_item"]["notes"]["maxLength"] == 4000
+    # Notes as long as the web app allows (200,000 characters).
+    assert tools["planhaven_add_note"]["text"]["maxLength"] == 200000
+    assert tools["planhaven_update_note"]["text"]["maxLength"] == 200000
+
+
+def test_long_notes_come_in_pages_and_left_out_items_are_counted(
+    team: Team, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.services import ai_tools
+
+    monkeypatch.setattr(ai_tools, "NOTE_PAGE", 300)
+    monkeypatch.setitem(ai_tools.LIMITS, "tasks", 1)
+    owner, _, _, pid, _ = team
+    t = _connect(owner, mode="apply")["access_token"]
+    text = "\n\n".join(f"Step {i}: " + "z" * 60 for i in range(10))
+    note_id = _ok(owner, t, "planhaven_add_note", project_id=pid, title="Long", text=text)[
+        "note_id"
+    ]
+    pages, offset = [], 0
+    while True:
+        args: dict[str, Any] = (
+            {"note_id": note_id} if offset == 0 else {"note_id": note_id, "offset": offset}
+        )
+        page = _ok(owner, t, "planhaven_get_note", **args)["note"]
+        pages.append(page["text"])
+        assert page["length"] == len("".join(pages)) or "next_offset" in page
+        if "next_offset" not in page:
+            break
+        offset = page["next_offset"]
+    assert len(pages) > 1
+    assert "".join(pages).count("Step") == 10
+    assert _err(owner, t, "planhaven_get_note", note_id=note_id, offset=10**6)["field"] == "offset"
+    assert _err(owner, t, "planhaven_get_note", note_id=note_id, offset=-1)["code"]
+
+    _ok(owner, t, "planhaven_add_tasks", project_id=pid, tasks=[{"title": "a"}, {"title": "b"}])
+    p = _project(owner, t, pid)
+    assert len(p["tasks"]) == 1
+    assert p["omitted"]["tasks"] >= 1
+    assert "omitted_hint" in p

@@ -17,8 +17,8 @@ every change it makes can be undone. It sees every project you can see, except p
 **Local AI only**. Only connect apps you trust.
 
 Long notes and task notes are read in full: when the app looks at a whole project it first gets
-the start of each long text, then opens the ones it needs. Task notes it writes can be as long
-as the ones you write (20,000 characters).
+the start of each long text, then opens the ones it needs. Notes and task notes it writes can be
+as long as the ones you write.
 
 An AI app can never make share links, change who owns something, change your own access, change
 your account or security settings, empty the Trash, or upload or download files.

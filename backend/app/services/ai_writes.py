@@ -275,7 +275,7 @@ async def _plan_add_note(db: Database, s: CurrentSession, args: dict[str, Any]) 
     pid = id_arg(args, "project_id")
     p = await editable(db, s, pid)
     title = text_arg(args, "title", 200)
-    body = text_arg(args, "text", 20000)
+    body = text_arg(args, "text", content.MAX_TEXT)
     return Plan(
         "planhaven_add_note",
         pid,
@@ -316,7 +316,7 @@ async def _plan_update_note(db: Database, s: CurrentSession, args: dict[str, Any
     if args.get("title") is not None:
         change["title"] = text_arg(args, "title", 200)
     if args.get("text") is not None:
-        change["text"] = text_arg(args, "text", 20000, required=False)
+        change["text"] = text_arg(args, "text", content.MAX_TEXT, required=False)
     if args.get("archived") is not None:
         change["archived"] = bool_arg(args, "archived")
     _need_some(change, "title, text, archived")

@@ -71,9 +71,45 @@ def _num(value: Decimal | None) -> str | None:
 
 # How much of each long text planhaven_get_project shows; the rest is read with
 # planhaven_get_note / planhaven_get_task. A shortened text is always marked, never silent.
-NOTE_PREVIEW = 2000
+# Sized from real projects (25 Nov 2026): most notes are 2,000-5,000+ characters, so no
+# preview shows them whole; a 1,000-character preview says what a note is about and keeps
+# planhaven_get_project around 35-45k characters, under what AI apps take in one result.
+NOTE_PREVIEW = 1000
 TASK_NOTES_PREVIEW = 2000
 SHORT_PREVIEW = 1000
+# planhaven_get_note returns a long note in pages of this many characters.
+NOTE_PAGE = 40000
+
+OMITTED_HINT = (
+    "Some items weren't included (see 'omitted'); ask the person, or use planhaven_search to "
+    "find specific ones."
+)
+
+
+# At most this many of each in one result; the rest are counted in "omitted".
+LIMITS: dict[str, int] = {
+    "lists": 30,
+    "items": 200,
+    "notes": 30,
+    "archived_notes": 30,
+    "tasks": 300,
+    "files": 100,
+    "quotes": 100,
+    "costs": 200,
+    "contacts": 500,
+    "assets": 500,
+    "readings": 50,
+    "service_records": 100,
+}
+
+
+def _first(rows: list[Any], key: str, omitted: dict[str, int]) -> list[Any]:
+    """The first LIMITS[key] rows; how many were left out goes into `omitted` (never
+    silent)."""
+    limit = LIMITS[key]
+    if len(rows) > limit:
+        omitted[key] = len(rows) - limit
+    return rows[:limit]
 
 
 def _shortened(key: str, value: str, limit: int) -> dict[str, Any]:
@@ -107,16 +143,20 @@ async def get_project(
     db: Database, session: CurrentSession, project_id: uuid.UUID
 ) -> dict[str, Any]:
     p = await project(db, session, project_id)
+    omitted: dict[str, int] = {}
     tasks = await project_service.list_tasks(db, session, project_id)
     lists = await list_service.lists_for_project(db, session, project_id)
     out_lists = []
-    for lst in lists[:30]:
+    for lst in _first(lists, "lists", omitted):
         _, items = await list_service.get_list(db, session, lst.id)
+        left: dict[str, int] = {}
+        shown = _first(items, "items", left)
         out_lists.append(
             {
                 "id": str(lst.id),
                 "title": lst.title,
                 "kind": lst.kind,
+                **({"items_omitted": left["items"]} if left else {}),
                 "items": [
                     {
                         "id": str(i.id),
@@ -125,15 +165,14 @@ async def get_project(
                         **_shortened("notes", i.notes, SHORT_PREVIEW),
                         "done": i.checked_at is not None,
                     }
-                    for i in items[:200]
+                    for i in shown
                 ],
             }
         )
     out_notes = []
     for archived in (False, True):
-        for n in (await note_service.notes_for_project(db, session, project_id, archived=archived))[
-            :30
-        ]:
+        listed = await note_service.notes_for_project(db, session, project_id, archived=archived)
+        for n in _first(listed, "archived_notes" if archived else "notes", omitted):
             note, _, document = await note_service.get_note(db, session, n.id)
             out_notes.append(
                 {
@@ -147,7 +186,11 @@ async def get_project(
     quotes = await cost_service.quotes_for_project(db, session, project_id)
     costs = await cost_service.costs_for_project(db, session, project_id)
     members = await sharing.list_members(db, session, project_id)
-    return {
+    tasks = _first(tasks, "tasks", omitted)
+    files = _first(files, "files", omitted)
+    quotes = _first(quotes, "quotes", omitted)
+    costs = _first(costs, "costs", omitted)
+    result: dict[str, Any] = {
         "about_the_content": UNTRUSTED,
         "project": {
             "id": str(p.id),
@@ -164,11 +207,11 @@ async def get_project(
                 "due": t.due_at.isoformat() if t.due_at else None,
                 "done": t.done_at is not None,
             }
-            for t in tasks[:300]
+            for t in tasks
         ],
         "lists": out_lists,
         "notes": out_notes,
-        "files": [{"id": str(f.id), "name": f.filename, "kind": f.kind} for f in files[:100]],
+        "files": [{"id": str(f.id), "name": f.filename, "kind": f.kind} for f in files],
         "quotes": [
             {
                 "id": str(q.id),
@@ -179,7 +222,7 @@ async def get_project(
                 "contact": q.contact_name,
                 **_shortened("notes", q.notes, SHORT_PREVIEW),
             }
-            for q in quotes[:100]
+            for q in quotes
         ],
         "costs": [
             {
@@ -190,12 +233,16 @@ async def get_project(
                 "store": c.store,
                 "quote_id": str(c.quote_id) if c.quote_id else None,
             }
-            for c in costs[:200]
+            for c in costs
         ],
         "members": [
             {"user_id": str(m.user_id), "name": m.display_name, "role": m.role} for m in members
         ],
     }
+    if omitted:
+        result["omitted"] = omitted
+        result["omitted_hint"] = OMITTED_HINT
+    return result
 
 
 async def search(db: Database, session: CurrentSession, query: str) -> list[dict[str, Any]]:
@@ -216,6 +263,7 @@ async def search(db: Database, session: CurrentSession, query: str) -> list[dict
 
 async def list_contacts(db: Database, session: CurrentSession) -> dict[str, Any]:
     rows = await contact_service.list_contacts(db, session)
+    omitted: dict[str, int] = {}
     return {
         "about_the_content": UNTRUSTED,
         "contacts": [
@@ -227,40 +275,53 @@ async def list_contacts(db: Database, session: CurrentSession) -> dict[str, Any]
                 "phone": c.phone,
                 "email": c.email,
                 "website": c.website,
-                "notes": c.notes[:2000],
+                **_shortened("notes", c.notes, 2000),
                 "your_role": c.role,
             }
-            for c in rows[:500]
+            for c in _first(rows, "contacts", omitted)
         ],
+        **({"omitted": omitted, "omitted_hint": OMITTED_HINT} if omitted else {}),
     }
 
 
 async def list_assets(db: Database, session: CurrentSession) -> dict[str, Any]:
     rows = await asset_svc.list_assets(db, session)
+    omitted: dict[str, int] = {}
     return {
         "about_the_content": UNTRUSTED,
         "assets": [
             {"id": str(a.id), "name": a.name, "kind": a.kind, "your_role": a.role}
-            for a in rows[:500]
+            for a in _first(rows, "assets", omitted)
         ],
+        **({"omitted": omitted, "omitted_hint": OMITTED_HINT} if omitted else {}),
     }
 
 
-async def get_note(db: Database, session: CurrentSession, note_id: uuid.UUID) -> dict[str, Any]:
-    """One note's whole text (planhaven_get_project shows a preview of long ones)."""
+async def get_note(
+    db: Database, session: CurrentSession, note_id: uuid.UUID, offset: int = 0
+) -> dict[str, Any]:
+    """One note's whole text (planhaven_get_project shows a preview of long ones), in pages
+    of NOTE_PAGE characters: `next_offset` says where the next page starts."""
     note, _, document = await note_service.get_note(db, session, note_id)
     await project(db, session, note.project_id)  # never a local_ai_only project's
-    return {
-        "about_the_content": UNTRUSTED,
-        "note": {
-            "id": str(note.id),
-            "project_id": str(note.project_id),
-            "title": note.title,
-            "archived": note.archived_at is not None,
-            "text": content.to_markdown(document),
-            "updated_at": note.updated_at.isoformat(),
-        },
+    text = content.to_markdown(document)
+    if offset > len(text):
+        raise ToolError(f"The note is {len(text)} characters long.", field="offset")
+    page = text[offset : offset + NOTE_PAGE]
+    out: dict[str, Any] = {
+        "id": str(note.id),
+        "project_id": str(note.project_id),
+        "title": note.title,
+        "archived": note.archived_at is not None,
+        "text": page,
+        "length": len(text),
+        "updated_at": note.updated_at.isoformat(),
     }
+    if offset:
+        out["offset"] = offset
+    if offset + len(page) < len(text):
+        out["next_offset"] = offset + len(page)
+    return {"about_the_content": UNTRUSTED, "note": out}
 
 
 async def get_task(db: Database, session: CurrentSession, task_id: uuid.UUID) -> dict[str, Any]:
@@ -285,6 +346,9 @@ async def get_asset(db: Database, session: CurrentSession, asset_id: uuid.UUID) 
     asset, linked = await asset_svc.get_asset(db, session, asset_id)
     view = await asset_service.view(db, session, asset_id)
     visible = {uuid.UUID(p["id"]) for p in await list_projects(db, session, None)}
+    omitted: dict[str, int] = {}
+    readings = _first(view.readings, "readings", omitted)
+    records = _first(view.records, "service_records", omitted)
     return {
         "about_the_content": UNTRUSTED,
         "asset": {
@@ -308,7 +372,7 @@ async def get_asset(db: Database, session: CurrentSession, asset_id: uuid.UUID) 
                 "distance": _num(r.distance),
                 "hours": _num(r.hours),
             }
-            for r in view.readings[:50]
+            for r in readings
         ],
         "service_schedules": [
             {
@@ -317,7 +381,7 @@ async def get_asset(db: Database, session: CurrentSession, asset_id: uuid.UUID) 
                 "every_distance": _num(st.schedule.every_distance),
                 "every_hours": _num(st.schedule.every_hours),
                 "every_months": st.schedule.every_months,
-                "notes": st.schedule.notes[:1000],
+                **_shortened("notes", st.schedule.notes, 4000),
                 "status": st.due.status,
                 "last_done": st.last.done_on.isoformat() if st.last else None,
             }
@@ -332,10 +396,11 @@ async def get_asset(db: Database, session: CurrentSession, asset_id: uuid.UUID) 
                 "distance": _num(r.distance),
                 "hours": _num(r.hours),
                 "cost": _cents(r.cost_cents),
-                "notes": r.notes[:1000],
+                **_shortened("notes", r.notes, 4000),
             }
-            for r in view.records[:100]
+            for r in records
         ],
+        **({"omitted": omitted, "omitted_hint": OMITTED_HINT} if omitted else {}),
     }
 
 
@@ -486,3 +551,10 @@ async def undo(db: Database, session: CurrentSession, change_id: uuid.UUID) -> N
         ) from None
     async with db.user_transaction(session.user.id) as conn:
         await store.mark_undone(conn, change_id)
+
+
+def offset_arg(args: dict[str, Any]) -> int:
+    value = args.get("offset", 0)
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise ToolError("'offset' is a whole number, 0 or more.", field="offset")
+    return value

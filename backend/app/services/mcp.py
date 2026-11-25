@@ -138,8 +138,10 @@ TOOLS: list[dict[str, Any]] = [
     _tool(
         "planhaven_get_note",
         "Get a note",
-        "One note's whole text (as Markdown), with its project, title and when it changed.",
-        _schema(["note_id"], note_id=_ID),
+        "One note's whole text (as Markdown), with its project, title and when it changed. A "
+        "very long note comes in pages of 40,000 characters: pass next_offset as offset to "
+        "read on.",
+        _schema(["note_id"], note_id=_ID, offset={"type": "integer", "minimum": 0}),
         _READ,
     ),
     _tool(
@@ -212,7 +214,7 @@ TOOLS: list[dict[str, Any]] = [
         "Add a note",
         f"Add a note to a project. Text: {_NOTE_TEXT}",
         _schema(
-            ["project_id", "title", "text"], project_id=_ID, title=_text(200), text=_text(20000)
+            ["project_id", "title", "text"], project_id=_ID, title=_text(200), text=_text(200000)
         ),
         _WRITE,
     ),
@@ -224,7 +226,7 @@ TOOLS: list[dict[str, Any]] = [
             ["note_id"],
             note_id=_ID,
             title=_text(200),
-            text=_text(20000, "Replaces the whole note."),
+            text=_text(200000, "Replaces the whole note."),
             archived={"type": "boolean"},
         ),
         _WRITE,
@@ -688,7 +690,9 @@ async def _read(
     if name == "planhaven_get_asset":
         return await ai_tools.get_asset(db, session, ai_tools.id_arg(args, "asset_id"))
     if name == "planhaven_get_note":
-        return await ai_tools.get_note(db, session, ai_tools.id_arg(args, "note_id"))
+        return await ai_tools.get_note(
+            db, session, ai_tools.id_arg(args, "note_id"), ai_tools.offset_arg(args)
+        )
     if name == "planhaven_get_task":
         return await ai_tools.get_task(db, session, ai_tools.id_arg(args, "task_id"))
     if name == "planhaven_list_people":
