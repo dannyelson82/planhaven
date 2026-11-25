@@ -253,6 +253,15 @@ async def _task_access(conn: Any, task_id: uuid.UUID) -> tuple[store.TaskRow, au
     return task, await _access(conn, task.project_id)
 
 
+async def get_task(db: Database, session: CurrentSession, task_id: uuid.UUID) -> store.TaskRow:
+    """One task of a project the person is a member of."""
+    principal = session.principal
+    async with db.user_transaction(principal.user_id) as conn:
+        task, access = await _task_access(conn, task_id)
+        authz.require(principal, authz.Action.PROJECT_VIEW, access)
+        return task
+
+
 async def update_task(
     db: Database,
     session: CurrentSession,
