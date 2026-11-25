@@ -71,6 +71,7 @@ export type Project = {
   asset_id?: string | null
   asset_name?: string | null
   asset_kind?: string | null
+  folder_id?: string | null
 }
 export type Task = {
   id: string

@@ -20,6 +20,20 @@ export type Release = { version: string; date: string; items: Item[] }
 
 export const RELEASES: Release[] = [
   {
+    version: '0.5.4',
+    date: '2026-11-25',
+    items: [
+      {
+        title: 'Folders for your projects',
+        text: 'Keep a long projects list tidy: put projects in folders, and folders in folders. Your folders are your own; nobody else\'s list changes.',
+        steps: ['On Projects, type a name in New folder and tap Add folder.', 'Tap Move to folder on a project and pick the folder.', 'Open a folder to see its projects; the path at the top takes you back.'],
+        action: 'projects',
+        guide: 'projects',
+        shot: 'projects',
+      },
+    ],
+  },
+  {
     version: '0.5.3',
     date: '2026-11-25',
     items: [

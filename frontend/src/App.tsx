@@ -122,6 +122,8 @@ function screen(route: ReturnType<typeof match>, session: Session): ReactNode {
   switch (route.name) {
     case 'projects':
       return <ProjectsScreen />
+    case 'folder':
+      return <ProjectsScreen key={route.id} folderId={route.id} />
     case 'project':
       return <ProjectScreen id={route.id} myId={session.user.id} />
     case 'list':

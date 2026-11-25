@@ -52,6 +52,8 @@ class ProjectOut(BaseModel):
     asset_id: uuid.UUID | None = None
     asset_name: str | None = None
     asset_kind: str | None = None
+    # Your folder for it (ADR 0022); null when it's in none.
+    folder_id: uuid.UUID | None = None
 
 
 class ProjectPage(BaseModel):

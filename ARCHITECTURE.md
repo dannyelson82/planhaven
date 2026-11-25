@@ -913,6 +913,7 @@ Every phase ships meeting `SECURITY.md` §11.
 | 0019 | The AI connector comes next (roadmap renumbered); per-connection write mode |
 | 0020 | AI apps can edit, delete and share project content (to the Trash, undoable; no share links) |
 | 0021 | Server support for the native iPhone app comes next (roadmap renumbered); app sign-in with a first-party OAuth client |
+| 0022 | Folders for the projects list, each person's own |
 
 ### 19.2 Open questions
 

@@ -8,7 +8,7 @@ PlanHaven is building **phase 0.5, iPhone app support on the server** (checklist
 
 - `ARCHITECTURE.md`: how it's built and why (cited as A§n)
 - `SECURITY.md`: threat model, controls, release criteria (cited as S§n)
-- `docs/adr/`: decision records (ADRs 0001–0021; index in `docs/adr/README.md`)
+- `docs/adr/`: decision records (ADRs 0001–0022; index in `docs/adr/README.md`)
 - `docs/repo-setup.md`: GitHub hardening checklist
 
 Read the relevant sections before implementing anything. If code and docs disagree, stop and

@@ -9,6 +9,23 @@ A project is anything with a goal: winterizing the boat, a new deck, a car servi
 1. On **Projects**, type its name in **New project** and tap **Add project**.
 2. The project page opens.
 
+## Folders
+
+Put projects in folders to keep the list short: **Cars**, **House**, **Yard**, with folders
+inside folders if you like (up to five levels).
+
+1. On **Projects** (or inside a folder), type a name in **New folder** and tap **Add folder**.
+2. Tap a folder to open it. The path at the top (**Projects › Cars › …**) takes you back up.
+3. To file a project, tap **Move to folder** on it and pick the folder, or **Not in a folder**.
+4. A new project you add inside a folder goes straight into it.
+
+Inside a folder, **Rename**, **Move folder** (into another folder, or back to the top) and
+**Delete folder** change the folder itself. Deleting a folder never deletes a project: what was
+in it moves up a level.
+
+Folders are your own. Someone you share a project with keeps it in their own folder (or none),
+and nobody else's list changes when you reorganize yours.
+
 ## The project page
 
 ![A project: its stage, what it's for, the add bar and the tasks](screens/desktop/project.jpg)

@@ -18,6 +18,7 @@ from app.api import (
     contacts,
     experiments,
     feeds,
+    folders,
     health,
     invites,
     layouts,
@@ -95,6 +96,7 @@ ROUTERS = (
     templates.router,
     trash.router,
     changes.router,
+    folders.router,
     spa.router,  # last: catches every path the API didn't
 )
 
