@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type Folder, folderChoices, trail } from './folders.ts'
+import { type Folder, folderChoices, foldersHolding, tabOf, trail } from './folders.ts'
 
 const f = (id: string, name: string, parent: string | null = null, position = 0): Folder =>
   ({ id, name, parent_id: parent, position, projects: 0, version: 1 })
@@ -16,5 +16,14 @@ describe('folders', () => {
     const byId = new Map(all.map((x) => [x.id, x]))
     expect(trail(byId, 'd').map((x) => x.name)).toEqual(['Cars', 'Corolla', 'Tires'])
     expect(trail(byId, null)).toEqual([])
+  })
+  it('finds the folders that hold projects, all the way up', () => {
+    expect([...foldersHolding(all, ['d'])].sort()).toEqual(['a', 'c', 'd'])
+    expect(foldersHolding(all, [null, undefined]).size).toBe(0)
+  })
+  it('puts every stage on a tab', () => {
+    expect(['idea', 'planning', 'ready', 'in_progress'].map(tabOf)).toEqual(['active', 'active', 'active', 'active'])
+    expect(tabOf('done')).toBe('done')
+    expect(tabOf('archived')).toBe('archived')
   })
 })

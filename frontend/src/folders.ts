@@ -31,3 +31,27 @@ export function folderChoices(all: Folder[], skip: string | null = null): { id: 
   walk(null, '')
   return out
 }
+
+/** The Projects tabs (maintainer, 2026-11-25): Active (idea to in progress), Done, Archived,
+ * and Trash (deleted projects, for 30 days). */
+export const TABS = ['active', 'done', 'archived', 'trash'] as const
+export type Tab = (typeof TABS)[number]
+
+export function tabOf(stage: string): Tab {
+  return stage === 'done' ? 'done' : stage === 'archived' ? 'archived' : 'active'
+}
+
+/** The folders that hold (directly or further down) at least one of `projectFolders`. */
+export function foldersHolding(all: Folder[], projectFolders: (string | null | undefined)[]): Set<string> {
+  const byId = new Map(all.map((x) => [x.id, x]))
+  const out = new Set<string>()
+  for (const start of projectFolders) {
+    let at = start ? byId.get(start) : undefined
+    while (at && !out.has(at.id)) {
+      out.add(at.id)
+      at = at.parent_id ? byId.get(at.parent_id) : undefined
+    }
+  }
+  return out
+}
+
