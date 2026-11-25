@@ -20,6 +20,20 @@ export type Release = { version: string; date: string; items: Item[] }
 
 export const RELEASES: Release[] = [
   {
+    version: '0.5.5',
+    date: '2026-11-25',
+    items: [
+      {
+        title: 'Active, Done, Archived and Trash tabs',
+        text: 'The projects list now has tabs: what you\'re working on, what\'s done, what\'s put away, and projects you deleted in the last 30 days, which you can restore.',
+        steps: ['Open Projects and pick a tab at the top.', 'Change a project\'s stage to Done or Archived to move it to that tab.', 'In Trash, tap Restore to bring a deleted project back.'],
+        action: 'projects',
+        guide: 'projects',
+        shot: 'projects',
+      },
+    ],
+  },
+  {
     version: '0.5.4',
     date: '2026-11-25',
     items: [

@@ -57,7 +57,11 @@ export function ProjectScreen({ id, myId }: { id: string; myId: string }) {
   })
   const deleteProject = useMutation({
     mutationFn: () => api('DELETE', `/api/v1/projects/${id}`),
-    onSuccess: async () => { await client.invalidateQueries({ queryKey: ['projects'] }); navigate('/projects') },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['projects'] })
+      await client.invalidateQueries({ queryKey: ['trash'] })
+      navigate('/projects')
+    },
   })
 
   if (project.error) return <ErrorText error={project.error} />

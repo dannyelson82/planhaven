@@ -9,6 +9,20 @@ A project is anything with a goal: winterizing the boat, a new deck, a car servi
 1. On **Projects**, type its name in **New project** and tap **Add project**.
 2. The project page opens.
 
+## Active, Done, Archived and Trash
+
+The tabs at the top of **Projects** split the list:
+
+- **Active**: ideas and projects being planned, ready or in progress.
+- **Done** and **Archived**: projects at those stages. Change a project's stage at the top of
+  its page and it moves to that tab.
+- **Trash**: projects you deleted in the last 30 days. Tap **Restore** to bring one back with
+  everything in it; after 30 days it's gone for good.
+
+The number on each tab says how many projects it holds, and the app remembers which tab you
+last used on this device. Folders show on every tab; on Done and Archived only the folders
+that hold such projects.
+
 ## Folders
 
 Put projects in folders to keep the list short: **Cars**, **House**, **Yard**, with folders
