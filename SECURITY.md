@@ -144,6 +144,7 @@ Organized by STRIDE category. Details for each control are in §7.
 | Prompt injection via documents or web content | Tampering / Info disclosure | Content delimited as data; AI acts only with the user's rights; no share-link, owner, account or permanent-delete tools; deletes go to the Trash, marked destructive; household members editor/viewer only (ADR 0020); propose-and-approve by default; scoped OAuth; `local_ai_only` projects hidden; audit + undo; features experimental until tested (§7.7) |
 | Stolen iPhone app token or lost phone | Spoofing / Elevation | Access tokens 1 hour, refresh tokens rotated with reuse revocation and ended after 90 days unused; account security, AI connections, keys and share links refused with an app token; never a recent second factor; Signed-in apps list with Sign out; password change or "sign out all other devices" ends every app (§7.19) |
 | Another app on the phone claiming the iPhone app's redirect scheme | Spoofing | PKCE S256 (the verifier never leaves the app), ephemeral browser session, single-use 2-minute codes; the scheme is accepted only for the built-in client (§7.19, RFC 8252 §8.1) |
+| Change feed leaking another person's or a former member's data | Info disclosure | Entries hold no content and are limited to scopes the person belongs to now; items are read as the person (RLS); deletes name only the id; losing access is an `access_lost` entry, after which nothing from that scope is returned; tested (§7.19, A§13.6) |
 | App token used where only AI apps' tokens (or the reverse) belong | Elevation | Separate audiences and prefixes (`/api/v1` vs `/mcp`), checked on every request (§7.19) |
 | Over-privileged AI connector | Elevation | Read vs. write scopes chosen at consent, per-client revocation, 2FA at consent (§7.3, §7.7) |
 | AI app tricked into sharing a project or trashing its content | Info disclosure / Tampering | Household members only (no share links), editor or viewer only, never the person's own access; the person added is notified; deletes only to the Trash; every change listed on the AI page with Undo; approve first by default (§7.4, §7.7, ADR 0020) |
@@ -575,6 +576,9 @@ Cross-Origin-Resource-Policy: same-origin
 - **Live updates:** `POST /api/v1/live/ticket` gives a single-use, 30-second ticket (hashed,
   system-only table) for the WebSocket handshake; a foreign `Origin` is refused; the
   connection closes when the sign-in ends.
+- **Change feed (A§13.6):** `changes` is system-only and written only by a definer trigger;
+  it holds what and where, never content. The feed filters it to the person's current
+  scopes and reads items as the person, so RLS decides what's shown, as everywhere else.
 - **Logs:** the new prefixes are redacted and in the secret-scanning patterns; WebSocket query
   strings aren't logged; token-endpoint failures are `oauth_failed` security events.
 

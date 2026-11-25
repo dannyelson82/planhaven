@@ -13,6 +13,7 @@ from app.api import (
     assets,
     attachments,
     auth,
+    changes,
     chores,
     contacts,
     experiments,
@@ -93,6 +94,7 @@ ROUTERS = (
     task_needs.router,
     templates.router,
     trash.router,
+    changes.router,
     spa.router,  # last: catches every path the API didn't
 )
 

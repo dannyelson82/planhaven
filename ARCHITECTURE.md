@@ -661,6 +661,25 @@ One web app serves both; there is no separate mobile site. Layout adapts with CS
   SECURITY.md §7.10); no inline styles.
 - Tested in CI at phone (390 px) and desktop (1280 px) widths once end-to-end tests exist.
 
+
+### 13.6 Offline copy for the iPhone app (ADR 0021)
+
+- Triggers on synced tables (projects, tasks, lists and items, notes, files, quotes, costs,
+  assets with readings, schedules and records, contacts, and the three membership tables)
+  write one row per change to `changes`: kind, id, upsert or delete (soft deletes are
+  deletes), and the project, asset or contact it belongs to; membership rows become
+  `access_gained` / `access_lost` for that person. No content.
+- `GET /api/v1/changes/snapshot` pages through everything the person can see (or one scope),
+  by kind then id; its first page carries the feed cursor. `GET /api/v1/changes?cursor=`
+  returns later changes, at most 200 a page; an upsert carries the item's current fields,
+  read as the person (RLS), and the last change to an item in a page wins.
+- Order is by writing transaction (`xid8`) and only transactions older than every running one
+  are returned, so a slow transaction can't slip in behind a cursor.
+- Entries are kept 30 days (housekeeping); an older cursor gets 410 and the app takes a new
+  snapshot. Edits from the offline copy use the usual `If-Match` + base merge.
+- Not synced yet: file contents (downloaded when opened), messages, chores of projects you
+  aren't a member of.
+
 ---
 
 ## 14. Plugin system
