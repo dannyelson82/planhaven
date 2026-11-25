@@ -552,6 +552,7 @@ Tool names use a `planhaven_` prefix. Every tool declares MCP annotations.
 |---|---|---|
 | `planhaven_list_projects` | read | readOnly |
 | `planhaven_get_project` | read | readOnly |
+| `planhaven_get_note`, `planhaven_get_task` | read | readOnly |
 | `planhaven_search` | read | readOnly |
 | `planhaven_create_project` | write | not destructive |
 | `planhaven_update_project` | write | not destructive |
@@ -559,6 +560,11 @@ Tool names use a `planhaven_` prefix. Every tool declares MCP annotations.
 | `planhaven_add_tasks` | write | not destructive |
 | `planhaven_add_list_items` | write | not destructive |
 | `planhaven_complete_task` | write | not destructive, idempotent |
+
+`planhaven_get_project` shows long note texts and task notes as previews (2,000 characters)
+and marks them (`text_truncated` / `notes_truncated`, with the full length), never cutting
+silently; `planhaven_get_note` and `planhaven_get_task` return them in full. AI apps write task
+notes up to 20,000 characters and list item notes up to 4,000, as the web app does.
 
 **Edit, delete and share tools (ADR 0020):** with the same `projects:write` scope, a
 connection can edit and delete anything inside its person's projects: projects, tasks (and

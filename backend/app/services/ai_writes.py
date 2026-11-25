@@ -383,7 +383,7 @@ def _task_fields(t: dict[str, Any]) -> dict[str, Any]:
         raise ToolError("Each task has a 'title'.")
     return {
         "title": text_arg(t, "title", 300),
-        "notes": text_arg(t, "notes", 5000, required=False),
+        "notes": text_arg(t, "notes", 20000, required=False),
         "due_date": date_arg(t, "due_date") if t.get("due_date") else "",
     }
 
@@ -499,7 +499,7 @@ async def _plan_update_task(db: Database, s: CurrentSession, args: dict[str, Any
     if args.get("title") is not None:
         change["title"] = text_arg(args, "title", 300)
     if args.get("notes") is not None:
-        change["notes"] = text_arg(args, "notes", 5000, required=False)
+        change["notes"] = text_arg(args, "notes", 20000, required=False)
     if "due_date" in args:
         change["due_date"] = date_arg(args, "due_date") if args["due_date"] else None
     if args.get("done") is not None:
@@ -685,7 +685,7 @@ async def _plan_update_item(db: Database, s: CurrentSession, args: dict[str, Any
     if "quantity" in args:
         change["quantity"] = _item_fields({"text": "-", "quantity": args["quantity"]})["quantity"]
     if args.get("notes") is not None:
-        change["notes"] = text_arg(args, "notes", 5000, required=False)
+        change["notes"] = text_arg(args, "notes", 4000, required=False)
     if args.get("done") is not None:
         change["checked"] = bool_arg(args, "done")
     _need_some(change, "text, quantity, notes, done")

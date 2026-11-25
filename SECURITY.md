@@ -604,8 +604,9 @@ Cross-Origin-Resource-Policy: same-origin
   refused (DNS rebinding); the key principal is limited to `mcp_read`/`mcp_write` in
   `authz.require`, and every tool runs as the person (`authz.require` + RLS), so an app never
   sees or changes more than the person could. `local_ai_only` projects are invisible.
-- **Tools:** read (list, get, keyword search, contacts, assets, people by name) and add,
-  change and delete project content (ADR 0020); deletes go to the Trash and are undoable;
+- **Tools:** read (list, get a project, a note or a task, keyword search, contacts, assets,
+  people by name; long texts are shown as marked previews in a project and in full one at a
+  time) and add, change and delete project content (ADR 0020); deletes go to the Trash and are undoable;
   household members as editors or viewers only, never owners or the person's own access; no
   share-link, permanent-delete, Trash, account, admin or file-download tools. Output labels
   project text as the person's content, not instructions. Write tools are refused on a

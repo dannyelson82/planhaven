@@ -20,6 +20,18 @@ export type Release = { version: string; date: string; items: Item[] }
 
 export const RELEASES: Release[] = [
   {
+    version: '0.5.3',
+    date: '2026-11-25',
+    items: [
+      {
+        title: 'AI apps read long notes in full',
+        text: 'Claude and other AI apps no longer stop reading a note or a task\'s notes after the first few thousand characters. They see the start of every long text in a project and open the whole of the ones they need.',
+        action: 'ai',
+        guide: 'ai-apps',
+      },
+    ],
+  },
+  {
     version: '0.5.0',
     date: '2026-11-24',
     items: [

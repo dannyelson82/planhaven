@@ -69,6 +69,20 @@ def _num(value: Decimal | None) -> str | None:
 
 # ---------------------------------------------------------------- reading
 
+# How much of each long text planhaven_get_project shows; the rest is read with
+# planhaven_get_note / planhaven_get_task. A shortened text is always marked, never silent.
+NOTE_PREVIEW = 2000
+TASK_NOTES_PREVIEW = 2000
+SHORT_PREVIEW = 1000
+
+
+def _shortened(key: str, value: str, limit: int) -> dict[str, Any]:
+    """`{key: value}`, or its first `limit` characters with `<key>_truncated` and
+    `<key>_length` when it's longer."""
+    if len(value) <= limit:
+        return {key: value}
+    return {key: value[:limit], f"{key}_truncated": True, f"{key}_length": len(value)}
+
 
 async def list_projects(
     db: Database, session: CurrentSession, stage: str | None
@@ -108,7 +122,7 @@ async def get_project(
                         "id": str(i.id),
                         "text": i.text,
                         "quantity": _num(i.quantity),
-                        "notes": i.notes[:1000],
+                        **_shortened("notes", i.notes, SHORT_PREVIEW),
                         "done": i.checked_at is not None,
                     }
                     for i in items[:200]
@@ -126,7 +140,7 @@ async def get_project(
                     "id": str(note.id),
                     "title": note.title,
                     "archived": archived,
-                    "text": content.to_markdown(document)[:5000],
+                    **_shortened("text", content.to_markdown(document), NOTE_PREVIEW),
                 }
             )
     files = await attachments_for_project(db, session, project_id)
@@ -146,7 +160,7 @@ async def get_project(
             {
                 "id": str(t.id),
                 "title": t.title,
-                "notes": t.notes[:2000],
+                **_shortened("notes", t.notes, TASK_NOTES_PREVIEW),
                 "due": t.due_at.isoformat() if t.due_at else None,
                 "done": t.done_at is not None,
             }
@@ -163,7 +177,7 @@ async def get_project(
                 "status": q.status,
                 "contact_id": str(q.contact_id) if q.contact_id else None,
                 "contact": q.contact_name,
-                "notes": q.notes[:1000],
+                **_shortened("notes", q.notes, SHORT_PREVIEW),
             }
             for q in quotes[:100]
         ],
@@ -232,6 +246,41 @@ async def list_assets(db: Database, session: CurrentSession) -> dict[str, Any]:
     }
 
 
+async def get_note(db: Database, session: CurrentSession, note_id: uuid.UUID) -> dict[str, Any]:
+    """One note's whole text (planhaven_get_project shows a preview of long ones)."""
+    note, _, document = await note_service.get_note(db, session, note_id)
+    await project(db, session, note.project_id)  # never a local_ai_only project's
+    return {
+        "about_the_content": UNTRUSTED,
+        "note": {
+            "id": str(note.id),
+            "project_id": str(note.project_id),
+            "title": note.title,
+            "archived": note.archived_at is not None,
+            "text": content.to_markdown(document),
+            "updated_at": note.updated_at.isoformat(),
+        },
+    }
+
+
+async def get_task(db: Database, session: CurrentSession, task_id: uuid.UUID) -> dict[str, Any]:
+    """One task with its whole notes."""
+    task = await project_service.get_task(db, session, task_id)
+    await project(db, session, task.project_id)
+    return {
+        "about_the_content": UNTRUSTED,
+        "task": {
+            "id": str(task.id),
+            "project_id": str(task.project_id),
+            "title": task.title,
+            "notes": task.notes,
+            "due": task.due_at.isoformat() if task.due_at else None,
+            "done": task.done_at is not None,
+            "updated_at": task.updated_at.isoformat(),
+        },
+    }
+
+
 async def get_asset(db: Database, session: CurrentSession, asset_id: uuid.UUID) -> dict[str, Any]:
     asset, linked = await asset_svc.get_asset(db, session, asset_id)
     view = await asset_service.view(db, session, asset_id)
@@ -243,7 +292,7 @@ async def get_asset(db: Database, session: CurrentSession, asset_id: uuid.UUID) 
             "name": asset.name,
             "kind": asset.kind,
             "details": asset.details,
-            "notes": asset.notes[:5000],
+            "notes": asset.notes,
             "your_role": asset.role,
         },
         "projects": [

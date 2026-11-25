@@ -370,3 +370,68 @@ def test_local_ai_only_cannot_be_changed_or_deleted(team: Team) -> None:
     assert _err(owner, t, "planhaven_update_task", task_id=task_id, title="y")["code"] == (
         "not_found"
     )
+
+
+def test_long_texts_are_marked_and_read_in_full(
+    team: Team, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.services import ai_tools
+
+    # The test client takes 1 KB bodies, so the previews are made small to match.
+    monkeypatch.setattr(ai_tools, "NOTE_PREVIEW", 100)
+    monkeypatch.setattr(ai_tools, "TASK_NOTES_PREVIEW", 100)
+    owner, _, stranger, pid, _ = team
+    t = _connect(owner, mode="apply")["access_token"]
+    long_note = "\n\n".join(f"Part {i}: " + "x" * 40 for i in range(12))
+    note_id = _ok(owner, t, "planhaven_add_note", project_id=pid, title="Guide", text=long_note)[
+        "note_id"
+    ]
+    long_notes = "y" * 500
+    task_id = _ok(
+        owner,
+        t,
+        "planhaven_add_tasks",
+        project_id=pid,
+        tasks=[{"title": "Big", "notes": long_notes}],
+    )["task_ids"][0]
+
+    p = _project(owner, t, pid)
+    note = next(n for n in p["notes"] if n["id"] == note_id)
+    assert note["text_truncated"] is True
+    assert note["text_length"] > 500
+    assert len(note["text"]) == 100
+    task = next(x for x in p["tasks"] if x["id"] == task_id)
+    assert task["notes_truncated"] is True
+    assert task["notes_length"] == 500
+    short = next(x for x in p["notes"] if x["id"] != note_id)
+    assert "text_truncated" not in short  # short texts aren't marked
+
+    full = _ok(owner, t, "planhaven_get_note", note_id=note_id)["note"]
+    assert full["text"].count("Part") == 12
+    assert full["text"].rstrip().endswith("x" * 40)
+    assert _ok(owner, t, "planhaven_get_task", task_id=task_id)["task"]["notes"] == long_notes
+
+    # Only what the person may see, never local_ai_only projects.
+    t2 = _connect(stranger, mode="apply")["access_token"]
+    assert _err(stranger, t2, "planhaven_get_note", note_id=note_id)["code"] == "not_found"
+    owner._cookie()
+    version = owner.client.get(f"/api/v1/projects/{pid}").json()["version"]
+    owner.client.patch(
+        f"/api/v1/projects/{pid}",
+        headers={**owner.h, "if-match": f'"{version}"'},
+        json={"local_ai_only": True},
+    )
+    assert _err(owner, t, "planhaven_get_note", note_id=note_id)["code"] == "not_found"
+    assert _err(owner, t, "planhaven_get_task", task_id=task_id)["code"] == "not_found"
+
+
+def test_write_limits_match_the_web_app() -> None:
+    """Task notes take 20,000 characters (like the web app), list item notes 4,000."""
+    from app.services import mcp
+
+    tools = {tool["name"]: tool["inputSchema"]["properties"] for tool in mcp.TOOLS}
+    assert tools["planhaven_update_task"]["notes"]["maxLength"] == 20000
+    assert tools["planhaven_add_tasks"]["tasks"]["items"]["properties"]["notes"]["maxLength"] == (
+        20000
+    )
+    assert tools["planhaven_update_list_item"]["notes"]["maxLength"] == 4000
